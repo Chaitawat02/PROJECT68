@@ -12,17 +12,26 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECURITY SETTINGS
 # =====================================================================
 
-SECRET_KEY = 'django-insecure-qd+n9(-*!z45t_9@)@460^jzuzz=qm7!mw#k35d(=z09kc4v5('
+# อ่านค่า SECRET_KEY จาก Environment (ต้องตั้งค่าในโฮสต์)
+SECRET_KEY = os.environ.get(
+    'DJANGO_SECRET_KEY',
+    'dev-insecure-key-change-in-production',
+)
 
-# ✅ ปิด Debug สำหรับ Production
-DEBUG = False
+# DEBUG: ใช้ค่า Environment ถ้าไม่ตั้งจะเป็น False (เหมาะกับ Production)
+DEBUG = os.environ.get('DJANGO_DEBUG', 'False').lower() == 'true'
 
-# ✅ อนุญาตโดเมนของ Render + เครื่องตัวเอง (localhost)
-ALLOWED_HOSTS = ['.onrender.com', 'localhost', '127.0.0.1']
+# ✅ โฮสต์ที่อนุญาต: แยกด้วยจุลภาคใน ENV เช่น "myapp.onrender.com,localhost,127.0.0.1"
+ALLOWED_HOSTS = [h.strip() for h in os.environ.get(
+    'DJANGO_ALLOWED_HOSTS',
+    '.onrender.com,localhost,127.0.0.1',
+).split(',') if h.strip()]
 
-CSRF_TRUSTED_ORIGINS = [
+# ✅ โดเมนที่ไว้ใจสำหรับ CSRF (Render + เพิ่มเองได้ใน ENV)
+CSRF_TRUSTED_ORIGINS = [o.strip() for o in os.environ.get(
+    'DJANGO_CSRF_TRUSTED_ORIGINS',
     'https://*.onrender.com',
-]
+).split(',') if o.strip()]
 
 # =====================================================================
 # APPLICATION DEFINITION
