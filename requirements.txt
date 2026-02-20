@@ -1,0 +1,11 @@
+asgiref==3.11.0
+colorama==0.4.6
+Django==6.0.1
+gunicorn==25.1.0
+mysqlclient==2.2.7
+packaging==26.0
+pillow==12.1.0
+PyMySQL==1.1.2
+qrcode==8.2
+sqlparse==0.5.5
+tzdata==2025.3
