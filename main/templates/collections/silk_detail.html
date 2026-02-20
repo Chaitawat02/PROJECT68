@@ -37,7 +37,7 @@
                              alt="{{ silk.Si_name }}">
                         <div class="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/50 to-transparent lg:hidden"></div>
                     {% elif silk.target_index != None %}
-                        {% with 'main/images/test'|add:(silk.target_index|stringformat:"d")|add:'.jpg' as fallback_path %}
+                        {% with idx_str=silk.target_index|stringformat:"d" fallback_path='main/images/test'|add:idx_str|add:'.jpg' %}
                             <img src="{% static fallback_path %}" 
                                  class="absolute inset-0 w-full h-full object-cover" 
                                  alt="{{ silk.Si_name }}">
