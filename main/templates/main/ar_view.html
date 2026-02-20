@@ -101,13 +101,13 @@
       position: relative;
     }
 
-    /* [FIX] บังคับให้ Video แสดงผลและอยู่ถูก Layer */
+    /* [FIX] บังคับให้ Video แสดงผลและอยู่ถูก Layer (mirror by default) */
     #ar-root video {
       position: absolute !important;
       top: 0 !important; left: 0 !important;
       width: 100% !important; height: 100% !important;
       object-fit: cover !important;
-      transform: scaleX(-1) !important; /* Mirror Effect */
+      transform: scaleX(-1) !important; /* Mirror Effect for front camera */
       
       /* Layering */
       z-index: 1 !important; 
@@ -127,6 +127,12 @@
       
       z-index: 10 !important; /* เหนือ Video */
       pointer-events: none;
+    }
+
+    /* When using back camera, cancel mirror effect */
+    body.no-mirror #ar-root video,
+    body.no-mirror #ar-root canvas {
+      transform: scaleX(1) !important;
     }
 
     /* Status Pill */
@@ -275,37 +281,43 @@
     }
 
     @media (max-width: 900px) {
-      body { align-items: flex-start; background: #000; }
+      /* Mobile: แยกกล้องกับแผงข้อมูล ไม่ให้ทับกัน */
+      body {
+        align-items: flex-start;
+        background: #000;
+        overflow-y: auto;
+      }
       
       .main-grid {
         display: block;
-        width: 100%; height: 100%;
-        margin: 0; border-radius: 0;
+        width: 100%;
+        height: auto;
+        margin: 0;
+        border-radius: 0;
       }
 
       .mirror-container {
-        width: 100%; height: 100%;
+        width: 100%;
+        height: 72vh;
         border-radius: 0;
         border: none;
         box-shadow: none;
-        background: #000; /* Mobile often needs black bg for aspect ratio gaps */
+        background: #000; /* พื้นหลังรองเมื่อกล้องยังไม่พร้อม */
       }
       .mirror-container::after { display: none; }
       
       .info-panel {
-        position: fixed;
-        bottom: 0; left: 0; right: 0;
+        position: relative;
+        bottom: auto; left: auto; right: auto;
         height: auto;
-        min-height: 250px;
-        border-radius: 25px 25px 0 0;
-        padding: 25px;
-        background: rgba(255, 255, 255, 0.95);
+        min-height: 220px;
+        border-radius: 0 0 25px 25px;
+        padding: 24px;
+        background: rgba(255, 255, 255, 0.97);
         justify-content: flex-start;
         align-items: flex-start;
-        z-index: 100;
-        animation: slideUp 0.5s ease-out;
+        z-index: 1;
       }
-      @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
 
       .brand-header { display: none; }
       
@@ -329,8 +341,10 @@
       .product-details p { font-size: 0.9rem; margin: 0; max-width: 100%; }
 
       .btn-refresh {
-        position: absolute; top: 25px; right: 25px;
-        padding: 8px 15px; font-size: 0.7rem; margin: 0;
+        position: static;
+        margin-top: 12px;
+        padding: 8px 18px;
+        font-size: 0.75rem;
       }
     }
   </style>
@@ -396,6 +410,10 @@
       <button class="btn-refresh" onclick="window.location.reload()">
         Reset Camera
       </button>
+
+      <button class="btn-refresh" style="margin-top: 10px;" onclick="toggleCamera()">
+        Switch Front / Back
+      </button>
     </div>
 
   </div>
@@ -431,6 +449,15 @@
          status.style.color = "#ff6b6b";
        }
     };
+
+    // 3. Toggle front/back camera by reloading with query param
+    function toggleCamera() {
+      const url = new URL(window.location.href);
+      const current = url.searchParams.get('cam');
+      const next = (current === 'user' || current === 'front') ? 'environment' : 'user';
+      url.searchParams.set('cam', next);
+      window.location.href = url.toString();
+    }
   </script>
 
 </body>

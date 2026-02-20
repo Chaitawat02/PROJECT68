@@ -21,6 +21,7 @@ from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout, get_user_model
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.db import transaction, IntegrityError
+from django.db.utils import OperationalError
 from django.db.models import Q
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
@@ -78,6 +79,22 @@ def _generate_qr_data_uri(text: str) -> str:
     qr.save(buf, format='PNG')
     data = base64.b64encode(buf.getvalue()).decode('ascii')
     return f"data:image/png;base64,{data}"
+
+
+def _get_latest_ar_items(request, limit: int = 4):
+    """ดึง ARAsset ล่าสุดแบบปลอดภัย (กันกรณีตารางยังไม่ถูกสร้างใน DB จริง).
+
+    ถ้าเกิด OperationalError เช่น "no such table: main_arasset" จะคืนลิสต์ว่าง
+    แทนที่จะทำให้หน้าแรกล่มบนโฮสต์จริงที่ยังไม่ได้รัน migrate.
+    """
+    try:
+        items = list(ARAsset.objects.order_by('-updated_at')[:limit])
+    except OperationalError:
+        return []
+
+    for item in items:
+        item.scene_link = _scene_viewer_link(request, item)
+    return items
 
 # =====================================================================
 # PERMISSION HELPERS
@@ -379,12 +396,7 @@ def reset_password_view(request, token=None):
 # =====================================================================
 def home_view(request):
     """หน้าแรก"""
-    ar_items = list(
-        ARAsset.objects.order_by('-updated_at')[:4]
-    )
-
-    for item in ar_items:
-        item.scene_link = _scene_viewer_link(request, item)
+    ar_items = _get_latest_ar_items(request, limit=4)
 
     museum = MuseumProfile.objects.first()
 
@@ -397,7 +409,7 @@ def home_view(request):
 def about_view(request):
     """หน้าเกี่ยวกับพิพิธภัณฑ์"""
     museum = MuseumProfile.objects.first()
-    ar_items = ARAsset.objects.order_by('-updated_at')[:4]
+    ar_items = _get_latest_ar_items(request, limit=4)
 
     return render(request, 'museum/about.html', {
         'museum': museum,

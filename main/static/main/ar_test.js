@@ -37,18 +37,31 @@ document.addEventListener("DOMContentLoaded", async () => {
     const container = document.querySelector("#ar-root");
     const modelBase = container.getAttribute("data-model-base") || "/static/main/models/";
 
-    // 3. Initialize MindAR
+    // 3. Camera mode (front/back) from URL
+    const params = new URLSearchParams(window.location.search);
+    const camParam = params.get("cam");
+    const facingMode = (camParam === "user" || camParam === "front") ? "user" : "environment";
+
+    // Mirror only for front camera (remove mirroring on back camera)
+    if (facingMode === "environment") {
+        document.body.classList.add("no-mirror");
+    }
+
+    // 4. Initialize MindAR with chosen camera
     const mindarThree = new MindARThree({
         container: container,
         imageTargetSrc: targetsUrl,
         maxTrack: 1, // Track 1 image at a time for performance
         filterMinCF: 0.0001, // Reduce jitter
         filterBeta: 0.001,
+        videoSettings: {
+            facingMode: { ideal: facingMode },
+        },
     });
 
     const { renderer, scene, camera } = mindarThree;
 
-    // 4. Lighting Setup (Optimized for Silk)
+    // 5. Lighting Setup (Optimized for Silk)
     renderer.outputEncoding = THREE.sRGBEncoding;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.2;
@@ -64,7 +77,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     backLight.position.set(-5, 5, -5);
     scene.add(backLight);
 
-    // 5. Setup Anchors & Models
+    // 6. Setup Anchors & Models
     // Loop through data and set up anchors immediately
     patternsData.forEach((pattern, index) => {
         const anchor = mindarThree.addAnchor(index);
@@ -172,7 +185,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         };
     });
 
-    // 6. Start AR Engine
+    // 7. Start AR Engine
     try {
         await mindarThree.start();
         
