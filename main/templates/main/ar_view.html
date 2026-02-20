@@ -1,0 +1,437 @@
+{% load static %}
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Smart Silk Mirror - Virtual Fitting</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=Prompt:wght@300;400;500&display=swap" rel="stylesheet">
+
+  <style>
+    /* ===== THEME VARIABLES ===== */
+    :root {
+      --gold-primary: #D4AF37;
+      --gold-soft: #F3E5AB;
+      --navy-deep: #1B2631;
+      --text-dark: #2C3E50;
+      --text-light: #7F8C8D;
+      --bg-color: #FAFAFA;
+      --glass-panel: rgba(255, 255, 255, 0.9);
+      --glass-border: rgba(255, 255, 255, 0.5);
+      --shadow-soft: 0 10px 40px rgba(0,0,0,0.08);
+      --radius-large: 24px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0; padding: 0;
+      width: 100vw; height: 100vh;
+      background-color: var(--bg-color);
+      background-image: radial-gradient(#e0e0e0 1px, transparent 1px);
+      background-size: 20px 20px;
+      font-family: 'Prompt', sans-serif;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    /* ===== LOADING SCREEN ===== */
+    #app-loader {
+      position: fixed; inset: 0;
+      background: #fff;
+      z-index: 9999;
+      display: flex; flex-direction: column;
+      justify-content: center; align-items: center;
+      transition: opacity 0.5s ease;
+    }
+    .loader-spinner {
+      width: 50px; height: 50px;
+      border: 3px solid rgba(212, 175, 55, 0.3);
+      border-radius: 50%;
+      border-top-color: var(--gold-primary);
+      animation: spin 1s ease-in-out infinite;
+      margin-bottom: 20px;
+    }
+    .loader-text {
+      font-family: 'Cormorant Garamond', serif;
+      color: var(--navy-deep);
+      font-size: 1.5rem;
+      letter-spacing: 2px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ===== MAIN LAYOUT ===== */
+    .main-grid {
+      width: 95%; max-width: 1600px;
+      height: 90vh;
+      display: grid;
+      grid-template-columns: 1.5fr 1fr;
+      gap: 30px;
+    }
+
+    /* ===== LEFT: AR MIRROR (FIXED) ===== */
+    .mirror-container {
+      position: relative;
+      /* [FIX] เปลี่ยนจากสีดำเป็นโปร่งใส เพื่อให้เห็นกล้อง */
+      background: transparent; 
+      /* ใส่สีเทาจางๆ ไว้รองหลังเผื่อกล้องมาช้า */
+      background-color: #f0f0f0; 
+      
+      border-radius: var(--radius-large);
+      overflow: hidden;
+      box-shadow: var(--shadow-soft);
+      border: 8px solid #fff;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.15), inset 0 0 60px rgba(0,0,0,0.5);
+    }
+
+    .mirror-container::after {
+      content: ''; position: absolute; inset: 15px;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 18px;
+      pointer-events: none; z-index: 50;
+    }
+
+    /* AR Elements Positioning */
+    #ar-root {
+      width: 100%; height: 100%;
+      position: relative;
+    }
+
+    /* [FIX] บังคับให้ Video แสดงผลและอยู่ถูก Layer */
+    #ar-root video {
+      position: absolute !important;
+      top: 0 !important; left: 0 !important;
+      width: 100% !important; height: 100% !important;
+      object-fit: cover !important;
+      transform: scaleX(-1) !important; /* Mirror Effect */
+      
+      /* Layering */
+      z-index: 1 !important; 
+      
+      /* Visibility Force */
+      display: block !important;
+      opacity: 1 !important;
+      visibility: visible !important;
+    }
+
+    /* [FIX] ให้ Canvas (โมเดล 3D) อยู่ทับบนกล้อง */
+    #ar-root canvas {
+      position: absolute !important; 
+      top: 0 !important; left: 0 !important;
+      width: 100% !important; height: 100% !important;
+      transform: scaleX(-1) !important;
+      
+      z-index: 10 !important; /* เหนือ Video */
+      pointer-events: none;
+    }
+
+    /* Status Pill */
+    .status-pill {
+      position: absolute; top: 30px; left: 30px;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(8px);
+      padding: 8px 16px;
+      border-radius: 50px;
+      display: flex; align-items: center; gap: 8px;
+      z-index: 60;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    .status-dot {
+      width: 8px; height: 8px;
+      background-color: #2ecc71;
+      border-radius: 50%;
+      box-shadow: 0 0 10px #2ecc71;
+    }
+    .status-text { color: #fff; font-size: 0.8rem; font-weight: 300; }
+
+    /* ===== RIGHT: INFO PANEL ===== */
+    .info-panel {
+      background: var(--glass-panel);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-radius: var(--radius-large);
+      border: 1px solid #fff;
+      padding: 60px 40px;
+      display: flex; flex-direction: column;
+      align-items: center;
+      text-align: center;
+      box-shadow: var(--shadow-soft);
+      position: relative;
+    }
+
+    .brand-header { margin-bottom: 40px; }
+    .brand-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 3rem;
+      margin: 0;
+      color: var(--navy-deep);
+      line-height: 1;
+    }
+    .brand-sub {
+      color: var(--gold-primary);
+      text-transform: uppercase;
+      letter-spacing: 4px;
+      font-size: 0.85rem;
+      margin-top: 10px;
+      font-weight: 600;
+    }
+
+    .product-showcase {
+      flex: 1;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      width: 100%;
+    }
+
+    .swatch-wrapper {
+      position: relative;
+      width: 260px; height: 260px;
+      margin-bottom: 30px;
+    }
+    .swatch-img {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      border-radius: 4px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+      border: 6px solid #fff;
+      transform: rotate(-3deg);
+      transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .swatch-wrapper:hover .swatch-img { transform: rotate(0deg) scale(1.05); }
+
+    .product-details h2 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 2.5rem;
+      color: var(--navy-deep);
+      margin: 0 0 10px 0;
+    }
+    .product-details p {
+      color: var(--text-light);
+      line-height: 1.6;
+      font-weight: 300;
+      max-width: 80%;
+      margin: 0 auto;
+    }
+
+    /* รายการรายละเอียดลายผ้าหลังสแกน AR */
+    .meta-list {
+      max-width: 90%;
+      margin: 0 auto;
+      color: var(--text-dark);
+    }
+    .meta-row {
+      display: flex;
+      flex-wrap: wrap;
+      margin-bottom: 4px;
+      font-size: 0.9rem;
+    }
+    .meta-label {
+      font-weight: 600;
+      margin-right: 6px;
+      color: var(--text-light);
+      white-space: nowrap;
+    }
+    .meta-value {
+      flex: 1 1 auto;
+    }
+    .meta-block {
+      margin-top: 8px;
+      font-size: 0.9rem;
+    }
+    .meta-block p {
+      margin-top: 4px;
+      color: var(--text-dark);
+      line-height: 1.5;
+    }
+
+    .btn-refresh {
+      background: transparent;
+      border: 1px solid var(--navy-deep);
+      color: var(--navy-deep);
+      padding: 12px 30px;
+      border-radius: 50px;
+      font-family: 'Prompt', sans-serif;
+      cursor: pointer;
+      transition: all 0.3s;
+      margin-top: auto;
+      text-transform: uppercase;
+      font-size: 0.8rem;
+      letter-spacing: 1px;
+    }
+    .btn-refresh:hover {
+      background: var(--navy-deep);
+      color: #fff;
+      box-shadow: 0 10px 20px rgba(27, 38, 49, 0.2);
+    }
+
+    .mindar-ui-overlay {
+        display: none !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+    }
+
+    @media (max-width: 900px) {
+      body { align-items: flex-start; background: #000; }
+      
+      .main-grid {
+        display: block;
+        width: 100%; height: 100%;
+        margin: 0; border-radius: 0;
+      }
+
+      .mirror-container {
+        width: 100%; height: 100%;
+        border-radius: 0;
+        border: none;
+        box-shadow: none;
+        background: #000; /* Mobile often needs black bg for aspect ratio gaps */
+      }
+      .mirror-container::after { display: none; }
+      
+      .info-panel {
+        position: fixed;
+        bottom: 0; left: 0; right: 0;
+        height: auto;
+        min-height: 250px;
+        border-radius: 25px 25px 0 0;
+        padding: 25px;
+        background: rgba(255, 255, 255, 0.95);
+        justify-content: flex-start;
+        align-items: flex-start;
+        z-index: 100;
+        animation: slideUp 0.5s ease-out;
+      }
+      @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+      .brand-header { display: none; }
+      
+      .product-showcase {
+        flex-direction: row;
+        align-items: center;
+        width: 100%;
+        gap: 20px;
+        justify-content: flex-start;
+      }
+
+      .swatch-wrapper {
+        width: 80px; height: 80px;
+        margin-bottom: 0;
+        flex-shrink: 0;
+      }
+      .swatch-img { border-width: 2px; transform: rotate(0); }
+
+      .product-details { text-align: left; }
+      .product-details h2 { font-size: 1.5rem; margin-bottom: 5px; }
+      .product-details p { font-size: 0.9rem; margin: 0; max-width: 100%; }
+
+      .btn-refresh {
+        position: absolute; top: 25px; right: 25px;
+        padding: 8px 15px; font-size: 0.7rem; margin: 0;
+      }
+    }
+  </style>
+
+  <script async src="https://unpkg.com/es-module-shims@1.7.3/dist/es-module-shims.js"></script>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.147.0/examples/jsm/",
+      "mindar-image-three": "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"
+    }
+  }
+  </script>
+</head>
+
+<body>
+
+  <div id="app-loader">
+    <div class="loader-spinner"></div>
+    <div class="loader-text">SMART SILK</div>
+  </div>
+
+  <div class="main-grid">
+    
+    <div class="mirror-container">
+      <div class="status-pill">
+        <div class="status-dot"></div>
+        <span class="status-text" id="status-text">Ready to Scan</span>
+      </div>
+
+      <div id="ar-root" 
+           data-target-src="{{ target_file_url }}" 
+           data-model-base="{% static 'main/models/' %}">
+      </div>
+    </div>
+
+    <div class="info-panel">
+      <div class="brand-header">
+        <h1 class="brand-title">Smart Silk</h1>
+        <div class="brand-sub">Virtual Fitting Room</div>
+      </div>
+
+      <div class="product-showcase">
+        <div class="swatch-wrapper">
+          <img id="panel-image" class="swatch-img" 
+               src="https://placehold.co/400x400/EEE/999?text=SCAN+FABRIC" 
+               alt="Silk Pattern">
+        </div>
+
+        <div class="product-details">
+          <h2 id="panel-name">กรุณาสแกนลายผ้า</h2>
+          <p id="panel-sub">
+            นำการ์ดลายผ้าไหมมาส่องที่หน้ากระจก<br>เพื่อทดลองทาบลงบนตัวคุณ
+          </p>
+          <!-- รายละเอียดลายผ้าหลังจากสแกน AR -->
+          <div id="panel-meta" class="mt-4 text-sm text-left meta-list hidden">
+            <!-- จะถูกเติมข้อมูลด้วย JavaScript -->
+          </div>
+        </div>
+      </div>
+
+      <button class="btn-refresh" onclick="window.location.reload()">
+        Reset Camera
+      </button>
+    </div>
+
+  </div>
+
+  <script id="patterns-data" type="application/json">
+    {{ patterns_json|safe }}
+  </script>
+
+  <script id="targets-url" type="application/json">
+    "{% if target_file_url %}{{ target_file_url }}{% else %}{% static 'main/targets/targets0.mind' %}{% endif %}"
+  </script>
+
+  <script type="module" src="{% static 'main/ar_test.js' %}?v={% now 'U' %}" onerror="alert('Failed to load Main AR Script')"></script>
+
+  <script>
+    // 1. Hide Loader when camera is likely ready (Timeout fallback)
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        const loader = document.getElementById('app-loader');
+        if(loader) {
+            loader.style.opacity = '0';
+            setTimeout(() => loader.remove(), 500);
+        }
+      }, 4000); 
+    });
+
+    // 2. Global Error Reporting
+    window.onerror = function(msg, url, line) {
+       console.error("Global Error:", msg);
+       const status = document.getElementById('status-text');
+       if(status) {
+         status.textContent = "System Alert";
+         status.style.color = "#ff6b6b";
+       }
+    };
+  </script>
+
+</body>
+</html>

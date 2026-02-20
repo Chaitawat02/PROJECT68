@@ -1,0 +1,199 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block title %}{{ title }} - Survey Editor | Admin Panel{% endblock %}
+
+{% block content %}
+<div class="flex flex-col lg:flex-row gap-8 py-8 fade-in bg-gray-50/50 min-h-screen">
+    
+    <aside class="w-full lg:w-1/4 xl:w-1/5 shrink-0 px-4 lg:px-0">
+        {% include 'admin_panel/admin_dashboard.html' %}
+    </aside>
+
+    <main class="w-full lg:w-3/4 xl:w-4/5 pr-4 lg:pr-8">
+        <div class="flex items-center justify-between mb-8">
+            <div class="flex items-center">
+                <a href="{% url 'manage_questions' %}" class="group flex items-center justify-center w-12 h-12 bg-white border border-gray-200 rounded-2xl shadow-sm text-gray-400 hover:text-amber-600 hover:border-amber-200 transition-all mr-5">
+                    <i class="fas fa-chevron-left group-hover:-translate-x-1 transition-transform"></i>
+                </a>
+                <div>
+                    <nav class="flex text-[10px] text-gray-400 uppercase tracking-widest mb-1">
+                        <span class="hover:text-amber-600">จัดการแบบประเมิน</span>
+                        <i class="fas fa-chevron-right mx-2 text-[8px]"></i>
+                        <span class="text-amber-600 font-bold">แก้ไขหัวข้อประเมิน</span>
+                    </nav>
+                    <h1 class="text-3xl font-black text-gray-800 tracking-tight flex items-center">
+                        {{ title }}
+                    </h1>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100 overflow-hidden mb-12">
+            <div class="h-2 bg-gradient-to-r from-[#8B0000] via-amber-500 to-orange-500 w-full"></div>
+
+            <form method="post" class="p-8 lg:p-12">
+                {% csrf_token %}
+
+                {# ฟอร์ม error รวม (non-field errors) #}
+                {% if form.non_field_errors %}
+                    <div class="mb-6 bg-red-50 border border-red-100 text-red-600 text-sm font-bold px-4 py-3 rounded-2xl">
+                        <ul class="list-disc list-inside space-y-1">
+                            {% for err in form.non_field_errors %}
+                                <li>{{ err }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                {% endif %}
+                
+                <div class="mb-10">
+                    <label for="{{ form.question.id_for_label }}" class="block text-xl font-black text-gray-800 mb-4 flex items-center">
+                        <span class="bg-gradient-to-br from-gray-800 to-black text-white w-10 h-10 rounded-xl flex items-center justify-center text-sm mr-4 shadow-lg shadow-gray-200">Q</span>
+                        หัวข้อการประเมิน
+                    </label>
+                    <div class="relative">
+                        {{ form.question }}
+                        <div class="absolute top-4 right-4 text-gray-300">
+                            <i class="fas fa-poll-h text-2xl"></i>
+                        </div>
+                    </div>
+                    {% if form.question.errors %}
+                        <div class="flex items-center text-red-500 text-xs font-bold mt-3 bg-red-50 p-3 rounded-xl border border-red-100">
+                            <i class="fas fa-exclamation-circle mr-2 text-sm"></i>{{ form.question.errors.0 }}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div class="flex items-center gap-4 my-10">
+                    <div class="h-[1px] bg-gray-100 flex-grow"></div>
+                    <span class="text-gray-300 uppercase text-[10px] font-black tracking-[0.2em]">Options Configuration</span>
+                    <div class="h-[1px] bg-gray-100 flex-grow"></div>
+                </div>
+
+                <h3 class="text-sm font-black text-gray-400 uppercase tracking-widest mb-6 flex items-center">
+                    <i class="fas fa-list-ul text-amber-600 mr-3"></i> กำหนดตัวเลือกคำตอบ (Scale)
+                </h3>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+                    <div class="relative group">
+                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none z-10">
+                            <span class="w-8 h-8 flex items-center justify-center text-amber-600 font-black bg-amber-50 rounded-lg border border-amber-100 group-focus-within:bg-amber-600 group-focus-within:text-white transition-all duration-300">A</span>
+                        </div>
+                        {{ form.option_a }}
+                        {% if form.option_a.errors %}
+                            <div class="flex items-center text-red-500 text-xs font-bold mt-2 bg-red-50 p-2 rounded-xl border border-red-100">
+                                <i class="fas fa-exclamation-circle mr-2 text-sm"></i>{{ form.option_a.errors.0 }}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="relative group">
+                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none z-10">
+                            <span class="w-8 h-8 flex items-center justify-center text-blue-600 font-black bg-blue-50 rounded-lg border border-blue-100 group-focus-within:bg-blue-600 group-focus-within:text-white transition-all duration-300">B</span>
+                        </div>
+                        {{ form.option_b }}
+                        {% if form.option_b.errors %}
+                            <div class="flex items-center text-red-500 text-xs font-bold mt-2 bg-red-50 p-2 rounded-xl border border-red-100">
+                                <i class="fas fa-exclamation-circle mr-2 text-sm"></i>{{ form.option_b.errors.0 }}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="relative group">
+                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none z-10">
+                            <span class="w-8 h-8 flex items-center justify-center text-green-600 font-black bg-green-50 rounded-lg border border-green-100 group-focus-within:bg-green-600 group-focus-within:text-white transition-all duration-300">C</span>
+                        </div>
+                        {{ form.option_c }}
+                        {% if form.option_c.errors %}
+                            <div class="flex items-center text-red-500 text-xs font-bold mt-2 bg-red-50 p-2 rounded-xl border border-red-100">
+                                <i class="fas fa-exclamation-circle mr-2 text-sm"></i>{{ form.option_c.errors.0 }}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="relative group">
+                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none z-10">
+                            <span class="w-8 h-8 flex items-center justify-center text-purple-600 font-black bg-purple-50 rounded-lg border border-purple-100 group-focus-within:bg-purple-600 group-focus-within:text-white transition-all duration-300">D</span>
+                        </div>
+                        {{ form.option_d }}
+                        {% if form.option_d.errors %}
+                            <div class="flex items-center text-red-500 text-xs font-bold mt-2 bg-red-50 p-2 rounded-xl border border-red-100">
+                                <i class="fas fa-exclamation-circle mr-2 text-sm"></i>{{ form.option_d.errors.0 }}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="relative group">
+                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none z-10">
+                            <span class="w-8 h-8 flex items-center justify-center text-pink-600 font-black bg-pink-50 rounded-lg border border-pink-100 group-focus-within:bg-pink-600 group-focus-within:text-white transition-all duration-300">E</span>
+                        </div>
+                        {{ form.option_e }}
+                        {% if form.option_e.errors %}
+                            <div class="flex items-center text-red-500 text-xs font-bold mt-2 bg-red-50 p-2 rounded-xl border border-red-100">
+                                <i class="fas fa-exclamation-circle mr-2 text-sm"></i>{{ form.option_e.errors.0 }}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="flex flex-col sm:flex-row items-center justify-between pt-8 border-t border-gray-50 gap-6">
+                    <div class="flex items-center px-5 py-3 rounded-2xl bg-gray-50 border border-gray-200 hover:border-amber-300 transition-colors cursor-pointer group">
+                        <div class="relative flex items-center">
+                            {{ form.is_active }}
+                            <label for="{{ form.is_active.id_for_label }}" class="ml-3 text-sm font-bold text-gray-600 group-hover:text-amber-800 cursor-pointer select-none">
+                                เปิดให้ใช้งานหัวข้อนี้ (Active)
+                            </label>
+                        </div>
+                        {% if form.is_active.errors %}
+                            <div class="flex items-center text-red-500 text-xs font-bold mt-2 bg-red-50 p-2 rounded-xl border border-red-100">
+                                <i class="fas fa-exclamation-circle mr-2 text-sm"></i>{{ form.is_active.errors.0 }}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="flex items-center gap-4 w-full sm:w-auto">
+                        <a href="{% url 'manage_questions' %}" class="flex-1 sm:flex-none text-center px-8 py-4 rounded-2xl text-gray-400 font-bold hover:bg-gray-100 transition-all">
+                            ยกเลิก
+                        </a>
+                        <button type="submit" class="flex-1 sm:flex-none flex justify-center items-center gap-3 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-[#8B0000] hover:to-[#5e0000] text-white px-10 py-4 rounded-2xl shadow-xl shadow-amber-200 hover:shadow-red-200 transform hover:-translate-y-1 active:scale-95 transition-all font-black text-lg">
+                            <i class="fas fa-save"></i> บันทึกข้อมูล
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </main>
+</div>
+
+<style>
+    textarea, input[type="text"], select {
+        width: 100% !important;
+        border-radius: 1.25rem !important;
+        border: 1px solid #f3f4f6 !important;
+        padding: 1rem 1.5rem !important;
+        background-color: #ffffff !important;
+        transition: all 0.3s ease !important;
+        font-weight: 500 !important;
+        color: #1f2937 !important;
+    }
+    textarea:focus, input[type="text"]:focus, select:focus {
+        outline: none !important;
+        border-color: #fbbf24 !important;
+        box-shadow: 0 10px 15px -3px rgba(251, 191, 36, 0.1) !important;
+    }
+    input[name^="option_"] {
+        padding-left: 3.8rem !important;
+    }
+    input[type="checkbox"] {
+        width: 1.25rem !important;
+        height: 1.25rem !important;
+        accent-color: #d97706;
+        cursor: pointer;
+    }
+    .fade-in { animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(15px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+</style>
+{% endblock %}

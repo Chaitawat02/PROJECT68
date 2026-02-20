@@ -1,0 +1,116 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block title %}แก้ไขข้อมูลวิทยากร - {{ speaker.name }}{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-[#fcf9f5] py-12 px-4">
+    <div class="max-w-3xl mx-auto">
+        
+        <div class="mb-8 flex items-center gap-4">
+            <a href="{% url 'speaker_dashboard' %}" class="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-gray-400 hover:text-amber-900 shadow-sm transition-all">
+                <i class="fas fa-chevron-left"></i>
+            </a>
+            <div>
+                <h2 class="text-3xl font-black text-gray-900 tracking-tight">แก้ไขข้อมูลวิทยากร</h2>
+                <p class="text-amber-700 font-medium">จัดการข้อมูลส่วนตัวของคุณเพื่อแสดงบนระบบ</p>
+            </div>
+        </div>
+
+        <form method="POST" enctype="multipart/form-data" class="space-y-8">
+            {% csrf_token %}
+            
+            <div class="bg-white rounded-[3rem] p-8 md:p-12 shadow-xl shadow-amber-900/5 border border-gray-100 relative overflow-hidden">
+                <div class="absolute top-0 right-0 w-32 h-32 bg-amber-50 rounded-full -mr-16 -mt-16 opacity-50"></div>
+                
+                <div class="relative z-10 space-y-8">
+                    
+                    <div class="flex flex-col items-center pb-8 border-b border-gray-50">
+                        <div class="relative group">
+                            <div class="w-40 h-40 rounded-[2.5rem] overflow-hidden bg-gray-100 ring-4 ring-amber-50 shadow-inner">
+                                {% if speaker.profile_picture %}
+                                    <img id="preview-img" src="{{ speaker.profile_picture.url }}" class="w-full h-full object-cover">
+                                {% else %}
+                                    <div id="placeholder-icon" class="w-full h-full flex items-center justify-center text-amber-200 bg-amber-50">
+                                        <i class="fas fa-user-tie text-6xl"></i>
+                                    </div>
+                                    <img id="preview-img" class="w-full h-full object-cover hidden">
+                                {% endif %}
+                            </div>
+                            <label for="profile_picture" class="absolute -bottom-2 -right-2 w-12 h-12 bg-amber-900 text-white rounded-2xl flex items-center justify-center cursor-pointer hover:bg-black transition-all shadow-lg active:scale-90">
+                                <i class="fas fa-camera"></i>
+                                <input type="file" name="profile_picture" id="profile_picture" class="hidden" accept="image/*" onchange="previewImage(this)">
+                            </label>
+                        </div>
+                        <p class="text-xs font-bold text-gray-400 mt-4 uppercase tracking-widest">รูปโปรไฟล์วิทยากร</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="space-y-2">
+                            <label class="text-sm font-black text-gray-700 ml-1 uppercase tracking-wider">ชื่อ-นามสกุล</label>
+                            <div class="relative">
+                                <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"><i class="fas fa-user"></i></span>
+                                <input type="text" name="name" value="{{ speaker.name }}" required
+                                    class="w-full pl-12 pr-4 py-4 bg-gray-50 border-transparent rounded-2xl focus:bg-white focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all font-medium text-gray-800"
+                                    placeholder="ระบุชื่อ-นามสกุลของคุณ">
+                            </div>
+                        </div>
+
+                        <div class="space-y-2">
+                            <label class="text-sm font-black text-gray-700 ml-1 uppercase tracking-wider">ความเชี่ยวชาญ / ตำแหน่ง</label>
+                            <div class="relative">
+                                <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"><i class="fas fa-award"></i></span>
+                                <input type="text" name="expertise" value="{{ speaker.expertise }}" required
+                                    class="w-full pl-12 pr-4 py-4 bg-gray-50 border-transparent rounded-2xl focus:bg-white focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all font-medium text-gray-800"
+                                    placeholder="เช่น ผู้เชี่ยวชาญด้านผ้าไหมไทย">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-2">
+                        <label class="text-sm font-black text-gray-700 ml-1 uppercase tracking-wider">ประวัติย่อ / รายละเอียดวิทยากร</label>
+                        <textarea name="bio" rows="4" 
+                            class="w-full p-5 bg-gray-50 border-transparent rounded-[2rem] focus:bg-white focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all font-medium text-gray-800"
+                            placeholder="ระบุประวัติย่อหรือรายละเอียดที่ต้องการประชาสัมพันธ์...">{{ speaker.bio }}</textarea>
+                    </div>
+
+                </div>
+            </div>
+
+            <div class="flex flex-col md:flex-row gap-4">
+                <button type="submit" class="flex-[2] py-5 bg-amber-900 text-white rounded-2xl font-black text-lg hover:bg-black transition-all shadow-xl shadow-amber-900/20 active:scale-[0.98] flex items-center justify-center gap-3">
+                    <i class="fas fa-save"></i> บันทึกข้อมูล
+                </button>
+                <a href="{% url 'speaker_dashboard' %}" class="flex-1 py-5 bg-white text-gray-500 rounded-2xl font-bold text-center hover:bg-gray-100 transition-all border border-gray-200">
+                    ยกเลิก
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // ฟังก์ชันสำหรับ Preview รูปภาพก่อนอัปโหลด
+    function previewImage(input) {
+        const preview = document.getElementById('preview-img');
+        const placeholder = document.getElementById('placeholder-icon');
+        
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                preview.src = e.target.result;
+                preview.classList.remove('hidden');
+                if (placeholder) placeholder.classList.add('hidden');
+            }
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+</script>
+
+<style>
+    /* ปรับแต่ง Scrollbar ให้ออกโทน Amber */
+    textarea::-webkit-scrollbar { width: 8px; }
+    textarea::-webkit-scrollbar-track { background: #f3f4f6; border-radius: 10px; }
+    textarea::-webkit-scrollbar-thumb { background: #d97706; border-radius: 10px; }
+</style>
+{% endblock %}

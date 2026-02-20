@@ -1,0 +1,106 @@
+{% load static %}
+<div class="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden sticky top-24 transition-all duration-300">
+    
+    <div class="bg-gradient-to-br from-[#8B0000] to-[#5e0000] p-6 text-center text-white relative overflow-hidden">
+        <div class="absolute top-0 right-0 -mr-4 -mt-4 w-24 h-24 rounded-full bg-white/10 blur-xl"></div>
+        <div class="absolute bottom-0 left-0 -ml-4 -mb-4 w-16 h-16 rounded-full bg-white/10 blur-xl"></div>
+        
+        <div class="relative z-10">
+            <div class="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center mx-auto mb-3 backdrop-blur-sm">
+                <i class="fas fa-user-shield text-2xl"></i>
+            </div>
+            <h5 class="font-bold text-lg tracking-wide">Admin Panel</h5>
+            <p class="text-xs text-amber-100/80 font-light mt-1">ระบบจัดการพิพิธภัณฑ์ผ้าไหม</p>
+        </div>
+    </div>
+
+    <nav class="flex flex-col p-3 space-y-1.5 bg-white">
+        
+        <a href="{% url 'admin_dashboard' %}" 
+           class="group flex items-center px-4 py-3 rounded-xl transition-all duration-200 font-medium text-sm
+           {% if request.resolver_match.url_name == 'admin_dashboard' %}
+                bg-amber-50 text-amber-900 shadow-sm border border-amber-100
+           {% else %}
+                text-gray-600 hover:bg-gray-50 hover:text-amber-800 hover:pl-5
+           {% endif %}">
+            <span class="w-8 flex justify-center mr-2 transition-transform group-hover:scale-110">
+                <i class="fas fa-chart-pie text-lg {% if request.resolver_match.url_name == 'admin_dashboard' %}text-amber-600{% else %}text-gray-400 group-hover:text-amber-600{% endif %}"></i>
+            </span>
+            ภาพรวมระบบ
+        </a>
+
+        <a href="{% url 'manage_users' %}" 
+           class="group flex items-center px-4 py-3 rounded-xl transition-all duration-200 font-medium text-sm
+           {% if 'users' in request.path %}
+                bg-amber-50 text-amber-900 shadow-sm border border-amber-100
+           {% else %}
+                text-gray-600 hover:bg-gray-50 hover:text-amber-800 hover:pl-5
+           {% endif %}">
+            <span class="w-8 flex justify-center mr-2 transition-transform group-hover:scale-110">
+                <i class="fas fa-users text-lg {% if 'users' in request.path %}text-amber-600{% else %}text-gray-400 group-hover:text-amber-600{% endif %}"></i>
+            </span>
+            จัดการข้อมูลผู้ใช้งาน
+        </a>
+
+        <a href="{% url 'manage_silk_patterns' %}" 
+           class="group flex items-center px-4 py-3 rounded-xl transition-all duration-200 font-medium text-sm
+           {% if 'silk' in request.path %}
+                bg-amber-50 text-amber-900 shadow-sm border border-amber-100
+           {% else %}
+                text-gray-600 hover:bg-gray-50 hover:text-amber-800 hover:pl-5
+           {% endif %}">
+            <span class="w-8 flex justify-center mr-2 transition-transform group-hover:scale-110">
+                <i class="fas fa-layer-group text-lg {% if 'silk' in request.path %}text-amber-600{% else %}text-gray-400 group-hover:text-amber-600{% endif %}"></i>
+            </span>
+            จัดการข้อมูลผ้าไหม
+        </a>
+
+        <a href="{% url 'manage_questions' %}" 
+           class="group flex items-center px-4 py-3 rounded-xl transition-all duration-200 font-medium text-sm
+           {% if 'question' in request.path %}
+                bg-amber-50 text-amber-900 shadow-sm border border-amber-100
+           {% else %}
+                text-gray-600 hover:bg-gray-50 hover:text-amber-800 hover:pl-5
+           {% endif %}">
+            <span class="w-8 flex justify-center mr-2 transition-transform group-hover:scale-110">
+                <i class="fas fa-question-circle text-lg {% if 'question' in request.path %}text-amber-600{% else %}text-gray-400 group-hover:text-amber-600{% endif %}"></i>
+            </span>
+            จัดการข้อคำถาม
+        </a>
+
+        <a href="{% url 'admin_editmuseum' %}" 
+           class="group flex items-center px-4 py-3 rounded-xl transition-all duration-200 font-medium text-sm
+           {% if 'museum' in request.path %}
+                bg-amber-50 text-amber-900 shadow-sm border border-amber-100
+           {% else %}
+                text-gray-600 hover:bg-gray-50 hover:text-amber-800 hover:pl-5
+           {% endif %}">
+            <span class="w-8 flex justify-center mr-2 transition-transform group-hover:scale-110">
+                <i class="fas fa-landmark text-lg {% if 'museum' in request.path %}text-amber-600{% else %}text-gray-400 group-hover:text-amber-600{% endif %}"></i>
+            </span>
+            จัดการข้อมูลพิพิธภัณฑ์
+        </a>
+
+        <a href="{% url 'admin_events_list' %}" 
+           class="group flex items-center px-4 py-3 rounded-xl transition-all duration-200 font-medium text-sm
+           {% if 'event' in request.path or 'workshop' in request.path %}
+                bg-amber-50 text-amber-900 shadow-sm border border-amber-100
+           {% else %}
+                text-gray-600 hover:bg-gray-50 hover:text-amber-800 hover:pl-5
+           {% endif %}">
+            <span class="w-8 flex justify-center mr-2 transition-transform group-hover:scale-110">
+                <i class="fas fa-calendar-alt text-lg {% if 'event' in request.path or 'workshop' in request.path %}text-amber-600{% else %}text-gray-400 group-hover:text-amber-600{% endif %}"></i>
+            </span>
+            จัดการข้อมูลกิจกรรม
+        </a>
+        
+        <div class="border-t border-gray-100 my-2 mx-2"></div>
+
+        <a href="{% url 'home' %}" class="group flex items-center px-4 py-3 rounded-xl text-gray-500 hover:bg-red-50 hover:text-red-600 transition-all duration-200 text-sm font-medium">
+            <span class="w-8 flex justify-center mr-2">
+                <i class="fas fa-sign-out-alt text-lg group-hover:rotate-180 transition-transform duration-300"></i>
+            </span>
+            ออกจากระบบหลังบ้าน
+        </a>
+    </nav>
+</div>

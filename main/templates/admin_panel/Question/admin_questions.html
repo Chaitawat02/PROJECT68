@@ -1,0 +1,205 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block title %}จัดการคำถาม (Q&A) | Admin Panel{% endblock %}
+
+{% block content %}
+<div class="flex flex-col lg:flex-row gap-8 py-8 fade-in bg-gray-50/50 min-h-screen">
+    
+    <aside class="w-full lg:w-1/4 xl:w-1/5 shrink-0 px-4 lg:px-0">
+        {% include 'admin_panel/admin_dashboard.html' %}
+    </aside>
+
+    <main class="w-full lg:w-3/4 xl:w-4/5 pr-4 lg:pr-8 space-y-6">
+        
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-gray-200">
+            <div>
+                <nav class="flex text-xs text-gray-400 uppercase tracking-wider mb-2" aria-label="Breadcrumb">
+                    <ol class="list-none p-0 inline-flex">
+                        <li class="flex items-center">
+                            <a href="{% url 'admin_dashboard' %}" class="hover:text-amber-600">Dashboard</a>
+                            <i class="fas fa-chevron-right mx-2 text-[10px]"></i>
+                        </li>
+                        <li class="text-amber-600 font-bold">จัดการคำถาม (Q&A)</li>
+                    </ol>
+                </nav>
+                <h2 class="text-3xl font-black text-gray-800 tracking-tight flex items-center gap-3">
+                    <i class="fas fa-comments text-[#8B0000]"></i>
+                    ระบบจัดการคำถาม
+                </h2>
+                <p class="text-gray-500 mt-1 font-medium">รายการคำถามที่พบบ่อยสำหรับผู้เข้าชม ทั้งหมด <span class="text-amber-700 font-bold">{{ questions|length }}</span> รายการ</p>
+            </div>
+            
+            <div class="flex items-center gap-3">
+                <a href="{% url 'manage_questions_add' %}" class="inline-flex items-center justify-center bg-gradient-to-r from-[#8B0000] to-[#5e0000] text-white px-6 py-3.5 rounded-2xl shadow-lg shadow-red-900/20 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 font-bold group">
+                    <i class="fas fa-plus-circle mr-2 group-hover:rotate-90 transition-transform"></i>
+                    เพิ่มคำถามใหม่
+                </a>
+                <a href="{% url 'booking_responses_summary' %}" class="inline-flex items-center justify-center bg-white border border-gray-200 text-[#8B0000] px-4 py-2 rounded-2xl shadow-sm hover:bg-gray-50 transition-all duration-200 font-bold">
+                    <i class="fas fa-clipboard-list mr-2"></i>
+                    สรุปคำตอบการประเมิน
+                </a>
+            </div>
+        </div>
+
+        {% if messages %}
+        <div class="space-y-3">
+            {% for message in messages %}
+            <div class="p-4 rounded-2xl border-l-4 shadow-sm animate-bounce-subtle
+                {% if message.tags == 'success' %}bg-green-50 border-green-500 text-green-800
+                {% elif message.tags == 'error' %}bg-red-50 border-red-500 text-red-800
+                {% else %}bg-blue-50 border-blue-500 text-blue-800{% endif %} flex items-center">
+                <div class="mr-3 p-2 rounded-full {% if message.tags == 'success' %}bg-green-100{% else %}bg-red-100{% endif %}">
+                    <i class="fas {% if message.tags == 'success' %}fa-check-circle{% else %}fa-exclamation-circle{% endif %} text-lg"></i>
+                </div>
+                <span class="font-medium">{{ message }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="bg-white rounded-[2rem] shadow-xl shadow-gray-200/50 border border-gray-100 overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-gray-50/80 border-b border-gray-100 text-gray-400 uppercase text-[11px] font-black tracking-[0.1em]">
+                            <th class="p-6 text-center w-20">ลำดับ</th>
+                            <th class="p-6">คำถาม / คำตอบ</th>
+                            <th class="p-6 text-center">สถานะ</th>
+                            <th class="p-6 text-center">จัดการ</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-50">
+                        {% for q in questions %}
+                        <tr class="hover:bg-amber-50/20 transition-all duration-200 group">
+                            <td class="p-6 text-center font-bold text-gray-300 group-hover:text-amber-600 transition-colors">
+                                #{{ forloop.counter }}
+                            </td>
+                            <td class="p-6">
+                                <div class="space-y-1">
+                                    <div class="font-bold text-gray-800 text-base group-hover:text-[#8B0000] transition-colors leading-snug">
+                                        {{ q.question }}
+                                    </div>
+                                    <div class="text-sm text-gray-400 font-medium line-clamp-2 leading-relaxed">
+                                        {{ q.answer|truncatechars:150 }}
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="p-6 text-center">
+                                {% if q.is_active %}
+                                    <span class="inline-flex items-center px-4 py-1.5 rounded-xl text-[10px] font-black bg-green-50 text-green-700 border border-green-100">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-green-500 mr-2 animate-pulse"></span> แสดงคำถาม
+                                    </span>
+                                {% else %}
+                                    <span class="inline-flex items-center px-4 py-1.5 rounded-xl text-[10px] font-black bg-gray-50 text-gray-500 border border-gray-100">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-gray-400 mr-2"></span> ซ่อนคำถาม
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td class="p-6">
+                                <div class="flex items-center justify-center gap-3">
+                                    <a href="{% url 'question_rate' q.id %}" class="w-10 h-10 flex items-center justify-center rounded-xl bg-amber-50 text-amber-700 hover:bg-amber-600 hover:text-white transition-all duration-300 shadow-sm" title="ไปยังหน้าประเมิน">
+                                        <i class="fas fa-star text-sm"></i>
+                                    </a>
+                                    <a href="{% url 'manage_questions_edit' q.id %}" class="w-10 h-10 flex items-center justify-center rounded-xl bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white hover:rotate-12 transition-all duration-300 shadow-sm" title="แก้ไขคำถาม">
+                                        <i class="fas fa-pen-nib text-sm"></i>
+                                    </a>
+                                    
+                                    <button onclick="confirmDeleteQ('{{ q.id }}', '{{ q.question|escapejs }}')" class="w-10 h-10 flex items-center justify-center rounded-xl bg-red-50 text-red-600 hover:bg-red-600 hover:text-white hover:-rotate-12 transition-all duration-300 shadow-sm" title="ลบคำถาม">
+                                        <i class="fas fa-trash-alt text-sm"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="p-20 text-center text-gray-400 bg-gray-50/30">
+                                <div class="flex flex-col items-center justify-center">
+                                    <div class="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                                        <i class="fas fa-comment-slash text-4xl text-gray-300"></i>
+                                    </div>
+                                    <h4 class="text-xl font-bold text-gray-800">ไม่พบข้อมูลคำถาม</h4>
+                                    <p class="text-sm mt-2 mb-6">ยังไม่มีการเพิ่มคำถามที่พบบ่อยเข้าสู่ระบบ</p>
+                                    <a href="{% url 'manage_questions_add' %}" class="text-amber-700 font-bold hover:text-amber-900 flex items-center gap-2 underline underline-offset-4">
+                                        <i class="fas fa-plus"></i> เพิ่มคำถามแรก
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="px-8 py-4 bg-gray-50/80 border-t border-gray-100 flex justify-between items-center text-xs">
+                <span class="text-gray-400 font-medium">Q&A Management System v2.0</span>
+                <span class="text-gray-500 font-bold uppercase tracking-widest">Total: {{ questions|length }} Items</span>
+            </div>
+        </div>
+    </main>
+</div>
+
+<div id="deleteModal" class="fixed inset-0 z-[100] hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="flex items-center justify-center min-h-screen p-4">
+        <div class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm transition-opacity" onclick="closeDeleteModal()"></div>
+
+        <div class="relative bg-white rounded-[2.5rem] text-left overflow-hidden shadow-2xl transform transition-all sm:max-w-lg sm:w-full border border-gray-100">
+            <div class="p-8">
+                <div class="flex items-center justify-center w-20 h-20 bg-red-50 rounded-full mx-auto mb-6">
+                    <i class="fas fa-exclamation-triangle text-3xl text-red-500 animate-pulse"></i>
+                </div>
+                <div class="text-center">
+                    <h3 class="text-2xl font-black text-gray-800 mb-2">ยืนยันการลบคำถาม?</h3>
+                    <p class="text-gray-500 leading-relaxed">
+                        คุณกำลังจะลบคำถาม "<span id="deleteItemName" class="font-bold text-red-600"></span>" 
+                        <br>ข้อมูลนี้จะถูกลบถาวรและไม่สามารถกู้คืนได้
+                    </p>
+                </div>
+            </div>
+            <div class="bg-gray-50 px-8 py-6 flex flex-col sm:flex-row-reverse gap-3">
+                <a id="confirmDeleteBtn" href="#" class="inline-flex justify-center items-center px-6 py-3 rounded-2xl bg-red-600 text-white font-bold hover:bg-red-700 transition-all shadow-lg shadow-red-200">
+                    <i class="fas fa-trash-alt mr-2"></i> ยืนยันลบข้อมูล
+                </a>
+                <button type="button" onclick="closeDeleteModal()" class="inline-flex justify-center items-center px-6 py-3 rounded-2xl bg-white border border-gray-200 text-gray-600 font-bold hover:bg-gray-100 transition-all">
+                    ยกเลิก
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .fade-in { animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes bounce-subtle { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+    .animate-bounce-subtle { animation: bounce-subtle 2s infinite ease-in-out; }
+    
+    /* Scrollbar */
+    .overflow-x-auto::-webkit-scrollbar { height: 6px; }
+    .overflow-x-auto::-webkit-scrollbar-track { background: #f1f1f1; }
+    .overflow-x-auto::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+</style>
+
+<script>
+    function confirmDeleteQ(id, questionText) {
+        // จำกัดความยาวข้อความคำถามที่จะโชว์ใน Modal
+        const shortName = questionText.length > 50 ? questionText.substring(0, 50) + "..." : questionText;
+        document.getElementById('deleteItemName').textContent = shortName;
+        
+        // กำหนด URL สำหรับการลบ (ตรวจสอบว่าชื่อ url ของคุณคือ manage_questions_delete หรือไม่)
+        document.getElementById('confirmDeleteBtn').href = "/admin-panel/questions/delete/" + id + "/"; 
+        
+        document.getElementById('deleteModal').classList.remove('hidden');
+        document.body.style.overflow = 'hidden'; 
+    }
+
+    function closeDeleteModal() {
+        document.getElementById('deleteModal').classList.add('hidden');
+        document.body.style.overflow = 'auto';
+    }
+
+    // กด Esc เพื่อปิด
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeDeleteModal();
+    });
+</script>
+{% endblock %}

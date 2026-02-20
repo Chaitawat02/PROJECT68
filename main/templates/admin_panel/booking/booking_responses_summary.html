@@ -1,0 +1,68 @@
+{% extends 'main/base.html' %}
+{% block content %}
+<div class="max-w-6xl mx-auto py-8 px-4">
+    <h2 class="text-2xl font-bold mb-4">สรุปผลการประเมินแยกตามรอบการจอง</h2>
+    <div class="mb-4 flex items-center justify-between gap-4">
+
+        <form method="get" action="" class="flex items-center gap-2 text-sm">
+            <span class="text-gray-500">เรียงตามการจอง:</span>
+            <select name="order" class="border border-gray-200 rounded px-2 py-1 text-sm bg-white" onchange="this.form.submit()">
+                <option value="newest" {% if order == 'newest' %}selected{% endif %}>ใหม่ล่าสุดก่อน</option>
+                <option value="oldest" {% if order == 'oldest' %}selected{% endif %}>เก่าที่สุดก่อน</option>
+            </select>
+        </form>
+    </div>
+
+    <div class="bg-white rounded p-4 border">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="text-left text-gray-600">
+                    <th class="p-2">การจองที่</th>
+                    <th class="p-2">วันที่จอง</th>
+                    <th class="p-2">รอบเข้าชม</th>
+                    <th class="p-2">จำนวนผู้ประเมิน</th>
+                    <th class="p-2">ค่าเฉลี่ย</th>
+                    <th class="p-2">ส่วนเบี่ยงเบนมาตรฐาน</th>
+                    <th class="p-2 text-right">จัดการ</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for b in bookings %}
+                <tr class="border-t">
+                    <td class="p-2">#{{ b.id }}</td>
+                    <td class="p-2">
+                        {% if b.Re_date %}
+                            {{ b.Re_date|date:'j M Y' }}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td class="p-2">
+                        {% if b.visit_session == 'morning' %}
+                            ช่วงเช้า (09:00-12:00)
+                        {% elif b.visit_session == 'afternoon' %}
+                            ช่วงบ่าย (13:00-16:00)
+                        {% else %}-{% endif %}
+                    </td>
+                    <td class="p-2">{{ b.respondent_count }}</td>
+                    <td class="p-2">
+                        {% if b.avg_score %}
+                            {{ b.avg_score }}
+                        {% else %}-{% endif %}
+                    </td>
+                    <td class="p-2">
+                        {% if b.stddev_score %}
+                            {{ b.stddev_score }}
+                        {% else %}-{% endif %}
+                    </td>
+                    <td class="p-2 text-right">
+                        <a href="{% url 'booking_responses_admin' %}?booking_id={{ b.id }}" class="px-3 py-1 bg-amber-600 text-white rounded">ดูคำตอบ</a>
+                        <a href="{% url 'booking_responses_admin' %}?booking_id={{ b.id }}&export=pdf" class="px-3 py-1 border ml-2 rounded">ดาวน์โหลด PDF</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

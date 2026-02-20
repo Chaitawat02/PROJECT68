@@ -1,0 +1,57 @@
+{% extends 'main/base.html' %}
+{% block content %}
+<div class="max-w-3xl mx-auto py-8 px-4">
+    <div class="bg-white rounded-2xl p-6 shadow">
+        <h2 class="text-2xl font-bold mb-4">แบบประเมินหลังการเข้าชม — การจอง #{{ booking.id }}</h2>
+        <p class="text-sm text-gray-500 mb-4">กรุณาทำแบบประเมินนี้หลังจากเสร็จสิ้นกิจกรรมเพื่อช่วยพัฒนาการให้บริการ</p>
+
+        <div class="mb-4">
+            <p class="text-xs text-gray-500">หรือสแกน QR เพื่อเข้าถึงแบบประเมิน</p>
+            {% if qr_data %}
+            <div class="mt-2">
+                <img src="{{ qr_data }}" alt="QR แบบประเมิน" style="width:120px;height:120px;" />
+            </div>
+            {% endif %}
+        </div>
+
+        <form method="post">
+            {% csrf_token %}
+            <div class="space-y-4">
+                {% for q in questions %}
+                <div class="p-4 border rounded">
+                    <p class="font-medium">{{ forloop.counter }}. {{ q.question }}</p>
+                    <div class="mt-2 space-y-2">
+                        {# เรียงจากคะแนนมากไปน้อย: 5 → 1 พร้อมข้อความมาตรฐาน #}
+                        <label class="inline-flex items-center">
+                            <input type="radio" name="question_{{ q.id }}" value="5" class="mr-2">
+                            <span>5 - พอใจมาก</span>
+                        </label><br>
+                        <label class="inline-flex items-center">
+                            <input type="radio" name="question_{{ q.id }}" value="4" class="mr-2">
+                            <span>4 - พอใจ</span>
+                        </label><br>
+                        <label class="inline-flex items-center">
+                            <input type="radio" name="question_{{ q.id }}" value="3" class="mr-2">
+                            <span>3 - ปานกลาง</span>
+                        </label><br>
+                        <label class="inline-flex items-center">
+                            <input type="radio" name="question_{{ q.id }}" value="2" class="mr-2">
+                            <span>2 - น้อย</span>
+                        </label><br>
+                        <label class="inline-flex items-center">
+                            <input type="radio" name="question_{{ q.id }}" value="1" class="mr-2">
+                            <span>1 - น้อยมาก</span>
+                        </label>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="mt-6 flex gap-3">
+                <button type="submit" class="bg-amber-600 text-white px-4 py-2 rounded">ส่งคำตอบ</button>
+                <a href="{% url 'booking_detail' booking.id %}" class="px-4 py-2 border rounded">กลับไป</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

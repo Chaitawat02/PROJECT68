@@ -1,0 +1,140 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block title %}รายละเอียดงาน - {{ assignment.title }}{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto px-4 py-8">
+    <nav class="flex mb-6 text-sm text-gray-500">
+        <a href="{% url 'speaker_dashboard' %}" class="hover:text-amber-800">แผงควบคุมวิทยากร</a>
+        <span class="mx-2">/</span>
+        <span class="text-gray-800 font-medium">รายละเอียดงาน</span>
+    </nav>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        <div class="space-y-6">
+            <div class="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 flex flex-col items-center text-center">
+                <div class="relative mb-4">
+                    <div class="w-32 h-32 rounded-full ring-4 ring-amber-50 flex items-center justify-center overflow-hidden bg-amber-50">
+                        {% if assignment.speaker.profile_picture %}
+                            <img src="{{ assignment.speaker.profile_picture.url }}" alt="Speaker" class="w-full h-full object-cover">
+                        {% else %}
+                            <i class="fas fa-user-tie fa-3x text-amber-200"></i>
+                        {% endif %}
+                    </div>
+                    <div class="absolute bottom-1 right-1 w-6 h-6 rounded-full bg-green-500 border-2 border-white"></div>
+                </div>
+                <h3 class="text-xl font-bold text-gray-800">{{ assignment.speaker.name }}</h3>
+                <p class="text-amber-700 font-medium text-sm mb-4">{{ assignment.speaker.expertise }}</p>
+                
+                <div class="w-full pt-6 border-t border-gray-100 text-left space-y-4">
+                    <div>
+                        <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">สถานะงานปัจจุบัน</p>
+                        <div class="mt-2">
+                            {% if assignment.status == 'pending' or assignment.status == 'assigned' %}
+                                <span class="px-3 py-1 bg-blue-50 text-blue-600 text-xs font-bold rounded-full border border-blue-100 italic">
+                                    <i class="fas fa-clock mr-1"></i> รอดำเนินการ
+                                </span>
+                            {% elif assignment.status == 'accepted' or assignment.status == 'confirmed' %}
+                                <span class="px-3 py-1 bg-green-50 text-green-600 text-xs font-bold rounded-full border border-green-100">
+                                    <i class="fas fa-check-circle mr-1"></i> รับงานแล้ว
+                                </span>
+                            {% else %}
+                                <span class="px-3 py-1 bg-gray-50 text-gray-500 text-xs font-bold rounded-full border border-gray-100">
+                                    <i class="fas fa-flag-checkered mr-1"></i> สำเร็จแล้ว
+                                </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div>
+                        <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">วันที่มอบหมาย</p>
+                        <p class="text-gray-700 mt-1 flex items-center">
+                            <i class="far fa-calendar-alt mr-2 text-amber-600"></i>
+                            {{ assignment.assigned_at|date:"d M Y" }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="lg:col-span-2 space-y-6">
+            <div class="bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
+                <div class="flex justify-between items-start mb-6">
+                    <h2 class="text-3xl font-extrabold text-gray-900 leading-tight">
+                        {{ assignment.title }}
+                    </h2>
+                </div>
+
+                <div class="prose prose-amber max-w-none text-gray-600 mb-8">
+                    <p class="bg-amber-50 p-4 rounded-xl border-l-4 border-amber-400 italic">
+                        <i class="fas fa-quote-left text-amber-200 mr-2"></i>
+                        {{ assignment.note|default:'ไม่มีหมายเหตุเพิ่มเติมสำหรับงานนี้' }}
+                    </p>
+                </div>
+
+                {% if booking %}
+                <div class="bg-gray-50 rounded-2xl p-6 border border-gray-100 mb-8">
+                    <div class="flex items-center mb-4">
+                        <div class="w-10 h-10 rounded-lg bg-amber-800 flex items-center justify-center text-white mr-3">
+                            <i class="fas fa-info-circle"></i>
+                        </div>
+                        <h3 class="font-bold text-gray-800">ข้อมูลผู้ขอรับบริการ</h3>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mb-4">
+                        <div class="flex items-center text-gray-600">
+                            <i class="fas fa-user w-6 text-amber-700"></i>
+                            <span>{{ booking.fullname }}</span>
+                        </div>
+                        <div class="flex items-center text-gray-600">
+                            <i class="fas fa-calendar-day w-6 text-amber-700"></i>
+                            <span>{{ booking.Re_date|date:"l ที่ d F Y" }}</span>
+                        </div>
+                        <div class="flex items-center text-gray-600">
+                            <i class="fas fa-phone w-6 text-amber-700"></i>
+                            <span>{{ booking.phone }}</span>
+                        </div>
+                        <div class="flex items-center text-gray-600">
+                            <i class="fas fa-envelope w-6 text-amber-700"></i>
+                            <span>{{ booking.email }}</span>
+                        </div>
+                    </div>
+                    
+                    <a href="{% url 'booking_detail' booking.id %}" 
+                       class="text-sm font-bold text-amber-800 hover:text-amber-900 flex items-center transition-colors">
+                        ดูรายละเอียดการจองฉบับเต็ม <i class="fas fa-arrow-right ml-2 text-xs"></i>
+                    </a>
+                </div>
+                {% endif %}
+
+                <div class="flex flex-wrap gap-4 pt-6 border-t border-gray-100">
+                    {% comment %}Only the assigned speaker may accept or complete the job{% endcomment %}
+                    {% if assignment.speaker.user == user %}
+                        {% if assignment.status == 'pending' or assignment.status == 'assigned' %}
+                            <a href="{% url 'accept_assignment' assignment.pk %}" 
+                               class="flex-1 text-center px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl transition-all transform hover:-translate-y-1 shadow-md hover:shadow-lg">
+                                <i class="fas fa-check mr-2"></i> รับงานนี้
+                            </a>
+                        {% endif %}
+                    {% endif %}
+                    
+                    {% if assignment.speaker.user == user %}
+                        {% if assignment.status == 'accepted' or assignment.status == 'confirmed' %}
+                            <a href="{% url 'complete_assignment' assignment.pk %}" 
+                               class="flex-1 text-center px-6 py-3 bg-amber-800 hover:bg-amber-900 text-white font-bold rounded-xl transition-all transform hover:-translate-y-1 shadow-md hover:shadow-lg">
+                                <i class="fas fa-flag-checkered mr-2"></i> เสร็จสิ้นภารกิจ
+                            </a>
+                        {% endif %}
+                    {% endif %}
+                    
+                    <a href="{% url 'speaker_dashboard' %}" 
+                       class="px-6 py-3 border border-gray-200 text-gray-600 hover:bg-gray-50 font-bold rounded-xl transition-all">
+                        กลับหน้าหลัก
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

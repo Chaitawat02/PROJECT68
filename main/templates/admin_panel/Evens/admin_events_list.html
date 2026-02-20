@@ -1,0 +1,171 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block title %}จัดการกิจกรรม | Admin Panel{% endblock %}
+
+{% block content %}
+<div class="flex flex-col lg:flex-row gap-8 py-8 fade-in bg-gray-50/50 min-h-screen">
+    
+    <aside class="w-full lg:w-1/4 xl:w-1/5 shrink-0 px-4 lg:px-0">
+        {% include 'admin_panel/admin_dashboard.html' %}
+    </aside>
+
+    <main class="w-full lg:w-3/4 xl:w-4/5 pr-4 lg:pr-8 space-y-6">
+        
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-gray-200">
+            <div>
+                <nav class="flex text-xs text-gray-400 uppercase tracking-wider mb-2" aria-label="Breadcrumb">
+                    <ol class="list-none p-0 inline-flex">
+                        <li class="flex items-center">
+                            <a href="{% url 'admin_dashboard' %}" class="hover:text-amber-600">Dashboard</a>
+                            <i class="fas fa-chevron-right mx-2 text-[10px]"></i>
+                        </li>
+                        <li class="text-amber-600 font-bold">จัดการกิจกรรม</li>
+                    </ol>
+                </nav>
+                <h2 class="text-3xl font-black text-gray-800 tracking-tight flex items-center gap-3">
+                    <i class="fas fa-calendar-alt text-[#8B0000]"></i>
+                    จัดการกิจกรรม
+                </h2>
+                <p class="text-gray-500 mt-1 font-medium">รายการเวิร์กชอปทั้งหมดในระบบ <span class="text-amber-700 font-bold">{{ workshops.count }}</span> รายการ</p>
+            </div>
+            
+            <div class="flex items-center gap-3">
+                <a href="{% url 'admin_events_add' %}" class="inline-flex items-center justify-center bg-gradient-to-r from-[#8B0000] to-[#5e0000] text-white px-6 py-3.5 rounded-2xl shadow-lg shadow-red-900/20 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 font-bold group">
+                    <i class="fas fa-plus-circle mr-2 group-hover:rotate-90 transition-transform"></i>
+                    เพิ่มกิจกรรมใหม่
+                </a>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-[2rem] shadow-xl shadow-gray-200/50 border border-gray-100 overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-gray-50/80 border-b border-gray-100 text-gray-400 uppercase text-[11px] font-black tracking-[0.1em]">
+                            <th class="p-6">ชื่อกิจกรรม / ข้อมูล</th>
+                            <th class="p-6 text-center">วันจัดกิจกรรม</th>
+                            <th class="p-6 text-center">จำนวน</th>
+                            <th class="p-6 text-right">จัดการ</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-50">
+                        {% for item in workshops %}
+                        <tr class="hover:bg-amber-50/20 transition-all duration-200 group">
+                            <td class="p-6">
+                                <div class="flex items-center gap-4">
+                                    <div class="w-12 h-12 rounded-2xl bg-red-50 text-[#8B0000] flex items-center justify-center font-black text-lg group-hover:bg-[#8B0000] group-hover:text-white transition-all">
+                                        <i class="fas fa-chalkboard-teacher"></i>
+                                    </div>
+                                    <div>
+                                        <div class="font-bold text-gray-800 text-base group-hover:text-[#8B0000] transition-colors leading-tight">{{ item.title }}</div>
+                                        <div class="text-xs text-gray-400 font-medium mt-1 flex items-center gap-2">
+                                            <i class="fas fa-id-badge"></i> ID: #{{ item.pk }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="p-6 text-center">
+                                <div class="inline-flex flex-col">
+                                    <span class="text-sm font-bold text-gray-700">{{ item.date|date:"d M Y" }}</span>
+                                    <span class="text-[10px] text-gray-400 uppercase tracking-tighter">Event Date</span>
+                                </div>
+                            </td>
+                            <td class="p-6 text-center">
+                                <div class="flex flex-col items-center">
+                                    <span class="text-sm font-bold text-amber-600">
+                                        จองแล้ว: {{ item.current_bookings|default:0 }}
+                                    </span>
+                                    
+                                    <span class="text-[10px] text-gray-400 font-bold tracking-tight">
+                                        จากทั้งหมด: {{ item.max_participants }} ที่นั่ง
+                                    </span>
+                                </div>
+                            </td>
+                            <td class="p-6">
+                                <div class="flex items-center justify-end gap-3">
+                                    <a href="{% url 'admin_events_edit' item.pk %}" class="w-10 h-10 flex items-center justify-center rounded-xl bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white hover:rotate-12 transition-all duration-300 shadow-sm" title="แก้ไข">
+                                        <i class="fas fa-pen-nib text-sm"></i>
+                                    </a>
+                                    
+                                    <button onclick="handleDelete('{{ item.pk }}', '{{ item.title|escapejs }}')" class="w-10 h-10 flex items-center justify-center rounded-xl bg-red-50 text-red-600 hover:bg-red-600 hover:text-white hover:-rotate-12 transition-all duration-300 shadow-sm" title="ลบกิจกรรม">
+                                        <i class="fas fa-trash-alt text-sm"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="p-20 text-center text-gray-400 bg-gray-50/30">
+                                <div class="flex flex-col items-center justify-center">
+                                    <div class="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                                        <i class="fas fa-calendar-times text-4xl text-gray-300"></i>
+                                    </div>
+                                    <h4 class="text-xl font-bold text-gray-800">ยังไม่มีข้อมูลกิจกรรม</h4>
+                                    <a href="{% url 'admin_events_add' %}" class="text-amber-700 font-bold hover:text-amber-900 flex items-center gap-2 underline mt-4">
+                                        <i class="fas fa-plus"></i> เพิ่มกิจกรรมเดี๋ยวนี้
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="px-8 py-4 bg-gray-50/80 border-t border-gray-100 flex justify-between items-center text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                <span>Workshop Management System</span>
+                <span>Total: {{ workshops.count }} Events</span>
+            </div>
+        </div>
+    </main>
+</div>
+
+<div id="deleteModal" class="fixed inset-0 z-[100] hidden overflow-y-auto">
+    <div class="flex items-center justify-center min-h-screen p-4">
+        <div class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm transition-opacity" onclick="closeDeleteModal()"></div>
+        <div class="relative bg-white rounded-[2.5rem] text-left overflow-hidden shadow-2xl transform transition-all sm:max-w-lg sm:w-full border border-gray-100">
+            <div class="p-8">
+                <div class="flex items-center justify-center w-20 h-20 bg-red-50 rounded-full mx-auto mb-6">
+                    <i class="fas fa-exclamation-triangle text-3xl text-red-500 animate-pulse"></i>
+                </div>
+                <div class="text-center">
+                    <h3 class="text-2xl font-black text-gray-800 mb-2">ยืนยันการลบกิจกรรม?</h3>
+                    <p class="text-gray-500 leading-relaxed px-4">
+                        คุณกำลังจะลบกิจกรรม "<span id="deleteItemName" class="font-bold text-red-600"></span>" 
+                        <br>เมื่อลบแล้วข้อมูลการจองและรายละเอียดทั้งหมดจะหายไป
+                    </p>
+                </div>
+            </div>
+            <div class="bg-gray-50 px-8 py-6 flex flex-col sm:flex-row-reverse gap-3">
+                <form id="realDeleteForm" method="POST" class="w-full sm:w-auto">
+                    {% csrf_token %}
+                    <button type="submit" class="w-full inline-flex justify-center items-center px-8 py-3.5 rounded-2xl bg-red-600 text-white font-bold hover:bg-red-700 transition-all shadow-lg shadow-red-200">
+                        <i class="fas fa-trash-alt mr-2"></i> ยืนยันลบข้อมูล
+                    </button>
+                </form>
+                <button type="button" onclick="closeDeleteModal()" class="flex-1 inline-flex justify-center items-center px-8 py-3.5 rounded-2xl bg-white border border-gray-200 text-gray-600 font-bold hover:bg-gray-100 transition-all">
+                    ยกเลิก
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function handleDelete(id, title) {
+        document.getElementById('deleteItemName').textContent = title;
+        
+        // จุดแก้ไข 4: แก้ไขชื่อ URL ลบกิจกรรมให้ตรงกับ urls.py (admin_events_delete)
+        const deleteUrl = "{% url 'admin_events_delete' 0 %}".replace('0', id);
+        document.getElementById('realDeleteForm').action = deleteUrl;
+        
+        document.getElementById('deleteModal').classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeDeleteModal() {
+        document.getElementById('deleteModal').classList.add('hidden');
+        document.body.style.overflow = 'auto';
+    }
+</script>
+{% endblock %}

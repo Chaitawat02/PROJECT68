@@ -1,0 +1,95 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block title %}รายนามวิทยากรผู้เชี่ยวชาญ{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto py-10 px-4">
+    <div class="flex flex-col md:flex-row justify-between items-end mb-8 border-b border-amber-200 pb-6 gap-4">
+        <div>
+            <h6 class="text-amber-600 font-bold uppercase tracking-widest mb-1">Our Experts</h6>
+            <h2 class="text-3xl font-extrabold text-gray-900">รายนามวิทยากรผู้เชี่ยวชาญ</h2>
+            <p class="text-gray-500 mt-2">ทำความรู้จักกับผู้สืบสานภูมิปัญญาและศิลปวัฒนธรรมผ้าไหมไทย</p>
+        </div>
+        <div class="text-sm text-gray-400">
+            จำนวนวิทยากรทั้งหมด: <span class="font-bold text-amber-700">{{ speakers|length }}</span> ท่าน
+        </div>
+    </div>
+
+    <div class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-amber-50/50 text-amber-900 text-sm uppercase tracking-wider">
+                        <th class="px-8 py-5 font-bold">วิทยากร</th>
+                        <th class="px-8 py-5 font-bold">ความเชี่ยวชาญ / สาขา</th>
+                        <th class="px-8 py-5 font-bold text-center">รายละเอียด</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    {% for speaker in speakers %}
+                    <tr class="hover:bg-amber-50/30 transition-colors group">
+                        <td class="px-8 py-5">
+                            <div class="flex items-center gap-4">
+                                <div class="relative shrink-0">
+                                    <div class="w-12 h-12 rounded-2xl bg-amber-100 overflow-hidden border-2 border-white shadow-sm">
+                                        {% if speaker.profile_picture %}
+                                            <img src="{{ speaker.profile_picture.url }}" alt="{{ speaker.name }}" class="w-full h-full object-cover">
+                                        {% else %}
+                                            <div class="w-full h-full flex items-center justify-center text-amber-600">
+                                                <i class="fas fa-user-tie"></i>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-green-500 border-2 border-white rounded-full shadow-sm animate-pulse"></div>
+                                </div>
+                                
+                                <div>
+                                    <span class="block font-bold text-gray-800 group-hover:text-amber-700 transition-colors">{{ speaker.name }}</span>
+                                    <span class="text-xs text-gray-400">Speaker ID: #{{ speaker.id|stringformat:"03d" }}</span>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-8 py-5">
+                            <div class="flex flex-wrap gap-2">
+                                <span class="px-3 py-1 bg-white border border-amber-200 text-amber-700 rounded-lg text-xs font-medium">
+                                    {{ speaker.expertise|default:"วิทยากรทั่วไป" }}
+                                </span>
+                            </div>
+                        </td>
+                        <td class="px-8 py-5 text-center">
+                            <a href="{% url 'speaker_detail' speaker.id %}" 
+                               class="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-gray-100 text-gray-600 hover:bg-amber-600 hover:text-white transition-all shadow-sm"
+                               title="ดูประวัติ">
+                                <i class="fas fa-arrow-right"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="3" class="px-8 py-20 text-center">
+                            <div class="flex flex-col items-center justify-center text-gray-400">
+                                <i class="fas fa-users-slash text-5xl mb-4"></i>
+                                <p class="text-lg font-medium">ขออภัย ไม่พบรายชื่อวิทยากรในขณะนี้</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="mt-8 bg-blue-50 border border-blue-100 rounded-2xl p-6 flex items-start gap-4">
+        <div class="w-10 h-10 bg-white rounded-full flex items-center justify-center text-blue-500 shrink-0 shadow-sm">
+            <i class="fas fa-info-circle"></i>
+        </div>
+        <div>
+            <h4 class="font-bold text-blue-900 mb-1">ต้องการเชิญวิทยากร?</h4>
+            <p class="text-sm text-blue-800/70 leading-relaxed">
+                สำหรับการเข้าชมเป็นหมู่คณะหรือต้องการวิทยากรพิเศษเฉพาะทาง โปรดติดต่อเจ้าหน้าที่ล่วงหน้าอย่างน้อย 7 วันทำการ ผ่านเมนู <a href="{% url 'contact' %}" class="underline font-bold">ติดต่อเรา</a>
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}

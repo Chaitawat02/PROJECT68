@@ -1,0 +1,82 @@
+{% extends 'main/base.html' %}
+{% block content %}
+<div class="max-w-4xl mx-auto py-8 px-4">
+    <h2 class="text-3xl font-bold text-gray-800 mb-6">ประวัติการจองของฉัน</h2>
+
+    <div class="space-y-4">
+        {# --- ส่วนของการจองพิพิธภัณฑ์ (Bookings) --- #}
+        {% for booking in bookings %}
+        <div class="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm mb-4">
+            <div class="flex flex-col md:flex-row md:justify-between md:items-center">
+                <div class="flex items-center gap-4">
+                    <div class="p-4 bg-amber-50 text-amber-600 rounded-full">
+                        <i class="fas fa-university text-2xl"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-lg text-gray-800">เข้าชมพิพิธภัณฑ์</h4>
+                        <p class="text-gray-500 text-sm">วันที่: {{ booking.Re_walkin }} | จำนวน: {{ booking.Re_quantity }} ท่าน</p>
+                    </div>
+                </div>
+
+                <div class="mt-4 md:mt-0 flex items-center gap-4">
+                    {% if booking.Re_status == 'approved' %}
+                        <span class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold">อนุมัติแล้ว</span>
+                    {% elif booking.Re_status == 'rejected' %}
+                        <span class="px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs font-bold">ปฏิเสธ</span>
+                    {% else %}
+                        <span class="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-bold">รอตรวจสอบ</span>
+                    {% endif %}
+                    <a href="{% url 'booking_detail' booking.id %}" class="text-amber-600 hover:underline font-medium">รายละเอียด</a>
+                </div>
+            </div>
+
+            {# ถ้ามีกิจกรรม (WorkshopBooking) ที่ผูกกับการจองนี้ ให้แสดงเป็นรายการย่อย #}
+            {% with items=booking.workshop_items.all %}
+                {% if items %}
+                <div class="mt-4 bg-gray-50 rounded p-4">
+                    <p class="text-sm text-gray-600 mb-2 font-medium">กิจกรรมที่รวมอยู่ในการจอง</p>
+                    <ul class="space-y-2">
+                        {% for it in items %}
+                        <li class="flex items-center justify-between">
+                            <div>
+                                <p class="font-medium">{{ it.workshop.title }}</p>
+                                <p class="text-xs text-gray-500">วันที่: {{ it.date|date:"j M Y" }}</p>
+                            </div>
+                            <span class="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs">Workshop</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+            {% endwith %}
+        </div>
+        {% endfor %}
+
+        {# --- กิจกรรม Workshop ที่ยังไม่ผูกกับ Booking (แสดงแยก) --- #}
+        {% for ws in orphan_workshops %}
+        <div class="bg-white border border-blue-50 rounded-2xl p-6 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-4">
+                <div class="p-4 bg-blue-50 text-blue-600 rounded-full">
+                    <i class="fas fa-tools text-2xl"></i>
+                </div>
+                <div>
+                    <h4 class="font-bold text-lg text-gray-800">{{ ws.workshop.title|default:"กิจกรรม Workshop" }}</h4>
+                    <p class="text-gray-500 text-sm">วันที่: {{ ws.date|date:"d M Y" }}</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-4">
+                <span class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-bold">Workshop</span>
+            </div>
+        </div>
+        {% endfor %}
+
+        {% if not bookings and not workshops %}
+        <div class="text-center py-12 bg-gray-50 rounded-2xl border-2 border-dashed">
+            <i class="fas fa-inbox text-4xl text-gray-300 mb-3 block"></i>
+            <p class="text-gray-500">คุณยังไม่มีประวัติการจอง</p>
+            <a href="{% url 'booking' %}" class="text-amber-600 font-bold mt-2 inline-block">เริ่มการจองเลย</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,140 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block title %}แก้ไขข้อมูลผู้ใช้งาน - Admin Panel{% endblock %}
+
+{% block content %}
+<div class="flex flex-col lg:flex-row gap-8 py-6 fade-in">
+    
+    <aside class="w-full lg:w-1/4 xl:w-1/5 shrink-0">
+        {% include 'admin_panel/admin_dashboard.html' %}
+    </aside>
+
+    <main class="w-full lg:w-3/4 xl:w-4/5 space-y-6">
+        
+        <div class="border-b border-gray-200 pb-4">
+            <div class="flex items-center gap-2 text-sm text-gray-500 mb-1">
+                <a href="{% url 'manage_users' %}" class="hover:text-amber-700">จัดการผู้ใช้งาน</a>
+                <i class="fas fa-chevron-right text-xs"></i>
+                <span>แก้ไขข้อมูล</span>
+            </div>
+            <h2 class="text-3xl font-bold text-gray-800">แก้ไขข้อมูล: {{ target_user.username }}</h2>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div class="bg-gradient-to-r from-amber-50 to-white px-6 py-4 border-b border-gray-100 flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center font-bold text-lg">
+                    {{ target_user.username|make_list|first|upper }}
+                </div>
+                <div>
+                    <h5 class="font-bold text-gray-800">ข้อมูลบัญชีผู้ใช้</h5>
+                    <p class="text-xs text-gray-500">ID: {{ target_user.id }} | เข้าร่วมเมื่อ: {{ target_user.date_joined|date:"d M Y" }}</p>
+                </div>
+            </div>
+
+            <form method="POST" enctype="multipart/form-data" class="p-6 space-y-6">
+                {% csrf_token %}
+                
+                <div class="flex items-center gap-6">
+                    <div class="shrink-0 relative">
+                        {% if profile.image %}
+                            <img src="{{ profile.image.url }}" class="w-24 h-24 rounded-full object-cover border-4 border-white shadow-md">
+                        {% else %}
+                            <div class="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center text-gray-400 text-3xl shadow-inner">
+                                <i class="fas fa-user"></i>
+                            </div>
+                        {% endif %}
+                        <div class="absolute bottom-0 right-0 bg-white rounded-full p-1 shadow-sm border border-gray-100">
+                            <label class="cursor-pointer w-8 h-8 flex items-center justify-center bg-amber-600 text-white rounded-full hover:bg-amber-700 transition-colors">
+                                <i class="fas fa-camera text-xs"></i>
+                                <input type="file" name="image" class="hidden" accept="image/*">
+                            </label>
+                        </div>
+                    </div>
+                    <div>
+                        <h6 class="font-bold text-gray-700">รูปโปรไฟล์</h6>
+                        <p class="text-xs text-gray-500 mb-2">รองรับไฟล์ JPG, PNG ขนาดไม่เกิน 2MB</p>
+                    </div>
+                </div>
+
+                <hr class="border-gray-100">
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">ชื่อผู้ใช้ (Username)</label>
+                        <input type="text" value="{{ target_user.username }}" disabled
+                               class="block w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-100 text-gray-500 cursor-not-allowed">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">อีเมล</label>
+                        <input type="email" name="email" value="{{ target_user.email }}" required
+                               class="block w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600 transition-colors">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">ชื่อจริง</label>
+                        <input type="text" name="first_name" value="{{ target_user.first_name }}"
+                               class="block w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600 transition-colors">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">นามสกุล</label>
+                        <input type="text" name="last_name" value="{{ target_user.last_name }}"
+                               class="block w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600 transition-colors">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">เบอร์โทรศัพท์</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400"><i class="fas fa-phone"></i></span>
+                            <input type="tel" name="phone" value="{{ profile.phone }}"
+                                   class="block w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600 transition-colors">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">สิทธิ์การใช้งาน</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400"><i class="fas fa-shield-alt"></i></span>
+                            <select name="role" class="block w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600 appearance-none bg-white">
+                                <option value="member" {% if profile.role == 'member' %}selected{% endif %}>สมาชิกทั่วไป (Member)</option>
+                                <option value="speaker" {% if profile.role == 'speaker' %}selected{% endif %}>วิทยากร (Speaker)</option>
+                                <option value="admin" {% if profile.role == 'admin' %}selected{% endif %}>แอดมิน (Admin)</option>
+                            </select>
+                            <span class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-gray-400"><i class="fas fa-chevron-down text-xs"></i></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-gray-50 rounded-lg p-4 border border-gray-100 flex items-center justify-between">
+                    <div>
+                        <h6 class="font-bold text-gray-800">สถานะการใช้งาน</h6>
+                        <p class="text-xs text-gray-500">หากปิดการใช้งาน ผู้ใช้จะไม่สามารถล็อกอินเข้าสู่ระบบได้</p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" name="is_active" class="sr-only peer" {% if target_user.is_active %}checked{% endif %}>
+                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-amber-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
+                        <span class="ml-3 text-sm font-medium text-gray-700">Active</span>
+                    </label>
+                </div>
+
+                <div class="flex items-center gap-3 pt-4">
+                    <button type="submit" class="bg-[#8B0000] hover:bg-[#6d0000] text-white px-6 py-2.5 rounded-lg shadow-md transition-all font-medium flex items-center gap-2">
+                        <i class="fas fa-save"></i> บันทึกการเปลี่ยนแปลง
+                    </button>
+                    <a href="{% url 'manage_users' %}" class="bg-white border border-gray-300 text-gray-700 px-6 py-2.5 rounded-lg hover:bg-gray-50 transition-all font-medium">
+                        ยกเลิก
+                    </a>
+                </div>
+
+            </form>
+        </div>
+    </main>
+</div>
+
+<style>
+    .fade-in { animation: fadeIn 0.4s ease-out forwards; opacity: 0; transform: translateY(10px); }
+    @keyframes fadeIn { to { opacity: 1; transform: translateY(0); } }
+</style>
+{% endblock %}

@@ -1,0 +1,292 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block title %}แผงควบคุมวิทยากร - {{ speaker.name }}{% endblock %}
+
+{% block content %}
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Anuphan:wght@300;400;500;600;700&display=swap');
+    
+    html {
+        scroll-behavior: smooth; /* ทำให้การกดลิงก์เลื่อนนุ่มนวล */
+    }
+
+    body { 
+        font-family: 'Anuphan', sans-serif; 
+        background-color: #FDFBF7; 
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+        width: 8px;
+    }
+    ::-webkit-scrollbar-track {
+        background: #f1f1f1; 
+    }
+    ::-webkit-scrollbar-thumb {
+        background: #d6cfc7; 
+        border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+        background: #b4a596; 
+    }
+
+    .glass-panel {
+        background: rgba(255, 255, 255, 0.8);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.6);
+    }
+</style>
+
+<div class="min-h-screen py-10 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-7xl mx-auto space-y-8">
+        
+        <div class="glass-panel rounded-3xl p-8 shadow-sm flex flex-col md:flex-row justify-between items-center gap-6 relative overflow-hidden">
+            <div class="absolute top-0 right-0 -mt-10 -mr-10 w-64 h-64 bg-amber-100 rounded-full blur-3xl opacity-50 pointer-events-none"></div>
+            
+            <div class="flex items-center gap-6 z-10">
+                <div class="relative group cursor-pointer">
+                    <div class="w-20 h-20 bg-gradient-to-br from-amber-800 to-amber-900 rounded-2xl flex items-center justify-center text-white text-3xl shadow-lg shadow-amber-900/20 transition-transform duration-300 group-hover:scale-105 group-hover:rotate-3">
+                        <i class="fas fa-chalkboard-user"></i>
+                    </div>
+                    <div class="absolute -bottom-1 -right-1 w-6 h-6 bg-emerald-500 border-4 border-white rounded-full animate-pulse"></div>
+                </div>
+                <div>
+                    <h2 class="text-3xl font-bold text-gray-800 tracking-tight">แผงควบคุมวิทยากร</h2>
+                    <p class="text-gray-500 font-medium flex items-center gap-2 mt-1">
+                        ยินดีต้อนรับ, คุณ {{ user.profile.full_name|default:user.username }} 
+                        <span class="animate-bounce delay-75">👋</span>
+                    </p>
+                </div>
+            </div>
+
+            <div class="flex gap-3 z-10 w-full md:w-auto">
+                <div class="grid grid-cols-3 gap-3 w-full">
+                    
+                    <a href="#section-pending" class="block bg-white/80 px-5 py-4 rounded-2xl border border-amber-100 shadow-sm text-center transition-all hover:-translate-y-1 hover:shadow-md hover:bg-white active:scale-95 cursor-pointer group">
+                        <p class="text-[10px] text-amber-900/60 uppercase font-bold tracking-wider mb-1 group-hover:text-amber-800">ยังไม่รับ</p>
+                        <p class="text-2xl font-bold text-amber-600 group-hover:text-amber-700">{{ pending_assignments.count }}</p>
+                    </a>
+
+                    <a href="#section-accepted" class="block bg-white/80 px-5 py-4 rounded-2xl border border-blue-100 shadow-sm text-center transition-all hover:-translate-y-1 hover:shadow-md hover:bg-white active:scale-95 cursor-pointer group">
+                        <p class="text-[10px] text-blue-900/60 uppercase font-bold tracking-wider mb-1 group-hover:text-blue-800">กำลังทำ</p>
+                        <p class="text-2xl font-bold text-blue-600 group-hover:text-blue-700">{{ accepted_assignments.count }}</p>
+                    </a>
+
+                    <a href="#section-completed" class="block bg-white/80 px-5 py-4 rounded-2xl border border-emerald-100 shadow-sm text-center transition-all hover:-translate-y-1 hover:shadow-md hover:bg-white active:scale-95 cursor-pointer group">
+                        <p class="text-[10px] text-emerald-900/60 uppercase font-bold tracking-wider mb-1 group-hover:text-emerald-800">เสร็จสิ้น</p>
+                        <p class="text-2xl font-bold text-emerald-600 group-hover:text-emerald-700">{{ completed_assignments.count }}</p>
+                    </a>
+
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            
+            <div class="lg:col-span-4 space-y-6 lg:sticky lg:top-8">
+                <div class="bg-white rounded-[2rem] overflow-hidden shadow-xl shadow-gray-200/50 border border-white">
+                    <div class="h-36 bg-gradient-to-r from-amber-900 to-amber-800 relative">
+                        <div class="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
+                    </div>
+                    
+                    <div class="px-8 pb-8 text-center">
+                        <div class="relative -mt-16 mb-4 inline-block">
+                            <div class="w-32 h-32 rounded-full p-1.5 bg-white shadow-lg">
+                                <div class="w-full h-full rounded-full overflow-hidden bg-gray-100">
+                                    {% if speaker.image %}
+                                        <img src="{{ speaker.image.url }}" class="w-full h-full object-cover">
+                                    {% elif speaker.profile_picture %}
+                                        <img src="{{ speaker.profile_picture.url }}" class="w-full h-full object-cover">
+                                    {% else %}
+                                        <div class="w-full h-full flex items-center justify-center text-amber-200 bg-amber-50">
+                                            <i class="fas fa-user-tie text-5xl"></i>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <h4 class="font-bold text-xl text-gray-900 mb-1">{{ speaker.name }}</h4>
+                        <span class="inline-flex items-center px-3 py-1 rounded-full bg-amber-50 text-amber-800 text-xs font-bold tracking-wide">
+                            <i class="fas fa-award mr-1.5 text-amber-600"></i>
+                            {{ speaker.expertise|default:"วิทยากรผู้เชี่ยวชาญ" }}
+                        </span>
+
+                        <div class="grid grid-cols-2 gap-3 mt-8 mb-8">
+                            <div class="p-3 bg-gray-50 rounded-2xl border border-gray-100">
+                                <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1">สถานะ</p>
+                                <div class="flex items-center justify-center gap-1.5">
+                                    <span class="relative flex h-2.5 w-2.5">
+                                      <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                      <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
+                                    </span>
+                                    <span class="text-xs font-bold text-gray-700">Online</span>
+                                </div>
+                            </div>
+                            <div class="p-3 bg-gray-50 rounded-2xl border border-gray-100">
+                                <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1">ความนิยม</p>
+                                <div class="text-amber-400 text-xs space-x-0.5">
+                                    <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star-half-alt"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <a href="{% url 'speaker_edit_view' speaker.id %}" class="flex items-center justify-center gap-2 w-full py-3.5 bg-gray-900 text-white rounded-xl font-semibold text-sm hover:bg-gray-800 transition-all hover:shadow-lg active:scale-95">
+                            <i class="fas fa-cog text-gray-400"></i> จัดการโปรไฟล์
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="lg:col-span-8 space-y-10">
+                
+                <div id="section-pending" class="space-y-5 scroll-mt-32">
+                    <div class="flex items-center gap-3 mb-2">
+                        <div class="w-1.5 h-6 bg-amber-500 rounded-full"></div>
+                        <h3 class="text-xl font-bold text-gray-800">งานที่รอดำเนินการ <span class="text-gray-400 text-sm font-normal ml-2">({{ pending_assignments.count }})</span></h3>
+                    </div>
+
+                    {% for assignment in pending_assignments %}
+                    <div class="group bg-white rounded-3xl p-6 border border-gray-100 shadow-[0_4px_20px_rgb(0,0,0,0.03)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] hover:border-amber-200 transition-all duration-300 relative overflow-hidden">
+                        <div class="absolute left-0 top-0 bottom-0 w-1.5 bg-amber-400"></div>
+                        
+                        <div class="flex flex-col md:flex-row gap-6 items-start">
+                            <div class="flex-shrink-0">
+                                <div class="w-20 h-24 bg-amber-50 rounded-2xl flex flex-col items-center justify-center text-amber-900 border border-amber-100 group-hover:bg-amber-500 group-hover:text-white transition-colors duration-300">
+                                    <span class="text-xs font-bold uppercase tracking-widest opacity-60 group-hover:opacity-80">{{ assignment.booking.Re_walkin|date:"M" }}</span>
+                                    <span class="text-3xl font-black leading-none my-0.5">{{ assignment.booking.Re_walkin|date:"d" }}</span>
+                                    <span class="text-[10px] font-bold opacity-60 group-hover:opacity-80">{{ assignment.booking.Re_walkin|date:"Y" }}</span>
+                                </div>
+                            </div>
+
+                            <div class="flex-grow space-y-3">
+                                <div class="flex justify-between items-start gap-4">
+                                    <div>
+                                        <h4 class="font-bold text-lg text-gray-900 group-hover:text-amber-700 transition-colors">{{ assignment.title|default:"บรรยายนำชมและสาธิต" }}</h4>
+                                        <div class="flex items-center gap-4 mt-2 text-sm text-gray-500">
+                                            <span class="flex items-center gap-1.5"><i class="far fa-clock text-amber-500"></i> {{ assignment.booking.time|default:"09:00 - 12:00" }}</span>
+                                            <span class="flex items-center gap-1.5"><i class="fas fa-users text-amber-500"></i> {{ assignment.booking.quantity|default:"-" }} ท่าน</span>
+                                        </div>
+                                    </div>
+                                    <span class="px-3 py-1 bg-amber-100 text-amber-700 text-[10px] font-bold uppercase tracking-wider rounded-lg">New Request</span>
+                                </div>
+                                
+                                {% if assignment.note %}
+                                <div class="text-sm text-gray-600 bg-gray-50 p-3 rounded-xl border border-gray-100">
+                                    <i class="fas fa-quote-left text-gray-300 mr-2"></i>{{ assignment.note|truncatechars:120 }}
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <div class="flex-shrink-0 w-full md:w-auto mt-2 md:mt-0 flex items-center">
+                                <a href="{% url 'speaker_assignment_detail' assignment.pk %}" class="w-full md:w-auto inline-flex items-center justify-center px-6 py-3 bg-white text-amber-900 border border-amber-200 rounded-xl text-sm font-bold shadow-sm hover:bg-amber-600 hover:text-white hover:border-transparent transition-all">
+                                    รายละเอียด
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="py-10 text-center border-2 border-dashed border-gray-200 rounded-3xl bg-gray-50/50">
+                        <i class="fas fa-inbox text-4xl text-gray-300 mb-3"></i>
+                        <p class="text-gray-500 font-medium">ไม่มีงานใหม่ที่รอดำเนินการ</p>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <div id="section-accepted" class="space-y-5 scroll-mt-32">
+                    <div class="flex items-center gap-3 mb-2">
+                        <div class="w-1.5 h-6 bg-blue-500 rounded-full"></div>
+                        <h3 class="text-xl font-bold text-gray-800">งานที่กำลังดำเนินการ <span class="text-gray-400 text-sm font-normal ml-2">({{ accepted_assignments.count }})</span></h3>
+                    </div>
+
+                    {% for assignment in accepted_assignments %}
+                    <div class="group bg-white rounded-3xl p-6 border border-gray-100 shadow-[0_4px_20px_rgb(0,0,0,0.03)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] hover:border-blue-200 transition-all duration-300 relative overflow-hidden">
+                        <div class="absolute left-0 top-0 bottom-0 w-1.5 bg-blue-500"></div>
+                        
+                        <div class="flex flex-col md:flex-row gap-6 items-start">
+                            <div class="flex-shrink-0">
+                                <div class="w-20 h-24 bg-blue-50 rounded-2xl flex flex-col items-center justify-center text-blue-900 border border-blue-100 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300">
+                                    <span class="text-xs font-bold uppercase tracking-widest opacity-60 group-hover:opacity-80">{{ assignment.booking.Re_walkin|date:"M" }}</span>
+                                    <span class="text-3xl font-black leading-none my-0.5">{{ assignment.booking.Re_walkin|date:"d" }}</span>
+                                    <span class="text-[10px] font-bold opacity-60 group-hover:opacity-80">{{ assignment.booking.Re_walkin|date:"Y" }}</span>
+                                </div>
+                            </div>
+
+                            <div class="flex-grow space-y-3">
+                                <div class="flex justify-between items-start gap-4">
+                                    <div>
+                                        <h4 class="font-bold text-lg text-gray-900 group-hover:text-blue-700 transition-colors">{{ assignment.title|default:"บรรยายนำชมและสาธิต" }}</h4>
+                                        <div class="flex items-center gap-4 mt-2 text-sm text-gray-500">
+                                            <span class="flex items-center gap-1.5"><i class="far fa-clock text-blue-500"></i> {{ assignment.booking.time|default:"09:00 - 12:00" }}</span>
+                                            <span class="flex items-center gap-1.5"><i class="fas fa-users text-blue-500"></i> {{ assignment.booking.quantity|default:"-" }} ท่าน</span>
+                                        </div>
+                                    </div>
+                                    <span class="px-3 py-1 bg-blue-50 text-blue-600 text-[10px] font-bold uppercase tracking-wider rounded-lg border border-blue-100">In Progress</span>
+                                </div>
+                            </div>
+
+                            <div class="flex-shrink-0 w-full md:w-auto mt-2 md:mt-0 flex items-center">
+                                <a href="{% url 'speaker_assignment_detail' assignment.pk %}" class="w-full md:w-auto inline-flex items-center justify-center px-6 py-3 bg-blue-600 text-white rounded-xl text-sm font-bold shadow-md hover:bg-blue-700 transition-all shadow-blue-200">
+                                    ดูรายละเอียด <i class="fas fa-arrow-right ml-2 text-xs"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="py-8 text-center bg-gray-50 rounded-3xl">
+                        <p class="text-gray-400 text-sm">ไม่มีงานที่กำลังดำเนินการ</p>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <div id="section-completed" class="space-y-5 opacity-80 hover:opacity-100 transition-opacity scroll-mt-32">
+                    <div class="flex items-center gap-3 mb-2">
+                        <div class="w-1.5 h-6 bg-emerald-500 rounded-full"></div>
+                        <h3 class="text-xl font-bold text-gray-800">ประวัติงานที่เสร็จสิ้น <span class="text-gray-400 text-sm font-normal ml-2">({{ completed_assignments.count }})</span></h3>
+                    </div>
+
+                    {% for assignment in completed_assignments %}
+                    <div class="group bg-white rounded-3xl p-6 border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 relative overflow-hidden grayscale hover:grayscale-0">
+                        <div class="absolute left-0 top-0 bottom-0 w-1.5 bg-emerald-500"></div>
+                        
+                        <div class="flex flex-col md:flex-row gap-6 items-center">
+                            <div class="flex-shrink-0">
+                                <div class="flex items-center gap-4">
+                                    <div class="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center text-gray-500 font-bold border border-gray-200">
+                                        <div class="text-center leading-none">
+                                            <span class="block text-xl">{{ assignment.booking.Re_walkin|date:"d" }}</span>
+                                            <span class="block text-[10px] uppercase">{{ assignment.booking.Re_walkin|date:"M" }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="flex-grow">
+                                <h4 class="font-bold text-gray-700">{{ assignment.title|default:"บรรยายนำชมและสาธิต" }}</h4>
+                                <p class="text-xs text-gray-400 mt-1">วันที่: {{ assignment.booking.Re_walkin|date:"d/m/Y" }}</p>
+                            </div>
+
+                            <div class="flex-shrink-0">
+                                <span class="inline-flex items-center px-3 py-1 rounded-full bg-emerald-50 text-emerald-600 text-xs font-bold border border-emerald-100">
+                                    <i class="fas fa-check-circle mr-1.5"></i> เสร็จสิ้น
+                                </span>
+                                <a href="{% url 'speaker_assignment_detail' assignment.pk %}" class="ml-4 text-gray-400 hover:text-emerald-600 text-sm font-semibold underline decoration-2 underline-offset-4">
+                                    ดูย้อนหลัง
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="py-8 text-center bg-gray-50 rounded-3xl">
+                        <p class="text-gray-400 text-sm">ยังไม่มีประวัติงานที่เสร็จสิ้น</p>
+                    </div>
+                    {% endfor %}
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

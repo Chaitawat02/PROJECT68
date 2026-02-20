@@ -1,0 +1,165 @@
+{% extends 'main/base.html' %}
+{% block extra_css %}
+<style>
+@media print {
+    @page { size: A4 portrait; margin: 10mm; }
+    nav, footer, .alert { display: none !important; }
+    body { background: #fff !important; color-adjust: exact; -webkit-print-color-adjust: exact; }
+    .max-w-3xl { max-width: 100% !important; width: 100% !important; }
+    .container { padding: 0 !important; }
+    .shadow-xl, .shadow-sm { box-shadow: none !important; }
+    .rounded-3xl, .rounded-2xl, .rounded-xl { border-radius: 0 !important; }
+    .p-8 { padding: 8px !important; }
+    .px-4 { padding-left: 8px !important; padding-right: 8px !important; }
+    .py-10 { padding-top: 8px !important; padding-bottom: 8px !important; }
+    .text-2xl { font-size: 18px !important; }
+    p, li, .text-sm, .text-xs { font-size: 12px !important; }
+    .grid { gap: 6px !important; }
+    hr { border-width: 1px !important; margin: 6px 0 !important; }
+    img { max-width: 120px !important; max-height: 120px !important; }
+    .flex { display: flex !important; }
+    .flex-1 { flex: 1 1 auto !important; }
+    /* prevent splitting important blocks across pages */
+    .no-page-break, .bg-white, .bg-amber-50, .bg-amber-600 { page-break-inside: avoid !important; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto py-10 px-4">
+    <div class="bg-white rounded-3xl shadow-xl overflow-hidden border border-gray-100">
+        <div class="bg-amber-600 p-8 text-white text-center">
+            <h2 class="text-2xl font-bold">รายละเอียดการจอง #{{ booking.id }}</h2>
+            <p class="opacity-80">ขอบคุณที่ใช้บริการพิพิธภัณฑ์ของเรา</p>
+        </div>
+
+        <div class="p-8 space-y-6">
+            <div class="grid grid-cols-2 gap-6">
+                <div>
+                    <p class="text-xs text-gray-400 uppercase font-bold">ชื่อผู้จอง</p>
+                    <p class="text-gray-800 font-medium">{{ booking.fullname }}</p>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-400 uppercase font-bold">สถานะ</p>
+                    <p class="font-bold {% if booking.Re_status == 'approved' %}text-green-600{% else %}text-amber-600{% endif %}">
+                        {{ booking.get_Re_status_display|default:"รอตรวจสอบ" }}
+                    </p>
+                </div>
+
+                <div>
+                    <p class="text-xs text-gray-400 uppercase font-bold">วันที่จอง</p>
+                    <p class="text-gray-800 font-medium">{{ booking.Re_date|date:"j F Y" }}</p>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-400 uppercase font-bold">จำนวนผู้เข้าชม</p>
+                    <p class="text-gray-800 font-medium">{{ booking.Re_quantity }} ท่าน</p>
+                </div>
+
+                <div>
+                    <p class="text-xs text-gray-400 uppercase font-bold">อีเมล</p>
+                    <p class="text-gray-800 font-medium">{{ booking.email }}</p>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-400 uppercase font-bold">เบอร์โทรศัพท์</p>
+                    <p class="text-gray-800 font-medium">{{ booking.phone }}</p>
+                </div>
+
+                <div>
+                    <p class="text-xs text-gray-400 uppercase font-bold">เวลาที่ต้องการเช็คอิน</p>
+                    <p class="text-gray-800 font-medium">{{ booking.check_in|default:"-" }}</p>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-400 uppercase font-bold">เวลาที่ต้องการเช็คเอาท์</p>
+                    <p class="text-gray-800 font-medium">{{ booking.check_out|default:"-" }}</p>
+                </div>
+
+                <div class="col-span-2">
+                    <p class="text-xs text-gray-400 uppercase font-bold">กิจกรรม / เวิร์กช็อปที่จอง</p>
+                    {% with items=booking.workshop_items.all %}
+                        {% if items %}
+                            <ul class="list-disc ml-6 text-gray-800">
+                                {% for it in items %}
+                                    <li>{{ it.workshop.title }} — {{ it.date|date:"j M Y" }}</li>
+                                {% endfor %}
+                            </ul>
+                        {% else %}
+                            <p class="text-gray-600">- ไม่มีการจองกิจกรรม -</p>
+                        {% endif %}
+                    {% endwith %}
+                </div>
+            </div>
+
+            <hr class="border-gray-100">
+
+            {% if booking.decision_note %}
+            <div class="bg-gray-50 p-4 rounded-xl">
+                <p class="text-xs text-gray-400 uppercase font-bold mb-1">หมายเหตุ / รายละเอียดเพิ่มเติม</p>
+                <p class="text-gray-700 italic">{{ booking.decision_note }}</p>
+            </div>
+            {% endif %}
+
+            <div class="grid grid-cols-2 gap-6">
+                <div>
+                    <p class="text-xs text-gray-400 uppercase font-bold">ผู้อนุมัติ</p>
+                    <p class="text-gray-800">{% if booking.decided_by %}{{ booking.decided_by.get_full_name|default:booking.decided_by.username }}{% else %}-{% endif %}</p>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-400 uppercase font-bold">วันที่อนุมัติ</p>
+                    <p class="text-gray-800">{{ booking.decided_at|date:"j F Y H:i"|default:"-" }}</p>
+                </div>
+
+                <div>
+                    <p class="text-xs text-gray-400 uppercase font-bold">สร้างเมื่อ</p>
+                    <p class="text-gray-800">{{ booking.created_at|date:"j F Y H:i" }}</p>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-400 uppercase font-bold">ผู้ใช้</p>
+                    <p class="text-gray-800">{% if booking.Us_ID %}{{ booking.Us_ID.username }}{% else %}-{% endif %}</p>
+                </div>
+            </div>
+
+            <hr class="border-gray-100">
+
+            {% if booking.speaker_assignment %}
+            <div class="bg-white p-4 rounded-xl border">
+                <p class="text-xs text-gray-400 uppercase font-bold mb-2">ข้อมูลวิทยากรที่มอบหมาย</p>
+                <p class="text-gray-800 font-medium">{{ booking.speaker_assignment.speaker.name }}</p>
+                <p class="text-sm text-gray-600">สถานะงาน: {{ booking.speaker_assignment.status }}</p>
+                <p class="mt-2"><a href="{% url 'speaker_assignment_detail' booking.speaker_assignment.assignment_id %}" class="text-amber-600 hover:underline">ดูรายละเอียดการมอบหมาย</a></p>
+            </div>
+            {% endif %}
+
+            <div class="flex gap-4">
+                <a href="{% url 'booking_history' %}" class="flex-1 text-center py-3 border border-gray-200 rounded-xl hover:bg-gray-50 transition font-medium">กลับไปที่ประวัติ</a>
+                <button onclick="window.print()" class="flex-1 bg-gray-800 text-white py-3 rounded-xl hover:bg-gray-900 transition font-medium">พิมพ์ใบยืนยัน</button>
+            </div>
+            
+            {% if questionnaire_available %}
+            <hr class="border-gray-100">
+            <div class="mt-4 bg-amber-50 p-4 rounded">
+                <p class="font-medium text-gray-800">แบบประเมินหลังการเข้าชม</p>
+                <p class="text-sm text-gray-600 mb-3">กรุณาทำแบบประเมินเพื่อช่วยพัฒนาบริการ</p>
+                <div class="flex items-center gap-3">
+                    {% if questionnaire_url %}
+                        <a href="{{ questionnaire_url }}" class="px-4 py-2 bg-amber-600 text-white rounded">เริ่มแบบประเมิน</a>
+                    {% endif %}
+                    {% if booking.qr_code %}
+                        <div class="ml-4">
+                            <p class="text-xs text-gray-500">หรือสแกน QR</p>
+                            <img src="{{ booking.qr_code.url }}" alt="QR แบบประเมิน" style="width:110px;height:110px;" />
+                        </div>
+                    {% elif questionnaire_qr %}
+                        <div class="ml-4">
+                            <p class="text-xs text-gray-500">หรือสแกน QR</p>
+                            <img src="{{ questionnaire_qr }}" alt="QR แบบประเมิน" style="width:110px;height:110px;" />
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% else %}
+            <div class="mt-4 text-sm text-gray-500">แบบประเมินยังไม่ถูกเปิดใช้งาน</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

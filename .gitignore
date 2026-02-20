@@ -1,0 +1,21 @@
+
+# Virtual Environment
+.venv/
+venv/
+
+# Python
+__pycache__/
+*.pyc
+
+# Database
+db.sqlite3
+
+# Media files
+media/
+profile_pics/
+silk_images/
+ar_models/
+ar_markers/
+
+# VS Code
+.vscode/

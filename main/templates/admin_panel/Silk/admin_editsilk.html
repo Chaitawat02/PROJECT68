@@ -1,0 +1,257 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block title %}{{ title }} | Admin Panel{% endblock %}
+
+{% block content %}
+<script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.3.0/model-viewer.min.js"></script>
+
+<div class="flex flex-col lg:flex-row min-h-screen bg-gray-50/50">
+    
+    <aside class="w-full lg:w-1/4 xl:w-1/5 shrink-0 px-4 lg:px-0 lg:min-h-screen">
+        {% include 'admin_panel/admin_dashboard.html' %}
+    </aside>
+
+    <main class="w-full lg:w-3/4 xl:w-4/5 pr-4 lg:pr-8 py-8">
+        
+        <div class="flex items-center justify-between mb-8 fade-in">
+            <div>
+                <nav class="flex text-sm text-gray-500 mb-1">
+                    <a href="{% url 'manage_silk_patterns' %}" class="hover:text-amber-700 transition-colors">จัดการลายผ้า</a>
+                    <span class="mx-2">/</span>
+                    <span class="text-gray-800 font-medium">แก้ไขข้อมูล</span>
+                </nav>
+                <h2 class="text-3xl font-extrabold text-gray-800 tracking-tight">
+                    <i class="fas fa-edit text-amber-600 mr-2"></i>{{ title }}
+                </h2>
+            </div>
+            <a href="{% url 'manage_silk_patterns' %}" class="group flex items-center gap-2 text-gray-500 hover:text-amber-700 transition-colors px-4 py-2 rounded-lg hover:bg-amber-50">
+                <i class="fas fa-arrow-left group-hover:-translate-x-1 transition-transform"></i>
+                <span class="font-bold">ย้อนกลับ</span>
+            </a>
+        </div>
+
+        {% if messages or form.errors %}
+        <div class="space-y-3 mb-6 fade-in">
+            {% for message in messages %}
+            <div class="flex items-center p-4 rounded-xl shadow-sm border-l-4 {% if message.tags == 'success' %}bg-green-50 border-green-500 text-green-800{% else %}bg-red-50 border-red-500 text-red-800{% endif %}">
+                <i class="fas {% if message.tags == 'success' %}fa-check-circle{% else %}fa-exclamation-circle{% endif %} mr-3 text-xl"></i>
+                {{ message }}
+            </div>
+            {% endfor %}
+
+            {% if form.errors %}
+            <div class="p-4 rounded-xl shadow-sm border-l-4 bg-red-50 border-red-500 text-red-800">
+                <p class="font-bold mb-1">กรุณาตรวจสอบข้อมูลดังนี้:</p>
+                <ul class="list-disc list-inside text-sm">
+                    {% for field, errors in form.errors.items %}
+                        <li>{{ field }}: {{ errors|striptags }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <div class="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden fade-in">
+            <div class="p-8 lg:p-10">
+                
+                <form method="post" enctype="multipart/form-data" class="space-y-10">
+                    {% csrf_token %}
+
+                    <div>
+                        <h3 class="text-lg font-bold text-gray-800 border-b border-gray-100 pb-2 mb-6 flex items-center gap-2">
+                            <i class="fas fa-info-circle text-amber-500"></i> ข้อมูลทั่วไป
+                        </h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="form-group">
+                                <label class="label-custom">รหัสผ้า (Si_ID)</label>
+                                <div class="input-wrapper">
+                                    {{ form.Si_ID }}
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="label-custom">ชื่อลายผ้า (Si_name) <span class="text-red-500">*</span></label>
+                                <div class="input-wrapper">
+                                    {{ form.Si_name }}
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="label-custom">ประเภทผ้า (Si_type)</label>
+                                <div class="input-wrapper">
+                                    {{ form.Si_type }}
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="label-custom">สีหลัก (Si_color)</label>
+                                <div class="input-wrapper">
+                                    {{ form.Si_color }}
+                                </div>
+                            </div>
+                            <div class="form-group md:col-span-2">
+                                <label class="label-custom">แหล่งผลิต / ที่มา (Si_address)</label>
+                                <div class="input-wrapper">
+                                    {{ form.Si_address }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h3 class="text-lg font-bold text-gray-800 border-b border-gray-100 pb-2 mb-6 flex items-center gap-2">
+                            <i class="fas fa-align-left text-amber-500"></i> รายละเอียดและประวัติ
+                        </h3>
+                        <div class="grid grid-cols-1 gap-6">
+                             <div class="form-group">
+                                <label class="label-custom">ประวัติความเป็นมา (Si_history)</label>
+                                <div class="input-wrapper">
+                                    {{ form.Si_history }}
+                                </div>
+                            </div>
+                            <div class="form-group md:grid md:grid-cols-2 md:gap-4">
+                                <div>
+                                    <label class="label-custom flex justify-between">
+                                        <span>ลำดับเป้าหมาย AR (Target Index)</span>
+                                        <span class="text-xs text-amber-600 font-normal bg-amber-50 px-2 py-0.5 rounded-full">ตรงกับลำดับในไฟล์ .mind</span>
+                                    </label>
+                                    <div class="input-wrapper">
+                                        {{ form.target_index }}
+                                    </div>
+                                </div>
+                                <div class="mt-4 md:mt-0">
+                                    <label class="label-custom flex justify-between">
+                                        <span>ชื่อไฟล์ .mind (Target File)</span>
+                                        <span class="text-xs text-gray-500 font-normal bg-gray-50 px-2 py-0.5 rounded-full">เช่น targets0.mind</span>
+                                    </label>
+                                    <div class="input-wrapper">
+                                        {{ form.target_file }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h3 class="text-lg font-bold text-gray-800 border-b border-gray-100 pb-2 mb-6 flex items-center gap-2">
+                            <i class="fas fa-photo-video text-amber-500"></i> สื่อและไฟล์ 3D (เรียกจาก Media)
+                        </h3>
+                        
+                        <div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
+                            <div class="bg-gray-50 p-4 rounded-2xl border border-gray-200">
+                                <label class="label-custom mb-3 block">รูปประกอบ (Image)</label>
+                                <div class="mb-3 relative w-full h-48 bg-white rounded-xl border border-dashed border-gray-300 flex items-center justify-center overflow-hidden">
+                                    <img id="preview-image" src="{% if form.instance.image %}{{ form.instance.image.url }}{% endif %}" 
+                                         class="w-full h-full object-cover {% if not form.instance.image %}hidden{% endif %}">
+                                    <div class="{% if form.instance.image %}hidden{% endif %} text-gray-400 flex flex-col items-center" id="placeholder-image">
+                                        <i class="fas fa-image text-3xl mb-2"></i>
+                                        <span class="text-xs">ยังไม่มีรูปภาพ</span>
+                                    </div>
+                                </div>
+                                {{ form.image }}
+                            </div>
+
+                            <div class="bg-gray-50 p-4 rounded-2xl border border-gray-200">
+                                <label class="label-custom mb-3 block">รูปอ้างอิง AR (Reference)</label>
+                                <div class="mb-3 relative w-full h-48 bg-white rounded-xl border border-dashed border-gray-300 flex items-center justify-center overflow-hidden">
+                                    <img id="preview-reference" src="{% if form.instance.reference %}{{ form.instance.reference.url }}{% endif %}" 
+                                         class="w-full h-full object-cover {% if not form.instance.reference %}hidden{% endif %}">
+                                    <div class="{% if form.instance.reference %}hidden{% endif %} text-gray-400 flex flex-col items-center" id="placeholder-reference">
+                                        <i class="fas fa-qrcode text-3xl mb-2"></i>
+                                        <span class="text-xs">Image Tracking</span>
+                                    </div>
+                                </div>
+                                {{ form.reference }}
+                            </div>
+
+                            <div class="bg-gray-50 p-4 rounded-2xl border border-gray-200">
+                                <label class="label-custom mb-3 block">โมเดล 3D (.glb)</label>
+                                <div class="mb-3 w-full h-48 bg-gray-800 rounded-xl overflow-hidden relative">
+                                    {% if form.instance.model_3d %}
+                                        <model-viewer src="{{ form.instance.model_3d.url }}" camera-controls auto-rotate shadow-intensity="1" class="w-full h-full"></model-viewer>
+                                        <div class="absolute top-2 right-2 bg-green-500 text-white text-[10px] px-2 py-0.5 rounded-full shadow-sm">
+                                            <i class="fas fa-check"></i> ใช้งานอยู่
+                                        </div>
+                                    {% else %}
+                                        <div class="flex flex-col items-center justify-center h-full text-gray-400">
+                                            <i class="fas fa-cube text-3xl mb-2"></i>
+                                            <span class="text-xs">ยังไม่มีโมเดล 3D</span>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                {{ form.model_3d }}
+                                <p class="text-[10px] text-amber-600 mt-2">
+                                    <i class="fas fa-exclamation-circle"></i> รองรับเฉพาะ .glb (ขนาดไม่เกิน 50MB)
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-4 pt-6 border-t border-gray-100">
+                        <button type="submit" class="flex-1 sm:flex-none bg-gradient-to-r from-amber-700 to-amber-900 text-white px-8 py-3.5 rounded-xl font-bold shadow-lg shadow-amber-900/20 hover:from-amber-800 hover:to-black transition-all transform hover:-translate-y-0.5">
+                            <i class="fas fa-save mr-2"></i> บันทึกข้อมูล
+                        </button>
+                        <a href="{% url 'manage_silk_patterns' %}" class="flex-1 sm:flex-none text-center px-8 py-3.5 rounded-xl border border-gray-300 text-gray-700 font-bold hover:bg-gray-50 transition-colors">
+                            ยกเลิก
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+</div>
+
+<style>
+    .label-custom { @apply block text-sm font-bold text-gray-700 mb-1.5; }
+    input[type="text"], input[type="number"], select, textarea {
+        width: 100%; padding: 0.75rem 1rem; background-color: #ffffff;
+        border: 1px solid #e5e7eb; border-radius: 0.75rem; outline: none;
+        transition: all 0.2s; font-size: 0.95rem;
+    }
+    input[type="text"]:focus, input[type="number"]:focus, select:focus, textarea:focus {
+        border-color: #d97706; box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.1);
+    }
+    input[type="file"] {
+        @apply block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4
+        file:rounded-full file:border-0 file:text-xs file:font-semibold
+        file:bg-amber-100 file:text-amber-700 hover:file:bg-amber-200 cursor-pointer;
+    }
+</style>
+
+<script>
+    function handleImagePreview(fieldName, imgId, placeholderId) {
+        const actualInput = document.querySelector(`input[name="${fieldName}"]`);
+        if(actualInput) {
+            actualInput.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        const img = document.getElementById(imgId);
+                        const placeholder = document.getElementById(placeholderId);
+                        img.src = e.target.result;
+                        img.classList.remove('hidden');
+                        if(placeholder) placeholder.classList.add('hidden');
+                    }
+                    reader.readAsDataURL(file);
+                }
+            });
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        handleImagePreview('image', 'preview-image', 'placeholder-image');
+        handleImagePreview('reference', 'preview-reference', 'placeholder-reference');
+        
+        const glbInput = document.querySelector('input[name="model_3d"]');
+        if(glbInput){
+            glbInput.addEventListener('change', function(e){
+                const f = e.target.files[0];
+                if(f && !f.name.toLowerCase().endsWith('.glb')){
+                    alert('⚠️ กรุณาอัปโหลดเฉพาะไฟล์นามสกุล .glb เท่านั้น');
+                    e.target.value = '';
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

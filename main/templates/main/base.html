@@ -1,0 +1,260 @@
+{% load static %}
+{% load media_extras %}
+
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ museum.name|default:"ระบบจัดการพิพิธภัณฑ์ผ้าไหมแห่งชาติ" }}{% endblock %}</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'main/css/base.css' %}">
+    
+    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.3.0/model-viewer.min.js"></script>
+    <script type ="importmap">
+    {
+        "imports": {
+            "@google/model-viewer": "https://unpkg.com/@google/model-viewer@3.3.0/dist/model-viewer.min.js",
+            "three": "https://unpkg.com/three@0.126.1/build/three.module.js",
+            "three/addons": "https://unpkg.com/three@0.126.1/examples/jsm/",
+            "gltfloader": "https://unpkg.com/three@0.126.1/examples/jsm/loaders/GLTFLoader.js",
+            "minder-images-three": "https://cdn.jsdelivr.net/npm/min-ar@0.1.6/minder-images-three.prod.js",
+        }
+    }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600&display=swap');
+        body { font-family: 'Sarabun', sans-serif; }
+        
+        /* สไตล์เพิ่มเติมสำหรับปุ่ม AR ให้ดูพรีเมียม */
+        .ar-button {
+            background-color: #78350f;
+            color: white;
+            border-radius: 8px;
+            padding: 10px 20px;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+    </style>
+
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="bg-amber-50 text-gray-800 flex flex-col min-h-screen">
+
+    <nav class="bg-amber-900 text-white shadow-lg sticky top-0 z-50">
+        <div class="container mx-auto px-4 py-3">
+            <div class="flex justify-between items-center">
+                
+                <a href="{% url 'home' %}" class="flex items-center gap-3 cursor-pointer hover:opacity-90 transition-opacity">
+                    <div class="bg-white p-2 rounded-full text-amber-900">
+                        <i class="fas fa-scroll text-2xl"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-xl font-bold uppercase">{{ museum.name|default:"National Silk Museum" }}</h1>
+                        <p class="text-xs text-amber-200">พิพิธภัณฑ์ผ้าไหมแห่งชาติ</p>
+                    </div>
+                </a>
+
+                <div class="hidden md:flex items-center gap-6 text-sm font-medium">
+                    <a href="{% url 'collections' %}" class="hover:text-amber-200 transition-colors py-2">คอลเลคชัน</a>
+                    <a href="{% url 'workshops' %}" class="hover:text-amber-200 transition-colors py-2">กิจกรรม</a>
+                    <a href="{% url 'speaker_list' %}" class="hover:text-amber-200 transition-colors py-2">วิทยากร</a>
+                    <a href="{% url 'ar_test_tracking' %}" class="hover:text-amber-200 transition-colors py-2">AR ติดตาม</a>
+                    <a href="{% url 'booking' %}" class="bg-amber-700 hover:bg-amber-600 text-white px-4 py-2 rounded-lg transition-colors shadow-sm border border-amber-600">
+                        จองเข้าชม
+                    </a>
+                </div>
+                
+                <div class="flex items-center gap-4">
+                    {% if user.is_authenticated %}
+                    <div class="flex items-center gap-3">
+                        <a href="{% if user.is_superuser or user.is_staff %}{% url 'admin_dashboard' %}{% elif user.profile.role == 'speaker' %}{% url 'speaker_dashboard' %}{% else %}{% url 'home' %}{% endif %}" 
+                           class="flex items-center gap-2 cursor-pointer hover:bg-amber-800 px-3 py-1 rounded-lg transition-colors border border-transparent hover:border-amber-700">
+                            <div class="text-right hidden md:block">
+                                <p class="font-bold text-sm">{{ user.first_name|default:user.username }}</p>
+                                <p class="text-xs text-amber-300">
+                                    {% if user.is_superuser or user.is_staff %} ผู้ดูแลระบบ
+                                    {% elif user.profile.role == 'speaker' %} วิทยากร
+                                    {% else %} สมาชิกทั่วไป {% endif %}
+                                </p>
+                            </div>
+                            <div class="w-10 h-10 bg-amber-200 rounded-full flex items-center justify-center text-amber-900 font-bold border-2 border-white shadow-sm overflow-hidden">
+                                {% if user.profile and user.profile.image and user.profile.image|file_exists %}
+                                    <img src="{{ user.profile.image.url }}" alt="Profile" class="w-full h-full object-cover">
+                                {% else %}
+                                    <i class="fas fa-user"></i>
+                                {% endif %}
+                            </div>
+                        </a>
+                        <a href="{% url 'logout' %}" class="text-amber-200 hover:text-white hover:bg-red-600/20 px-3 py-2 rounded-lg transition-colors text-sm flex flex-col items-center justify-center gap-0.5 group">
+                            <i class="fas fa-sign-out-alt text-lg group-hover:scale-110 transition-transform"></i>
+                        </a>
+                    </div>
+                    {% else %}
+                    <div class="hidden md:flex items-center gap-3">
+                        <a href="{% url 'signup' %}" class="text-amber-100 hover:text-white text-sm font-medium px-2 py-2">
+                            <i class="fas fa-user-plus mr-1"></i> สมัครสมาชิก
+                        </a>
+                        <a href="{% url 'login' %}" class="bg-white text-amber-900 hover:bg-amber-50 text-sm font-bold px-4 py-2 rounded-lg shadow-sm">
+                            <i class="fas fa-sign-in-alt mr-1"></i> เข้าสู่ระบบ
+                        </a>
+                    </div>
+                    {% endif %}
+                    <button id="mobile-menu-btn" class="md:hidden text-white hover:text-amber-200 p-2">
+                        <i class="fas fa-bars text-xl"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- เมนูสำหรับมือถือ -->
+        <div id="mobile-menu" class="md:hidden hidden border-t border-amber-800 bg-amber-900/95 backdrop-blur-sm">
+            <div class="px-4 py-3 space-y-1 text-sm">
+                <a href="{% url 'collections' %}" class="flex items-center justify-between py-2 text-amber-100 hover:bg-amber-800 rounded-lg px-2">
+                    <span>คอลเลคชัน</span>
+                    <i class="fas fa-angle-right text-xs opacity-70"></i>
+                </a>
+                <a href="{% url 'workshops' %}" class="flex items-center justify-between py-2 text-amber-100 hover:bg-amber-800 rounded-lg px-2">
+                    <span>กิจกรรม</span>
+                    <i class="fas fa-angle-right text-xs opacity-70"></i>
+                </a>
+                <a href="{% url 'speaker_list' %}" class="flex items-center justify-between py-2 text-amber-100 hover:bg-amber-800 rounded-lg px-2">
+                    <span>วิทยากร</span>
+                    <i class="fas fa-angle-right text-xs opacity-70"></i>
+                </a>
+                <a href="{% url 'ar_test_tracking' %}" class="flex items-center justify-between py-2 text-amber-100 hover:bg-amber-800 rounded-lg px-2">
+                    <span>AR ติดตาม</span>
+                    <i class="fas fa-angle-right text-xs opacity-70"></i>
+                </a>
+                <a href="{% url 'booking' %}" class="mt-2 flex items-center justify-center w-full bg-amber-700 hover:bg-amber-600 text-white py-2.5 rounded-lg font-semibold shadow-sm">
+                    <i class="fas fa-calendar-check mr-2"></i> จองเข้าชม
+                </a>
+
+                {% if user.is_authenticated %}
+                <div class="mt-3 pt-3 border-t border-amber-800/70 space-y-2">
+                    <a href="{% if user.is_superuser or user.is_staff %}{% url 'admin_dashboard' %}{% elif user.profile.role == 'speaker' %}{% url 'speaker_dashboard' %}{% else %}{% url 'home' %}{% endif %}"
+                       class="flex items-center justify-between py-2 text-amber-100 hover:bg-amber-800 rounded-lg px-2">
+                        <span>
+                            <span class="font-semibold">{{ user.first_name|default:user.username }}</span>
+                            <span class="block text-xs text-amber-300">
+                                {% if user.is_superuser or user.is_staff %}ผู้ดูแลระบบ
+                                {% elif user.profile.role == 'speaker' %}วิทยากร
+                                {% else %}สมาชิกทั่วไป{% endif %}
+                            </span>
+                        </span>
+                        <i class="fas fa-user-circle text-lg opacity-80"></i>
+                    </a>
+                    <a href="{% url 'logout' %}" class="flex items-center justify-center py-2 text-red-100 hover:bg-red-700/30 rounded-lg px-2">
+                        <i class="fas fa-sign-out-alt mr-2"></i> ออกจากระบบ
+                    </a>
+                </div>
+                {% else %}
+                <div class="mt-3 pt-3 border-t border-amber-800/70 grid grid-cols-2 gap-2">
+                    <a href="{% url 'signup' %}" class="flex items-center justify-center py-2 text-amber-100 hover:bg-amber-800 rounded-lg px-2 text-xs font-medium">
+                        <i class="fas fa-user-plus mr-1"></i> สมัครสมาชิก
+                    </a>
+                    <a href="{% url 'login' %}" class="flex items-center justify-center py-2 bg-white text-amber-900 hover:bg-amber-50 rounded-lg px-2 text-xs font-bold">
+                        <i class="fas fa-sign-in-alt mr-1"></i> เข้าสู่ระบบ
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    <main class="flex-grow container mx-auto px-4 py-8 relative">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert mb-4 p-4 rounded-lg bg-white border-l-4 shadow-sm flex items-center gap-3
+                            {% if message.tags == 'success' %}border-green-500 text-green-700 bg-green-50
+                            {% elif message.tags == 'error' %}border-red-500 text-red-700 bg-red-50
+                            {% elif message.tags == 'warning' %}border-yellow-500 text-yellow-700 bg-yellow-50
+                            {% else %}border-blue-500 text-blue-700 bg-blue-50{% endif %}">
+                    {% if message.tags == 'success' %}<i class="fas fa-check-circle"></i>
+                    {% elif message.tags == 'error' %}<i class="fas fa-exclamation-circle"></i>
+                    {% else %}<i class="fas fa-info-circle"></i>{% endif %}
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        {% block content %}
+        <div class="relative mb-8 rounded-3xl overflow-hidden shadow-sm border border-amber-100 bg-amber-50">
+            {% if museum and museum.hero_image %}
+                <div class="absolute inset-0">
+                    <img src="{{ museum.hero_image.url }}" alt="{{ museum.name }}" class="w-full h-full object-cover brightness-75">
+                </div>
+            {% endif %}
+            <div class="relative z-10 p-8 md:p-10 lg:p-12">
+                <h2 class="text-2xl md:text-3xl font-bold text-amber-50 md:text-white drop-shadow mb-4">
+                    ยินดีต้อนรับสู่ {{ museum.name }}
+                </h2>
+                <p class="text-sm md:text-base leading-relaxed text-amber-50 md:text-amber-100 max-w-4xl">
+                    {{ museum.history }}
+                </p>
+            </div>
+        </div>
+
+        {% if museum.gallery_image1 or museum.gallery_image2 or museum.gallery_image3 %}
+        <div class="mb-10">
+            <h3 class="text-xl font-bold text-amber-900 mb-4 flex items-center gap-2">
+                <i class="fas fa-images text-amber-700"></i>
+                ภาพบรรยากาศพิพิธภัณฑ์
+            </h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {% if museum.gallery_image1 %}
+                    <div class="overflow-hidden rounded-2xl shadow-sm border border-amber-100">
+                        <img src="{{ museum.gallery_image1.url }}" alt="Museum photo 1" class="w-full h-56 object-cover hover:scale-105 transition-transform duration-700">
+                    </div>
+                {% endif %}
+                {% if museum.gallery_image2 %}
+                    <div class="overflow-hidden rounded-2xl shadow-sm border border-amber-100">
+                        <img src="{{ museum.gallery_image2.url }}" alt="Museum photo 2" class="w-full h-56 object-cover hover:scale-105 transition-transform duration-700">
+                    </div>
+                {% endif %}
+                {% if museum.gallery_image3 %}
+                    <div class="overflow-hidden rounded-2xl shadow-sm border border-amber-100">
+                        <img src="{{ museum.gallery_image3.url }}" alt="Museum photo 3" class="w-full h-56 object-cover hover:scale-105 transition-transform duration-700">
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+        {% endblock %}
+    </main>
+
+    <footer class="bg-amber-900 text-amber-100 py-10 mt-auto">
+        <div class="container mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-8 text-left">
+            <div>
+                <h3 class="font-bold text-lg mb-4 border-b border-amber-800 pb-2">ติดต่อเรา</h3>
+                <p class="text-sm opacity-80 mb-2"><i class="fas fa-map-marker-alt w-5"></i> {{ museum.address }}</p>
+                <p class="text-sm opacity-80 mb-2"><i class="fas fa-phone w-5"></i> {{ museum.phone }}</p>
+                <p class="text-sm opacity-80"><i class="fas fa-envelope w-5"></i> {{ museum.email }}</p>
+            </div>
+            <div>
+                <h3 class="font-bold text-lg mb-4 border-b border-amber-800 pb-2">เวลาทำการ</h3>
+                <p class="text-sm opacity-80 mb-2"><i class="fas fa-clock w-5"></i> {{ museum.opening_hours }}</p>
+            </div>
+            <div class="md:text-right">
+                <h3 class="font-bold text-lg mb-4 border-b border-amber-800 pb-2 md:border-none uppercase">{{ museum.name }}</h3>
+                <p class="text-xs opacity-60">© 2026 National Silk Museum.<br>อนุรักษ์สืบสาน ภูมิปัญญาผ้าไทย</p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        const mobileBtn = document.getElementById('mobile-menu-btn');
+        const mobileMenu = document.getElementById('mobile-menu');
+        if (mobileBtn && mobileMenu) {
+            mobileBtn.addEventListener('click', () => {
+                mobileMenu.classList.toggle('hidden');
+            });
+        }
+    </script>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

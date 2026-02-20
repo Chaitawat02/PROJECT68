@@ -1,0 +1,32 @@
+{% extends 'main/base.html' %}
+{% block content %}
+<div class="max-w-7xl mx-auto py-12 px-4">
+    <div class="text-center mb-12">
+        <h6 class="text-amber-600 font-bold uppercase tracking-widest mb-2">Our Experts</h6>
+        <h2 class="text-4xl font-extrabold text-gray-900">วิทยากรผู้เชี่ยวชาญ</h2>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-8">
+        {% for speaker in speakers %}
+        <div class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-xl transition-all group">
+            <div class="aspect-square overflow-hidden">
+                {% if speaker.profile_picture %}
+                    <img src="{{ speaker.profile_picture.url }}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
+                {% else %}
+                    <div class="w-full h-full bg-amber-50 flex items-center justify-center text-amber-200">
+                        <i class="fas fa-user-tie text-6xl"></i>
+                    </div>
+                {% endif %}
+            </div>
+            <div class="p-6 text-center">
+                <h3 class="text-xl font-bold text-gray-900 mb-1">{{ speaker.name }}</h3>
+                <p class="text-amber-600 text-sm font-medium mb-4">{{ speaker.expertise|default:"วิทยากรประจำพิพิธภัณฑ์" }}</p>
+                <a href="{% url 'speaker_detail' speaker.id %}" class="inline-block w-full py-2 bg-gray-50 text-gray-600 rounded-xl font-semibold hover:bg-amber-600 hover:text-white transition-colors">
+                    ดูประวัติผลงาน
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

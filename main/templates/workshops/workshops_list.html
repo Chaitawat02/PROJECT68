@@ -1,0 +1,71 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block title %}{{ workshop.title }} | รายละเอียดกิจกรรม{% endblock %}
+
+{% block content %}
+<div class="bg-[#FAFAFA] min-h-screen pb-24">
+    
+    <div class="relative h-[50vh] lg:h-[65vh] w-full overflow-hidden">
+        {% if workshop.image %}
+            <img src="{{ workshop.image.url }}" class="w-full h-full object-cover transform hover:scale-105 transition-transform duration-1000" alt="{{ workshop.title }}">
+        {% else %}
+            <div class="w-full h-full bg-gradient-to-br from-amber-100 to-amber-200 flex items-center justify-center">
+                <i class="fas fa-image text-amber-400 text-9xl opacity-50"></i>
+            </div>
+        {% endif %}
+        
+        <div class="absolute inset-0 bg-gradient-to-t from-[#1A1A1A] via-transparent to-black/20 opacity-80"></div>
+        
+        <div class="absolute bottom-0 left-0 w-full p-8 lg:p-20">
+            <div class="max-w-7xl mx-auto">
+                <div class="flex flex-col md:flex-row md:items-end justify-between gap-6">
+                    <div class="flex flex-col gap-4">
+                        <nav class="flex items-center gap-3 text-amber-400 text-sm font-bold uppercase tracking-widest">
+                            <a href="{% url 'workshops' %}" class="hover:text-white transition-colors">Workshops</a>
+                            <i class="fas fa-chevron-right text-[10px] text-gray-500"></i>
+                            <span class="text-gray-300">รายละเอียดกิจกรรม</span>
+                        </nav>
+                        <h1 class="text-4xl lg:text-7xl font-black text-white leading-[1.1] max-w-4xl tracking-tight">
+                            {{ workshop.title }}
+                        </h1>
+                    </div>
+                    
+                    
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto px-4 -mt-16 relative z-10">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-10">
+            
+            <div class="lg:col-span-12 space-y-10">
+                <div class="bg-white rounded-[3rem] p-10 lg:p-14 shadow-2xl shadow-gray-200/40 border border-gray-100 relative overflow-hidden">
+                    <div class="flex flex-wrap gap-6 mb-12">
+                        <div class="flex items-center gap-3 px-6 py-3 bg-amber-50 rounded-2xl border border-amber-100">
+                            <div class="w-10 h-10 bg-amber-500 rounded-xl flex items-center justify-center text-white shadow-lg">
+                                <i class="fas fa-map-marker-alt"></i>
+                            </div>
+                            <div>
+                                <p class="text-[10px] text-amber-600 font-black uppercase mb-1">สถานที่</p>
+                                <p class="font-bold text-gray-800">{{ workshop.location|default:"พิพิธภัณฑ์ผ้าไหม" }}</p>
+                            </div>
+                        </div>
+                        </div>
+
+                    <div class="space-y-6">
+                        <h3 class="text-3xl font-black text-gray-900 flex items-center gap-4">
+                            <span class="w-3 h-10 bg-gradient-to-b from-amber-400 to-amber-600 rounded-full"></span>
+                            รายละเอียด
+                        </h3>
+                        <div class="text-gray-600 text-lg leading-[1.8] font-medium opacity-90">
+                            {{ workshop.description|linebreaksbr }}
+                        </div>
+                    </div>
+                    </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

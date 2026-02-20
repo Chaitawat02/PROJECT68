@@ -1,0 +1,251 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block title %}จัดการผู้ใช้งาน | Admin Panel{% endblock %}
+
+{% block content %}
+<div class="flex flex-col lg:flex-row gap-8 py-8 fade-in bg-gray-50/50 min-h-screen">
+    
+    <aside class="w-full lg:w-1/4 xl:w-1/5 shrink-0 px-4 lg:px-0">
+        {% include 'admin_panel/admin_dashboard.html' %}
+    </aside>
+
+    <main class="w-full lg:w-3/4 xl:w-4/5 pr-4 lg:pr-8 space-y-6">
+        
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-gray-200">
+            <div>
+                <nav class="flex text-xs text-gray-400 uppercase tracking-wider mb-2" aria-label="Breadcrumb">
+                    <ol class="list-none p-0 inline-flex">
+                        <li class="flex items-center">
+                            <a href="{% url 'admin_dashboard' %}" class="hover:text-amber-600">Dashboard</a>
+                            <i class="fas fa-chevron-right mx-2 text-[10px]"></i>
+                        </li>
+                        <li class="text-amber-600 font-bold">จัดการผู้ใช้งาน</li>
+                    </ol>
+                </nav>
+                <h2 class="text-3xl font-black text-gray-800 tracking-tight flex items-center gap-3">
+                    <i class="fas fa-users-cog text-[#8B0000]"></i>
+                    จัดการผู้ใช้งาน
+                </h2>
+                <div class="flex items-center gap-4 mt-2 text-sm font-medium">
+                    <span class="text-amber-700 bg-amber-50 px-3 py-1 rounded-lg border border-amber-100">สมาชิก: {{ member_count }}</span>
+                    <span class="text-blue-700 bg-blue-50 px-3 py-1 rounded-lg border border-blue-100">วิทยากร: {{ speaker_count }}</span>
+                </div>
+            </div>
+            
+            <button onclick="openAddUserModal()" class="inline-flex items-center justify-center bg-gradient-to-r from-[#8B0000] to-[#5e0000] text-white px-6 py-3.5 rounded-2xl shadow-lg shadow-red-900/20 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 font-bold group">
+                <i class="fas fa-user-plus mr-2 group-hover:scale-110 transition-transform"></i>
+                เพิ่มผู้ใช้งานใหม่
+            </button>
+        </div>
+
+        {% if messages %}
+        <div class="space-y-3">
+            {% for message in messages %}
+            <div class="p-4 rounded-2xl border-l-4 shadow-sm animate-bounce-subtle
+                {% if message.tags == 'success' %}bg-green-50 border-green-500 text-green-800
+                {% elif message.tags == 'error' %}bg-red-50 border-red-500 text-red-800
+                {% else %}bg-blue-50 border-blue-500 text-blue-800{% endif %} flex items-center">
+                <div class="mr-3 p-2 rounded-full {% if message.tags == 'success' %}bg-green-100{% else %}bg-red-100{% endif %}">
+                    <i class="fas {% if message.tags == 'success' %}fa-check-circle{% else %}fa-exclamation-circle{% endif %} text-lg"></i>
+                </div>
+                <span class="font-medium">{{ message }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="bg-white rounded-[2rem] shadow-xl shadow-gray-200/50 border border-gray-100 overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-gray-50/80 border-b border-gray-100 text-gray-400 uppercase text-[11px] font-black tracking-[0.1em]">
+                            <th class="p-6">ข้อมูลผู้ใช้งาน</th>
+                            <th class="p-6">อีเมล / เบอร์โทร</th>
+                            <th class="p-6 text-center">สถานะ</th>
+                            <th class="p-6 text-center">วันที่สมัคร</th>
+                            <th class="p-6 text-center">จัดการ</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-50">
+                        {% for user_item in users %}
+                        <tr class="hover:bg-amber-50/20 transition-all duration-200 group">
+                            <td class="p-6">
+                                <div class="flex items-center gap-4">
+                                    <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#8B0000] to-[#5e0000] text-white flex items-center justify-center font-black text-lg shadow-md group-hover:rotate-6 transition-transform">
+                                        {{ user_item.username|make_list|first|upper }}
+                                    </div>
+                                    <div>
+                                        <div class="font-bold text-gray-800 text-base group-hover:text-[#8B0000] transition-colors">{{ user_item.username }}</div>
+                                        <div class="text-xs text-gray-400 font-medium">{{ user_item.get_full_name|default:"ไม่ได้ระบุชื่อ-นามสกุล" }}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="p-6">
+                                <div class="flex flex-col gap-1">
+                                    <span class="text-sm text-gray-600 font-medium flex items-center gap-2">
+                                        <i class="far fa-envelope text-gray-300 w-4"></i>{{ user_item.email }}
+                                    </span>
+                                    {% if user_item.profile.phone %}
+                                    <span class="text-xs text-gray-400 flex items-center gap-2">
+                                        <i class="fas fa-phone-alt text-gray-300 w-4"></i>{{ user_item.profile.phone }}
+                                    </span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td class="p-6 text-center">
+                                {% if user_item.is_superuser %}
+                                    <span class="inline-flex items-center px-4 py-1.5 rounded-xl text-[10px] font-black bg-red-50 text-red-700 border border-red-100">
+                                        ADMIN
+                                    </span>
+                                {% elif user_item.profile.role == 'speaker' %}
+                                    <span class="inline-flex items-center px-4 py-1.5 rounded-xl text-[10px] font-black bg-blue-50 text-blue-700 border border-blue-100">
+                                        วิทยากร
+                                    </span>
+                                {% else %}
+                                    <span class="inline-flex items-center px-4 py-1.5 rounded-xl text-[10px] font-black bg-gray-50 text-gray-600 border border-gray-100">
+                                        สมาชิก
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td class="p-6 text-center">
+                                <span class="text-xs font-bold text-gray-400">{{ user_item.date_joined|date:"d M Y" }}</span>
+                            </td>
+                            <td class="p-6">
+                                <div class="flex items-center justify-center gap-3">
+                                    <a href="{% url 'manage_users_edit' user_item.id %}" class="w-10 h-10 flex items-center justify-center rounded-xl bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white hover:rotate-12 transition-all duration-300 shadow-sm" title="แก้ไขข้อมูล">
+                                        <i class="fas fa-pen-nib text-sm"></i>
+                                    </a>
+                                    
+                                    {% if user_item.id != request.user.id %}
+                                    <button onclick="confirmDeleteUser('{{ user_item.id }}', '{{ user_item.username }}')" class="w-10 h-10 flex items-center justify-center rounded-xl bg-red-50 text-red-600 hover:bg-red-600 hover:text-white hover:-rotate-12 transition-all duration-300 shadow-sm" title="ลบผู้ใช้งาน">
+                                        <i class="fas fa-trash-alt text-sm"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="p-20 text-center text-gray-400 bg-gray-50/30">
+                                <div class="flex flex-col items-center justify-center">
+                                    <div class="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                                        <i class="fas fa-users-slash text-4xl text-gray-300"></i>
+                                    </div>
+                                    <h4 class="text-xl font-bold text-gray-800">ไม่พบข้อมูลผู้ใช้งาน</h4>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="px-8 py-4 bg-gray-50/80 border-t border-gray-100 flex justify-between items-center text-xs">
+                <span class="text-gray-400 font-medium">User Management System v2.0</span>
+                <span class="text-gray-500 font-bold uppercase tracking-widest">Total: {{ users.count }} Users</span>
+            </div>
+        </div>
+    </main>
+</div>
+
+<div id="deleteModal" class="fixed inset-0 z-[100] hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="flex items-center justify-center min-h-screen p-4">
+        <div class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm transition-opacity" onclick="closeDeleteModal()"></div>
+
+        <div class="relative bg-white rounded-[2.5rem] text-left overflow-hidden shadow-2xl transform transition-all sm:max-w-lg sm:w-full border border-gray-100">
+            <div class="p-8">
+                <div class="flex items-center justify-center w-20 h-20 bg-red-50 rounded-full mx-auto mb-6">
+                    <i class="fas fa-exclamation-triangle text-3xl text-red-500 animate-pulse"></i>
+                </div>
+                <div class="text-center">
+                    <h3 class="text-2xl font-black text-gray-800 mb-2">ยืนยันการลบข้อมูล?</h3>
+                    <p class="text-gray-500 leading-relaxed">
+                        คุณกำลังจะลบผู้ใช้ "<span id="deleteItemName" class="font-bold text-red-600"></span>" 
+                        <br>หากลบแล้ว ข้อมูลนี้จะหายไปจากระบบทันทีและไม่สามารถกู้คืนได้
+                    </p>
+                </div>
+            </div>
+            <div class="bg-gray-50 px-8 py-6 flex flex-col sm:flex-row-reverse gap-3">
+                <form id="deleteForm" method="POST" class="inline-flex flex-col sm:flex-row-reverse gap-3 w-full sm:w-auto">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="delete">
+                    <input type="hidden" name="user_id" id="deleteUserIdInput">
+                    <button type="submit" class="w-full sm:w-auto inline-flex justify-center items-center px-6 py-3 rounded-2xl bg-red-600 text-white font-bold hover:bg-red-700 transition-all shadow-lg shadow-red-200">
+                        <i class="fas fa-trash-alt mr-2"></i> ยืนยันลบข้อมูล
+                    </button>
+                    <button type="button" onclick="closeDeleteModal()" class="w-full sm:w-auto inline-flex justify-center items-center px-6 py-3 rounded-2xl bg-white border border-gray-200 text-gray-600 font-bold hover:bg-gray-100 transition-all">
+                        ยกเลิก
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="addUserModal" class="fixed inset-0 z-[100] hidden overflow-y-auto">
+    <div class="flex items-center justify-center min-h-screen p-4">
+        <div class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm" onclick="closeAddUserModal()"></div>
+        <div class="relative bg-white rounded-[2.5rem] overflow-hidden shadow-2xl transform transition-all sm:max-w-lg sm:w-full border border-gray-100">
+            <div class="bg-gradient-to-r from-[#8B0000] to-[#5e0000] p-8 text-white">
+                <h3 class="text-2xl font-black">เพิ่มผู้ใช้งานใหม่</h3>
+                <p class="text-white/70 text-sm">สร้างบัญชีสำหรับสมาชิก</p>
+            </div>
+            <form method="POST" class="p-8 space-y-4">
+                {% csrf_token %}
+                <div class="space-y-4">
+                    <input type="text" name="username" required placeholder="ชื่อผู้ใช้ (Username)" class="w-full px-5 py-3.5 rounded-2xl bg-gray-50 border border-gray-100 focus:bg-white focus:border-amber-500 transition-all outline-none font-bold text-sm">
+                    <input type="email" name="email" required placeholder="อีเมล" class="w-full px-5 py-3.5 rounded-2xl bg-gray-50 border border-gray-100 focus:bg-white focus:border-amber-500 transition-all outline-none font-bold text-sm">
+                    <input type="password" name="password" required placeholder="รหัสผ่าน" class="w-full px-5 py-3.5 rounded-2xl bg-gray-50 border border-gray-100 focus:bg-white focus:border-amber-500 transition-all outline-none font-bold text-sm">
+                    <select name="role" class="w-full px-5 py-3.5 rounded-2xl bg-gray-50 border border-gray-100 focus:bg-white focus:border-amber-500 transition-all outline-none font-bold text-sm">
+                        <option value="member">สมาชิกทั่วไป</option>
+                        <option value="speaker">วิทยากร</option>
+                        <option value="admin">แอดมิน</option>
+                    </select>
+                </div>
+                <div class="flex gap-3 mt-6">
+                    <button type="button" onclick="closeAddUserModal()" class="flex-1 px-6 py-4 rounded-2xl bg-gray-100 text-gray-600 font-bold hover:bg-gray-200 transition-all">ยกเลิก</button>
+                    <button type="submit" class="flex-1 px-6 py-4 rounded-2xl bg-[#8B0000] text-white font-bold shadow-lg hover:bg-red-700 transition-all">สร้างบัญชี</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+    .fade-in { animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes bounce-subtle { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+    .animate-bounce-subtle { animation: bounce-subtle 2s infinite ease-in-out; }
+</style>
+
+<script>
+    // --- Logic จัดการการลบ ---
+    function confirmDeleteUser(id, name) {
+        document.getElementById('deleteItemName').textContent = name;
+        document.getElementById('deleteUserIdInput').value = id; // ส่ง ID ไปใน Hidden Input
+        document.getElementById('deleteModal').classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeDeleteModal() {
+        document.getElementById('deleteModal').classList.add('hidden');
+        document.body.style.overflow = 'auto';
+    }
+
+    // --- Logic จัดการการเพิ่ม User ---
+    function openAddUserModal() {
+        document.getElementById('addUserModal').classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeAddUserModal() {
+        document.getElementById('addUserModal').classList.add('hidden');
+        document.body.style.overflow = 'auto';
+    }
+
+    // กด ESC เพื่อปิด Modal
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') { closeDeleteModal(); closeAddUserModal(); }
+    });
+</script>
+{% endblock %}

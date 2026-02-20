@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{{ silk.Si_name }} — AR</title>
+  <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+  <style>
+    body{font-family:system-ui,Segoe UI,Roboto,'Noto Sans Thai',sans-serif;margin:0;padding:0}
+    header{padding:12px;background:#fafafa;border-bottom:1px solid #eee}
+    .container{display:flex;gap:12px;padding:12px}
+    .viewer{flex:1}
+    model-viewer{width:100%;height:70vh;background:#f3f3f3}
+    .meta{width:360px;max-width:33%;padding:12px;border-left:1px solid #eee}
+    .meta h2{margin-top:0}
+    .qr{margin-top:12px}
+    @media(max-width:900px){.container{flex-direction:column}.meta{width:auto}}
+  </style>
+</head>
+<body>
+  <header>
+    <a href="/collections/">กลับไปที่คลังผ้าไหม</a>
+  </header>
+  <div class="container">
+    <div class="viewer">
+      {% if model_url %}
+      <model-viewer src="{{ model_url }}" ios-src="{{ model_url }}" alt="{{ silk.Si_name }}" camera-controls ar ar-modes="webxr scene-viewer quick-look" environment-image="https://modelviewer.dev/shared-assets/environments/venice_sunset_1k.hdr" exposure="1" shadow-intensity="1" reveal="interaction"></model-viewer>
+      {% else %}
+      <img src="{{ image_url }}" alt="{{ silk.Si_name }}" style="width:100%;height:70vh;object-fit:contain;background:#fff"/>
+      {% endif %}
+    </div>
+    <aside class="meta">
+      <h2>{{ silk.Si_name }}</h2>
+      <p><strong>รหัส:</strong> {{ silk.Si_ID }}</p>
+      <p><strong>แหล่งผลิต:</strong> {{ silk.Si_address }}</p>
+      <p><strong>ชนิด:</strong> {{ silk.Si_type }}</p>
+      <p><strong>สี:</strong> {{ silk.Si_color }}</p>
+      <h4>ประวัติ / ที่มา</h4>
+      <div style="white-space:pre-wrap">{{ silk.Si_history }}</div>
+
+      <div class="qr">
+        <p><strong>QR สำหรับเปิดหน้านี้:</strong></p>
+        <img src="{% url 'silk_qr' silk.pk %}" alt="QR code" />
+      </div>
+    </aside>
+  </div>
+</body>
+</html>

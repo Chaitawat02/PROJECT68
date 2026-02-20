@@ -1,0 +1,88 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block title %}อนุมัติการจอง - แผงควบคุม{% endblock %}
+
+{% block content %}
+<div class="flex flex-col lg:flex-row gap-8 py-6">
+    
+    <aside class="w-full lg:w-1/4 xl:w-1/5 shrink-0">
+        {% include 'admin_panel/admin_dashboard.html' %}
+    </aside>
+
+    <main class="w-full lg:w-3/4 xl:w-4/5">
+        <div class="mb-8">
+            <h2 class="text-3xl font-bold text-gray-800">จัดการรายการจอง</h2>
+            <p class="text-gray-500">ตรวจสอบและอนุมัติคำขอเข้าชมพิพิธภัณฑ์</p>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead class="bg-gray-50 text-gray-500 text-xs uppercase font-bold">
+                        <tr>
+                            <th class="px-6 py-4">ผู้จอง</th>
+                            <th class="px-6 py-4">วันที่/เวลา</th>
+                            <th class="px-6 py-4">จำนวน</th>
+                            <th class="px-6 py-4">สถานะ</th>
+                            <th class="px-6 py-4 text-center">ดำเนินการ</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        {% for booking in bookings %}
+                        <tr class="hover:bg-gray-50/50 transition-colors">
+                            <td class="px-6 py-4">
+                                <div class="font-bold text-gray-800">{{ booking.fullname }}</div>
+                                <div class="text-xs text-gray-400">{{ booking.email }}</div>
+                            </td>
+                            <td class="px-6 py-4 text-sm text-gray-600">
+                                {{ booking.Re_date|date:"d M Y" }}<br>
+                                <span class="text-xs font-mono text-amber-600">{{ booking.check_in|time:"H:i" }} น.</span>
+                            </td>
+                            <td class="px-6 py-4">
+                                <span class="px-2 py-1 bg-gray-100 rounded text-xs">{{ booking.Re_quantity }} ท่าน</span>
+                            </td>
+                            <td class="px-6 py-4">
+                                {% if booking.Re_status == 'approved' %}
+                                    <span class="text-green-600 bg-green-50 px-2 py-1 rounded-full text-xs font-bold">อนุมัติแล้ว</span>
+                                {% elif booking.Re_status == 'rejected' %}
+                                    <span class="text-red-600 bg-red-50 px-2 py-1 rounded-full text-xs font-bold">ปฏิเสธ</span>
+                                {% else %}
+                                    <span class="text-yellow-600 bg-yellow-50 px-2 py-1 rounded-full text-xs font-bold animate-pulse">รอตรวจสอบ</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4">
+                                <div class="flex justify-center gap-2">
+                                    <form method="post" action="{% url 'update_booking_status' booking.id 'approved' %}">
+                                        {% csrf_token %}
+                                        <button type="submit" class="p-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition shadow-sm" title="อนุมัติ">
+                                            <i class="fas fa-check"></i>
+                                        </button>
+                                    </form>
+                                    <form method="post" action="{% url 'update_booking_status' booking.id 'rejected' %}">
+                                        {% csrf_token %}
+                                        <button type="submit" class="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition shadow-sm" title="ปฏิเสธ">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </form>
+                                    <a href="{% url 'booking_detail' booking.id %}" class="p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="px-6 py-20 text-center text-gray-400">
+                                <i class="fas fa-clipboard-list text-5xl mb-4 opacity-20"></i>
+                                <p>ไม่มีรายการจองที่รอการอนุมัติในขณะนี้</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+</div>
+{% endblock %}

@@ -1,0 +1,171 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block title %}แผงควบคุมผู้ดูแลระบบ{% endblock %}
+
+{% block content %}
+<div class="flex flex-col lg:flex-row gap-8 py-6 fade-in">
+    
+    <aside class="w-full lg:w-1/4 xl:w-1/5 shrink-0">
+        {% include 'admin_panel/admin_dashboard.html' %}
+    </aside>
+
+    <main class="w-full lg:w-3/4 xl:w-4/5 space-y-8">
+        
+        <div class="flex flex-col md:flex-row justify-between items-end gap-4 border-b border-gray-200 pb-4">
+            <div>
+                <h6 class="text-xs font-bold text-amber-600 uppercase tracking-wider mb-1">Dashboard</h6>
+                <h2 class="text-3xl font-bold text-gray-800">ภาพรวมระบบ</h2>
+                <p class="text-gray-500 mt-1">
+                    ยินดีต้อนรับ, <span class="text-amber-700 font-semibold">{{ request.user.first_name }}</span>
+                </p>
+            </div>
+            <div class="bg-white px-4 py-2 rounded-full shadow-sm border border-gray-100 flex items-center gap-2">
+                <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                <span class="text-sm text-gray-600 font-medium">{{ today|date:"d F Y" }}</span>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            
+            <a href="{% url 'approve_bookings' %}" class="block bg-white rounded-xl p-6 shadow-sm border border-gray-100 border-l-4 border-l-yellow-400 hover:shadow-md hover:-translate-y-1 transition-all">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-xs font-bold text-gray-400 uppercase">จองรออนุมัติ</p>
+                        <h3 class="text-3xl font-bold text-gray-800 mt-2">{{ pending_count|default:"0" }}</h3>
+                    </div>
+                    <div class="p-3 bg-yellow-50 text-yellow-600 rounded-lg">
+                        <i class="fas fa-clock text-xl"></i>
+                    </div>
+                </div>
+            </a>
+
+            <a href="{% url 'manage_speakers' %}" class="block bg-white rounded-xl p-6 shadow-sm border border-gray-100 border-l-4 border-l-blue-600 hover:shadow-md hover:-translate-y-1 transition-all">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-xs font-bold text-gray-400 uppercase">มอบหมายวิทยากร</p>
+                        <h3 class="text-3xl font-bold text-gray-800 mt-2">{{ speakers.count|default:"0" }} ท่าน</h3>
+                </div>
+                <div class="p-3 bg-blue-50 text-blue-600 rounded-lg">
+                    <i class="fas fa-user-tie text-xl"></i>
+                    </div>
+                </div>
+            </a>
+
+            <a href="{% url 'manage_silk_patterns' %}" class="block bg-white rounded-xl p-6 shadow-sm border border-gray-100 border-l-4 border-l-rose-500 hover:shadow-md hover:-translate-y-1 transition-all">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-xs font-bold text-gray-400 uppercase">ลายผ้าไหม</p>
+                        <h3 class="text-3xl font-bold text-gray-800 mt-2">{{ total_patterns|default:"0" }}</h3>
+                    </div>
+                    <div class="p-3 bg-rose-50 text-rose-600 rounded-lg">
+                        <i class="fas fa-layer-group text-xl"></i>
+                    </div>
+                </div>
+            </a>
+
+            <a href="{% url 'manage_users' %}" class="block bg-white rounded-xl p-6 shadow-sm border border-gray-100 border-l-4 border-l-green-500 hover:shadow-md hover:-translate-y-1 transition-all">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-xs font-bold text-gray-400 uppercase">สมาชิกทั้งหมด</p>
+                        <h3 class="text-3xl font-bold text-gray-800 mt-2">{{ total_users|default:"0" }}</h3>
+                    </div>
+                    <div class="p-3 bg-green-50 text-green-600 rounded-lg">
+                        <i class="fas fa-users text-xl"></i>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div class="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                <div>
+                    <h3 class="font-bold text-lg text-gray-800">การจองล่าสุด</h3>
+                    <p class="text-sm text-gray-500">รายการขอเข้าชมพิพิธภัณฑ์ล่าสุด</p>
+                </div>
+                <a href="{% url 'approve_bookings' %}" class="text-sm font-semibold text-amber-700 hover:text-amber-800 hover:underline">
+                    ดูทั้งหมด <i class="fas fa-arrow-right ml-1"></i>
+                </a>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead class="bg-gray-50 text-gray-500 text-xs uppercase font-semibold tracking-wider">
+                        <tr>
+                            <th class="px-6 py-4">ID</th>
+                            <th class="px-6 py-4">ผู้จอง</th>
+                            <th class="px-6 py-4">วันที่เข้าชม</th>
+                            <th class="px-6 py-4">จำนวน</th>
+                            <th class="px-6 py-4">สถานะ</th>
+                            <th class="px-6 py-4 text-right">จัดการ</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100 text-sm">
+                        {% for booking in recent_bookings %}
+                        <tr class="hover:bg-gray-50/50 transition-colors">
+                            <td class="px-6 py-4 font-mono text-gray-500">#{{ booking.id }}</td>
+                            <td class="px-6 py-4">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-8 h-8 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center font-bold text-xs">
+                                        {{ booking.fullname|first|upper }}
+                                    </div>
+                                    <div>
+                                        <div class="font-semibold text-gray-800">{{ booking.fullname }}</div>
+                                        <div class="text-xs text-gray-500">{{ booking.email|default:"-" }}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 text-gray-600">
+                                <i class="far fa-calendar-alt mr-1 text-gray-400"></i>
+                                {{ booking.Re_date|date:"d M Y" }}
+                            </td>
+                            <td class="px-6 py-4">
+                                <span class="px-2 py-1 bg-gray-100 rounded text-gray-600 font-medium text-xs">
+                                    {{ booking.Re_quantity|default:"1" }} ท่าน
+                                </span>
+                            </td>
+                            <td class="px-6 py-4">
+                                {% if booking.Re_status == 'approved' %}
+                                    <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-100">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span> อนุมัติ
+                                    </span>
+                                {% elif booking.Re_status == 'rejected' %}
+                                    <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-700 border border-red-100">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> ปฏิเสธ
+                                    </span>
+                                {% else %}
+                                    <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-50 text-yellow-700 border border-yellow-100">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-yellow-500 animate-pulse"></span> รอตรวจสอบ
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4 text-right">
+                                <a href="{% url 'booking_detail' booking.id %}" class="text-gray-400 hover:text-amber-600 transition-colors">
+                                    <i class="fas fa-eye text-lg"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="px-6 py-10 text-center text-gray-400">
+                                <i class="fas fa-inbox text-4xl mb-3 opacity-30 block"></i>
+                                ยังไม่มีข้อมูลการจอง
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<style>
+    .fade-in { animation: fadeIn 0.5s ease-out forwards; }
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+</style>
+{% endblock %}

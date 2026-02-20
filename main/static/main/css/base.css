@@ -1,0 +1,44 @@
+/* main/static/main/css/base.css */
+
+/* 1. Import Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;700&display=swap');
+
+/* 2. Global Settings */
+:root {
+    --font-main: 'Sarabun', sans-serif;
+    --color-primary: #78350f;  /* Amber 900 */
+    --color-secondary: #b45309; /* Amber 700 */
+    --color-bg: #fffbeb;       /* Amber 50 */
+}
+
+body {
+    font-family: var(--font-main);
+    background-color: var(--color-bg);
+    color: #1f2937; /* Gray 800 */
+}
+
+/* 3. Custom Hero Pattern (ลายไทยพื้นหลัง) */
+.hero-pattern {
+    background-color: var(--color-primary);
+    background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%2392400e' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    border-radius: 1rem;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+/* 4. Navbar & Buttons Tweaks */
+.nav-link {
+    transition: color 0.3s ease;
+}
+.nav-link:hover {
+    color: #fde68a; /* Amber 200 */
+}
+
+/* Animation for Toast Notification */
+@keyframes slideIn {
+    from { transform: translateY(-20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.toast-notification {
+    animation: slideIn 0.5s ease-out forwards;
+}

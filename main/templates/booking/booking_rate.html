@@ -1,0 +1,114 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block title %}อัตราค่าเข้าชมและกิจกรรม{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto py-12 px-4 fade-in">
+    
+    <div class="text-center mb-16">
+        <h6 class="text-amber-600 font-bold uppercase tracking-widest mb-2">Pricing & Packages</h6>
+        <h2 class="text-4xl font-extrabold text-gray-900 mb-4">อัตราค่าเข้าชมและค่าบริการ</h2>
+        <div class="w-24 h-1 bg-amber-500 mx-auto rounded-full"></div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
+        
+        <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 hover:shadow-xl transition-all border-t-4 border-t-blue-400">
+            <div class="text-center">
+                <div class="w-16 h-16 bg-blue-50 text-blue-500 rounded-2xl flex items-center justify-center mx-auto mb-6 text-2xl">
+                    <i class="fas fa-user"></i>
+                </div>
+                <h4 class="text-xl font-bold text-gray-800 mb-2">บุคคลทั่วไป</h4>
+                <div class="flex items-center justify-center gap-1 mb-6">
+                    <span class="text-4xl font-black text-gray-900">50</span>
+                    <span class="text-gray-400 font-medium">บาท / ท่าน</span>
+                </div>
+                <ul class="text-left space-y-4 mb-8 text-gray-500 text-sm">
+                    <li class="flex items-center gap-3"><i class="fas fa-check-circle text-green-500"></i> เข้าชมโซนพิพิธภัณฑ์ทั้งหมด</li>
+                    <li class="flex items-center gap-3"><i class="fas fa-check-circle text-green-500"></i> บริการเครื่องบรรยาย (Audio Guide)</li>
+                    <li class="flex items-center gap-3"><i class="fas fa-check-circle text-green-500"></i> ถ่ายภาพในโซนที่กำหนด</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-3xl shadow-lg border-2 border-amber-500 p-8 transform scale-105 relative overflow-hidden">
+            <div class="absolute top-0 right-0 bg-amber-500 text-white text-[10px] font-bold px-4 py-1 uppercase tracking-widest rounded-bl-xl">
+                แนะนำ
+            </div>
+            <div class="text-center">
+                <div class="w-16 h-16 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center mx-auto mb-6 text-2xl">
+                    <i class="fas fa-palette"></i>
+                </div>
+                <h4 class="text-xl font-bold text-gray-800 mb-2">เข้าชม + Workshop</h4>
+                <div class="flex items-center justify-center gap-1 mb-6">
+                    <span class="text-4xl font-black text-gray-900">199</span>
+                    <span class="text-gray-400 font-medium">บาท / ท่าน</span>
+                </div>
+                <ul class="text-left space-y-4 mb-8 text-gray-600 text-sm">
+                    <li class="flex items-center gap-3"><i class="fas fa-check-circle text-amber-500"></i> รวมค่าเข้าชมพิพิธภัณฑ์แล้ว</li>
+                    <li class="flex items-center gap-3"><i class="fas fa-check-circle text-amber-500"></i> อุปกรณ์ Workshop ครบชุด</li>
+                    <li class="flex items-center gap-3"><i class="fas fa-check-circle text-amber-500"></i> ของที่ระลึกฝีมือตัวเอง</li>
+                    <li class="flex items-center gap-3"><i class="fas fa-check-circle text-amber-500"></i> วิทยากรผู้เชี่ยวชาญดูแลใกล้ชิด</li>
+                </ul>
+                <a href="{% url 'booking' %}" class="block w-full bg-amber-600 text-white py-3 rounded-xl font-bold hover:bg-amber-700 transition shadow-lg shadow-amber-200">
+                    จองแพ็กเกจนี้
+                </a>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 hover:shadow-xl transition-all border-t-4 border-t-green-400">
+            <div class="text-center">
+                <div class="w-16 h-16 bg-green-50 text-green-500 rounded-2xl flex items-center justify-center mx-auto mb-6 text-2xl">
+                    <i class="fas fa-users"></i>
+                </div>
+                <h4 class="text-xl font-bold text-gray-800 mb-2">หมู่คณะ / สถานศึกษา</h4>
+                <div class="flex items-center justify-center gap-1 mb-6">
+                    <span class="text-4xl font-black text-gray-900">30</span>
+                    <span class="text-gray-400 font-medium">บาท / ท่าน</span>
+                </div>
+                <ul class="text-left space-y-4 mb-8 text-gray-500 text-sm">
+                    <li class="flex items-center gap-3"><i class="fas fa-check-circle text-green-500"></i> สำหรับ 20 ท่านขึ้นไป</li>
+                    <li class="flex items-center gap-3"><i class="fas fa-check-circle text-green-500"></i> บริการวิทยากรนำชมกลุ่ม</li>
+                    <li class="flex items-center gap-3"><i class="fas fa-check-circle text-green-500"></i> ห้องรับรองและน้ำดื่ม</li>
+                </ul>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="bg-gray-50 rounded-3xl p-10 flex flex-col md:flex-row gap-10 items-center">
+        <div class="flex-1">
+            <h4 class="text-2xl font-bold text-gray-800 mb-4">สิทธิพิเศษเข้าชมฟรี</h4>
+            <ul class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-gray-600">
+                <li class="flex items-center gap-2">
+                    <i class="fas fa-minus text-amber-500"></i> เด็กอายุต่ำกว่า 7 ปี
+                </li>
+                <li class="flex items-center gap-2">
+                    <i class="fas fa-minus text-amber-500"></i> ผู้สูงอายุ 60 ปีขึ้นไป
+                </li>
+                <li class="flex items-center gap-2">
+                    <i class="fas fa-minus text-amber-500"></i> พระภิกษุและสามเณร
+                </li>
+                <li class="flex items-center gap-2">
+                    <i class="fas fa-minus text-amber-500"></i> ผู้พิการทุกประเภท
+                </li>
+            </ul>
+        </div>
+        <div class="shrink-0">
+            <a href="{% url 'booking' %}" class="inline-flex items-center gap-3 bg-gray-900 text-white px-8 py-4 rounded-2xl font-bold hover:bg-black transition">
+                ไปหน้าการจอง <i class="fas fa-arrow-right"></i>
+            </a>
+        </div>
+    </div>
+
+</div>
+
+<style>
+    .fade-in { animation: fadeIn 0.8s ease-out; }
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+</style>
+{% endblock %}

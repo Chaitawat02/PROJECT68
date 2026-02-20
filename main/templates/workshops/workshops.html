@@ -1,0 +1,64 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block title %}กิจกรรมและเวิร์กช็อป - Thai Silk Museum{% endblock %}
+
+{% block content %}
+<div class="relative bg-gray-900 text-white py-16 mb-8 rounded-2xl overflow-hidden shadow-lg mx-4">
+    <div class="absolute inset-0 bg-cover bg-center opacity-50" style="background-image: url('{% static 'images/workshop-bg.jpg' %}');"></div>
+    <div class="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
+    <div class="relative container mx-auto px-4 text-center z-10">
+        <h1 class="text-4xl md:text-5xl font-bold mb-2">Workshops & Events</h1>
+        <p class="text-lg text-amber-100/80 font-light">เลือกกิจกรรมที่คุณสนใจเพื่อดูรอบวันเวลาที่เปิดสอน</p>
+    </div>
+</div>
+
+<div class="container mx-auto px-4 pb-10">
+    <div class="flex justify-center mb-10">
+        <div class="w-full max-w-2xl">
+            <form class="flex shadow-md rounded-full overflow-hidden bg-white" method="GET">
+                <input class="w-full px-6 py-3 border-none outline-none text-gray-700" 
+                       type="search" name="q" placeholder="ค้นหากิจกรรม..." value="{{ request.GET.q|default:'' }}">
+                <button class="bg-amber-800 hover:bg-amber-900 text-white px-8 font-bold transition-all" type="submit">
+                    <i class="fas fa-search"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+        {% for workshop in workshops %}
+        <div class="group bg-white rounded-3xl shadow-sm hover:shadow-2xl transition-all duration-500 border border-amber-100 overflow-hidden flex flex-col">
+            <div class="relative h-64 overflow-hidden">
+                {% if workshop.image %}
+                    <img src="{{ workshop.image.url }}" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110">
+                {% else %}
+                    <div class="w-full h-full bg-gray-100 flex items-center justify-center text-gray-400">
+                        <i class="fas fa-image text-5xl"></i>
+                    </div>
+                {% endif %}
+                <div class="absolute top-4 right-4 bg-white/90 backdrop-blur px-4 py-1 rounded-full text-xs font-bold text-amber-800 shadow-sm">
+                    {{ workshop.location|default:"พิพิธภัณฑ์" }}
+                </div>
+            </div>
+
+            <div class="p-8 flex flex-col flex-grow">
+                <h3 class="text-2xl font-bold text-gray-900 mb-3 group-hover:text-amber-700 transition-colors">{{ workshop.title }}</h3>
+                <p class="text-gray-500 text-sm mb-6 line-clamp-3">{{ workshop.description }}</p>
+                
+                <div class="mt-auto pt-6 border-t border-gray-50 flex items-center justify-between">
+                    <a href="{% url 'workshops_list' %}?workshop_id={{ workshop.id }}" 
+                       class="inline-flex items-center justify-center bg-amber-800 text-white px-6 py-3 rounded-2xl font-bold hover:bg-amber-900 transition-all shadow-lg shadow-amber-100">
+                        ดูรายละเอียดกิจกรรม
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-span-full py-20 text-center">
+            <p class="text-gray-400 italic">ไม่พบกิจกรรมที่ค้นหา</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

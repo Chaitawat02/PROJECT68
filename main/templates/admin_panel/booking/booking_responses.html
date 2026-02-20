@@ -1,0 +1,92 @@
+{% extends 'main/base.html' %}
+{% block content %}
+<div class="max-w-6xl mx-auto py-8 px-4">
+    <h2 class="text-2xl font-bold mb-4">
+        {% if booking %}
+            สรุปผลแบบประเมินรายผู้เข้าชม — การจองลำดับ {{ booking.id }}
+        {% else %}
+            สรุปคำตอบแบบประเมินการจอง (แสดงรายการล่าสุด)
+        {% endif %}
+    </h2>
+
+    <div class="mb-4 flex items-center gap-3">
+        <a href="?export=pdf{% if booking %}&booking_id={{ booking.id }}{% endif %}" class="px-3 py-2 bg-gray-100 rounded">ดาวน์โหลด PDF</a>
+        <a href="{% url 'booking_responses_summary' %}" class="px-3 py-2 border rounded text-gray-600">กลับไปหน้าสรุปตามรอบการจอง</a>
+    </div>
+
+    {% if booking and question_stats %}
+        <div class="mb-4 text-sm text-gray-600">
+            <p>สรุปค่าเฉลี่ยและส่วนเบี่ยงเบนมาตรฐานของคะแนนแบบประเมิน (สเกล 5 คะแนน: 5 = พอใจมาก → 1 = น้อยมาก)</p>
+        </div>
+
+        <div class="overflow-x-auto bg-white rounded-2xl shadow border border-gray-100">
+            <table class="w-full text-sm border-collapse">
+                <thead>
+                    <tr>
+                        <th rowspan="2" class="w-20 bg-gray-50 text-gray-700 font-bold text-center align-middle border-b border-gray-200">ลำดับ</th>
+                        <th colspan="3" class="bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-400 text-white font-bold text-center py-3 border-b border-amber-300">
+                            การจองที่ {{ booking.id }}
+                        </th>
+                    </tr>
+                    <tr class="text-gray-700 bg-amber-50 border-b border-amber-200">
+                        <th class="p-2 text-left">คำถาม</th>
+                        <th class="p-2 text-center">ค่าเฉลี่ย</th>
+                        <th class="p-2 text-center">ส่วนเบี่ยงเบนมาตรฐาน</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in question_stats %}
+                    <tr class="border-b border-gray-100 hover:bg-amber-50/40">
+                        <td class="p-3 text-center text-gray-700 font-semibold bg-gray-50">{{ row.index }}</td>
+                        <td class="p-3 text-gray-800">
+                            <div class="font-medium">{{ row.question.question }}</div>
+                            <div class="text-xs text-gray-500 mt-1">ผู้ประเมิน {{ row.respondent_count }} คน</div>
+                        </td>
+                        <td class="p-3 text-center font-semibold text-amber-700">
+                            {% if row.avg_score %}{{ row.avg_score }}{% else %}-{% endif %}
+                        </td>
+                        <td class="p-3 text-center text-gray-700">
+                            {% if row.stddev_score %}{{ row.stddev_score }}{% else %}-{% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" class="p-4 text-center text-gray-400">ยังไม่มีการทำแบบประเมินสำหรับการจองนี้</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        {# fallback แสดงรูปแบบเดิม เมื่อไม่ได้ระบุ booking_id #}
+        <div class="overflow-x-auto bg-white rounded p-4 border">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-left text-gray-600">
+                        <th class="p-2">การจอง</th>
+                        <th class="p-2">ผู้ประเมิน</th>
+                        <th class="p-2">คำถาม</th>
+                        <th class="p-2">คำตอบ</th>
+                        <th class="p-2">เวลา</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in responses %}
+                    <tr class="border-t">
+                        <td class="p-2">#{{ r.booking.id }}</td>
+                        <td class="p-2">{% if r.user %}{{ r.user.username }}{% else %}-{% endif %}</td>
+                        <td class="p-2">{{ r.question.question }}</td>
+                        <td class="p-2">{{ r.answer }}</td>
+                        <td class="p-2">{{ r.created_at|date:'j M Y H:i' }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="p-4 text-center text-gray-400">ยังไม่มีข้อมูลคำตอบแบบประเมิน</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
