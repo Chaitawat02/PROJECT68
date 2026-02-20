@@ -1,5 +1,6 @@
 {% extends 'main/base.html' %}
 {% load static %}
+{% load media_extras %}
 
 {% block title %}{{ silk.Si_name }} - รายละเอียด{% endblock %}
 
@@ -30,11 +31,18 @@
             <div class="grid grid-cols-1 lg:grid-cols-2">
                 
                 <div class="relative bg-gray-100 h-96 lg:h-auto min-h-[500px]">
-                    {% if silk.image %}
+                    {% if silk.image|file_exists %}
                         <img src="{{ silk.image.url }}" 
                              class="absolute inset-0 w-full h-full object-cover" 
                              alt="{{ silk.Si_name }}">
                         <div class="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/50 to-transparent lg:hidden"></div>
+                    {% elif silk.target_index != None %}
+                        {% with 'main/images/test'|add:(silk.target_index|stringformat:"d")|add:'.jpg' as fallback_path %}
+                            <img src="{% static fallback_path %}" 
+                                 class="absolute inset-0 w-full h-full object-cover" 
+                                 alt="{{ silk.Si_name }}">
+                            <div class="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/50 to-transparent lg:hidden"></div>
+                        {% endwith %}
                     {% else %}
                         <div class="flex flex-col items-center justify-center h-full text-gray-400">
                             <i class="fas fa-image text-6xl mb-4"></i>
@@ -109,11 +117,11 @@
             <button onclick="closeARModal()" class="text-gray-500 hover:text-gray-800"><i class="fas fa-times"></i></button>
         </div>
 
-        <div class="md:flex-1 bg-black">
+                <div class="md:flex-1 bg-black">
             <model-viewer 
                 src="{{ ar_model.src }}"
                 {% if ar_model.usdz %}ios-src="{{ ar_model.usdz }}"{% endif %}
-                {% if silk.image %}poster="{{ silk.image.url }}"{% endif %}
+                {% if silk.image|file_exists %}poster="{{ silk.image.url }}"{% endif %}
                 alt="{{ silk.Si_name }}"
                 camera-controls
                 auto-rotate
