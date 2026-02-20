@@ -17,8 +17,8 @@ SECRET_KEY = 'django-insecure-qd+n9(-*!z45t_9@)@460^jzuzz=qm7!mw#k35d(=z09kc4v5(
 # ✅ ปิด Debug สำหรับ Production
 DEBUG = False
 
-# ✅ อนุญาตเฉพาะโดเมนของ Render
-ALLOWED_HOSTS = ['.onrender.com']
+# ✅ อนุญาตโดเมนของ Render + เครื่องตัวเอง (localhost)
+ALLOWED_HOSTS = ['.onrender.com', 'localhost', '127.0.0.1']
 
 CSRF_TRUSTED_ORIGINS = [
     'https://*.onrender.com',
