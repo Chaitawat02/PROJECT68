@@ -2449,34 +2449,18 @@ def admin_events_list_view(request):
 @user_passes_test(is_staff_or_admin)
 def admin_events_add_view(request):
     if request.method == "POST":
-        workshop = Workshop()
-        workshop.title = request.POST.get('title')
-        workshop.description = request.POST.get('description')
-        workshop.location = request.POST.get('location')
-        workshop.duration = request.POST.get('duration')
-        
-        # จัดการตัวเลขและวันที่
-        try:
-            workshop.max_participants = int(request.POST.get('max_participants', 20))
-        except:
-            workshop.max_participants = 20
-            
-        workshop.start_date = request.POST.get('start_date') or None
-        workshop.end_date = request.POST.get('end_date') or None
-        workshop.start_time = request.POST.get('start_time') or None
-        workshop.end_time = request.POST.get('end_time') or None
-        workshop.is_active = 'is_active' in request.POST
-        workshop.inactive_reason = request.POST.get('inactive_reason', '')
+        form = WorkshopForm(request.POST, request.FILES)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "เพิ่มกิจกรรมเรียบร้อยแล้ว")
+            return redirect("admin_events_list")
+    else:
+        form = WorkshopForm()
 
-        # บันทึกรูปภาพ
-        if 'image' in request.FILES:
-            workshop.image = request.FILES['image']
-        
-        workshop.save()
-        messages.success(request, "เพิ่มกิจกรรมเรียบร้อยแล้ว")
-        return redirect("admin_events_list")
-    
-    return render(request, "admin_panel/Evens/admin_events_form.html", {"title": "เพิ่มกิจกรรมใหม่"})
+    return render(request, "admin_panel/Evens/admin_events_form.html", {
+        "title": "เพิ่มกิจกรรมใหม่",
+        "form": form,
+    })
 
 # ส่วนการดึงข้อมูลไปแสดง (Logic สำคัญที่ทำให้ขึ้นทั้งเดือน)
 def workshop_list_view(request):

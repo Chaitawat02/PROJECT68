@@ -454,7 +454,7 @@
     function toggleCamera() {
       const url = new URL(window.location.href);
       const current = url.searchParams.get('cam');
-      const next = (current === 'user' || current === 'front') ? 'environment' : 'user';
+      const next = (current === 'environment' || current === 'back') ? 'user' : 'environment';
       url.searchParams.set('cam', next);
       window.location.href = url.toString();
     }

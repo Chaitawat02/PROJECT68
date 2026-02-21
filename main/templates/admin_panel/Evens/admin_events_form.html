@@ -27,13 +27,20 @@
             </nav>
             
             <h2 class="text-3xl font-black text-gray-800 mb-8 flex items-center gap-3">
-                <i class="fas {% if workshop %}fa-edit{% else %}fa-plus-circle{% endif %} text-[#8B0000]"></i>
+                <i class="fas {% if form.instance.pk %}fa-edit{% else %}fa-plus-circle{% endif %} text-[#8B0000]"></i>
                 {{ title }}
             </h2>
 
             <div class="bg-white rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100 overflow-hidden">
                 <form method="POST" enctype="multipart/form-data" class="p-8 lg:p-12 space-y-8">
                     {% csrf_token %}
+                    {% if form.non_field_errors %}
+                    <div class="mb-4 text-sm text-red-700 bg-red-50 border border-red-200 rounded-2xl px-4 py-3">
+                        {% for error in form.non_field_errors %}
+                            <p>{{ error }}</p>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
                     
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                         
@@ -41,85 +48,84 @@
                             <label class="text-sm font-black text-gray-700 uppercase tracking-wide ml-1">รูปภาพหน้าปกกิจกรรม</label>
                             <div class="flex items-center justify-center w-full">
                                 <label for="image-upload" class="flex flex-col items-center justify-center w-full h-64 border-2 border-dashed border-gray-300 rounded-[2rem] cursor-pointer bg-gray-50 hover:bg-gray-100 transition-all relative overflow-hidden group">
-                                    <div class="flex flex-col items-center justify-center pt-5 pb-6 {% if workshop.image %}opacity-0{% endif %}" id="upload-placeholder">
+                                    <div class="flex flex-col items-center justify-center pt-5 pb-6 {% if form.instance.image %}opacity-0{% endif %}" id="upload-placeholder">
                                         <i class="fas fa-image text-4xl text-gray-400 mb-3 group-hover:scale-110 transition-transform"></i>
                                         <p class="mb-2 text-sm text-gray-500 font-bold">คลิกเพื่ออัปโหลดรูปภาพ</p>
                                         <p class="text-xs text-gray-400">แนะนำขนาด 1200x600px (JPG, PNG)</p>
                                     </div>
-                                    <img id="image-preview" src="{% if workshop.image %}{{ workshop.image.url }}{% endif %}" 
-                                         class="absolute inset-0 w-full h-full object-cover {% if not workshop.image %}hidden{% endif %}">
+                                    <img id="image-preview" src="{% if form.instance.image %}{{ form.instance.image.url }}{% endif %}" 
+                                         class="absolute inset-0 w-full h-full object-cover {% if not form.instance.image %}hidden{% endif %}">
                                     <input id="image-upload" type="file" name="image" class="hidden" accept="image/*" onchange="previewImage(this)">
                                 </label>
                             </div>
+                            {% if form.image.errors %}
+                            <p class="text-sm text-red-600 mt-1">{{ form.image.errors.0 }}</p>
+                            {% endif %}
                         </div>
 
                         <div class="md:col-span-2 space-y-2">
                             <label class="text-sm font-black text-gray-700 uppercase tracking-wide ml-1">ชื่อกิจกรรม</label>
-                            <input type="text" name="title" value="{{ workshop.title|default:'' }}" required
+                            <input type="text" name="title" value="{{ form.title.value|default_if_none:'' }}" required
                                 class="w-full px-6 py-4 rounded-2xl bg-gray-50 border-2 border-transparent focus:border-amber-500 focus:bg-white transition-all outline-none font-medium"
                                 placeholder="เช่น เวิร์กชอปทอผ้าไหมมัดหมี่">
+                            {% if form.title.errors %}
+                            <p class="text-sm text-red-600 mt-1">{{ form.title.errors.0 }}</p>
+                            {% endif %}
                         </div>
 
                         <div class="md:col-span-2 space-y-2">
                             <label class="text-sm font-black text-gray-700 uppercase tracking-wide ml-1">รายละเอียด</label>
                             <textarea name="description" rows="4"
                                 class="w-full px-6 py-4 rounded-2xl bg-gray-50 border-2 border-transparent focus:border-amber-500 focus:bg-white transition-all outline-none font-medium"
-                                placeholder="รายละเอียดกิจกรรม...">{{ workshop.description|default:'' }}</textarea>
-                        </div>
-
-                        <div class="space-y-2">
-                            <label class="text-sm font-black text-gray-700 uppercase tracking-wide ml-1">วันที่เริ่มกิจกรรม</label>
-                            <input type="date" name="start_date" value="{{ workshop.start_date|date:'Y-m-d' }}"
-                                class="w-full px-6 py-4 rounded-2xl bg-gray-50 border-2 border-transparent focus:border-amber-500 focus:bg-white transition-all outline-none font-medium">
-                        </div>
-                        <div class="space-y-2">
-                            <label class="text-sm font-black text-gray-700 uppercase tracking-wide ml-1">วันที่สิ้นสุดกิจกรรม</label>
-                            <input type="date" name="end_date" value="{{ workshop.end_date|date:'Y-m-d' }}"
-                                class="w-full px-6 py-4 rounded-2xl bg-gray-50 border-2 border-transparent focus:border-amber-500 focus:bg-white transition-all outline-none font-medium">
-                        </div>
-
-                        <div class="space-y-2">
-                            <label class="text-sm font-black text-gray-700 uppercase tracking-wide ml-1">เวลาเริ่ม</label>
-                            <input type="time" name="start_time" value="{{ workshop.start_time|time:'H:i' }}"
-                                class="w-full px-6 py-4 rounded-2xl bg-gray-50 border-2 border-transparent focus:border-amber-500 focus:bg-white transition-all outline-none font-medium">
-                        </div>
-                        <div class="space-y-2">
-                            <label class="text-sm font-black text-gray-700 uppercase tracking-wide ml-1">เวลาสิ้นสุด</label>
-                            <input type="time" name="end_time" value="{{ workshop.end_time|time:'H:i' }}"
-                                class="w-full px-6 py-4 rounded-2xl bg-gray-50 border-2 border-transparent focus:border-amber-500 focus:bg-white transition-all outline-none font-medium">
+                                placeholder="รายละเอียดกิจกรรม...">{{ form.description.value|default_if_none:'' }}</textarea>
+                            {% if form.description.errors %}
+                            <p class="text-sm text-red-600 mt-1">{{ form.description.errors.0 }}</p>
+                            {% endif %}
                         </div>
 
                         <div class="space-y-2">
                             <label class="text-sm font-black text-gray-700 uppercase tracking-wide ml-1">สถานที่</label>
-                            <input type="text" name="location" value="{{ workshop.location|default:'' }}"
+                            <input type="text" name="location" value="{{ form.location.value|default_if_none:'' }}"
                                 class="w-full px-6 py-4 rounded-2xl bg-gray-50 border-2 border-transparent focus:border-amber-500 focus:bg-white transition-all outline-none font-medium"
                                 placeholder="เช่น อาคารเรียนรู้ ชั้น 1">
+                            {% if form.location.errors %}
+                            <p class="text-sm text-red-600 mt-1">{{ form.location.errors.0 }}</p>
+                            {% endif %}
                         </div>
                         <div class="space-y-2">
                             <label class="text-sm font-black text-gray-700 uppercase tracking-wide ml-1">ระยะเวลารวม (Duration)</label>
-                            <input type="text" name="duration" value="{{ workshop.duration|default:'' }}"
+                            <input type="text" name="duration" value="{{ form.duration.value|default_if_none:'' }}"
                                 class="w-full px-6 py-4 rounded-2xl bg-gray-50 border-2 border-transparent focus:border-amber-500 focus:bg-white transition-all outline-none font-medium"
                                 placeholder="เช่น 3 ชม. หรือ 2 วัน">
+                            {% if form.duration.errors %}
+                            <p class="text-sm text-red-600 mt-1">{{ form.duration.errors.0 }}</p>
+                            {% endif %}
                         </div>
 
                         <div class="space-y-2">
                             <label class="text-sm font-black text-gray-700 uppercase tracking-wide ml-1">รับจำนวนจำกัด (ที่นั่ง)</label>
-                            <input type="number" name="max_participants" value="{{ workshop.max_participants|default:20 }}"
+                            <input type="number" name="max_participants" value="{{ form.max_participants.value|default_if_none:20 }}"
                                 class="w-full px-6 py-4 rounded-2xl bg-gray-50 border-2 border-transparent focus:border-amber-500 focus:bg-white transition-all outline-none font-medium">
+                            {% if form.max_participants.errors %}
+                            <p class="text-sm text-red-600 mt-1">{{ form.max_participants.errors.0 }}</p>
+                            {% endif %}
                         </div>
                         <div class="space-y-2 md:col-span-2">
                             <div class="flex items-center px-4">
                                 <label class="relative inline-flex items-center cursor-pointer">
-                                    <input type="checkbox" name="is_active" class="sr-only peer" {% if workshop.is_active != False %}checked{% endif %}>
+                                    <input type="checkbox" name="is_active" class="sr-only peer" {% if form.is_bound %}{% if form.is_active.value %}checked{% endif %}{% else %}{% if form.instance.is_active != False %}checked{% endif %}{% endif %}>
                                     <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-600"></div>
                                     <span class="ml-3 text-sm font-bold text-gray-700 uppercase">เปิดให้จองกิจกรรม</span>
                                 </label>
                             </div>
                             <div class="px-4 mt-2">
                                 <label class="text-xs font-semibold text-gray-600 block mb-1">เหตุผลเมื่อปิดกิจกรรม (แสดงสำหรับผู้ดูแลระบบ)</label>
-                                <input type="text" name="inactive_reason" value="{{ workshop.inactive_reason|default:'' }}"
+                                <input type="text" name="inactive_reason" value="{{ form.inactive_reason.value|default_if_none:'' }}"
                                        class="w-full px-4 py-2 rounded-xl bg-gray-50 border border-gray-200 focus:border-amber-500 focus:bg-white text-sm outline-none"
                                        placeholder="เช่น วัสดุอุปกรณ์ไม่เพียงพอ / ปิดปรับปรุง / เต็มแล้ว">
+                                {% if form.inactive_reason.errors %}
+                                <p class="text-sm text-red-600 mt-1">{{ form.inactive_reason.errors.0 }}</p>
+                                {% endif %}
                             </div>
                         </div>
                     </div>

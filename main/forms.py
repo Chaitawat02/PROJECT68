@@ -183,7 +183,7 @@ class WorkshopForm(forms.ModelForm):
         model = Workshop
         fields = [
             'title', 'description', 'start_date', 'end_date', 
-            'start_time', 'end_time', 'location', 
+            'start_time', 'end_time', 'location', 'duration',
             'max_participants', 'is_active', 'inactive_reason', 'image'
         ]
         widgets = {
@@ -194,6 +194,7 @@ class WorkshopForm(forms.ModelForm):
             'description': forms.Textarea(attrs={'rows': 4, 'class': 'form-control'}),
             'title': forms.TextInput(attrs={'class': 'form-control'}),
             'location': forms.TextInput(attrs={'class': 'form-control'}),
+            'duration': forms.TextInput(attrs={'class': 'form-control'}),
             'max_participants': forms.NumberInput(attrs={'class': 'form-control'}),
             'inactive_reason': forms.TextInput(attrs={'class': 'form-control'}),
         }

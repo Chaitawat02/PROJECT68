@@ -185,8 +185,9 @@
         const shortName = questionText.length > 50 ? questionText.substring(0, 50) + "..." : questionText;
         document.getElementById('deleteItemName').textContent = shortName;
         
-        // กำหนด URL สำหรับการลบ (ตรวจสอบว่าชื่อ url ของคุณคือ manage_questions_delete หรือไม่)
-        document.getElementById('confirmDeleteBtn').href = "/admin-panel/questions/delete/" + id + "/"; 
+        // กำหนด URL สำหรับการลบให้ตรงกับ path ที่ประกาศใน main/urls.py
+        // ปัจจุบันใช้: path("admin-panel/manage-questions/delete/<int:question_id>/", ... , name="manage_questions_delete")
+        document.getElementById('confirmDeleteBtn').href = "/admin-panel/manage-questions/delete/" + id + "/";
         
         document.getElementById('deleteModal').classList.remove('hidden');
         document.body.style.overflow = 'hidden'; 

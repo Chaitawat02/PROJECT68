@@ -40,7 +40,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     // 3. Camera mode (front/back) from URL
     const params = new URLSearchParams(window.location.search);
     const camParam = params.get("cam");
-    const facingMode = (camParam === "user" || camParam === "front") ? "user" : "environment";
+    // ใช้กล้องหน้าเป็นค่าเริ่มต้น ให้รู้สึกเหมือนกระจกทันที
+    let facingMode = "user";
+    if (camParam === "environment" || camParam === "back") {
+        facingMode = "environment";
+    }
 
     // Mirror only for front camera (remove mirroring on back camera)
     if (facingMode === "environment") {
@@ -97,10 +101,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         loadGLTF(modelUrl)
             .then((gltf) => {
                 const model = gltf.scene;
-                
+
                 // Adjust Model
-                model.scale.set(1.1, 1.1, 1.1); // Slightly larger to cover
-                model.position.set(0, -0.4, 0); // Offset to align with body better
+                // ลดขนาดและถอยออกเล็กน้อย เพื่อให้รู้สึกว่าไม่ซูมเมื่อสแกนติด
+                model.scale.set(0.85, 0.85, 0.85);
+                model.position.set(0, -0.4, -0.6);
                 
                 // Enable Shadows
                 model.traverse((o) => {
