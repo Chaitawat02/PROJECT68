@@ -61,6 +61,8 @@ urlpatterns = [
     # 5) ADMIN PANEL (ระบบจัดการหลังบ้าน)
     # ======================================================
     path("admin-panel/dashboard/", views.admin_dashboard_view, name="admin_dashboard"),
+    path("admin-panel/report/", views.admin_report_view, name="admin_report"),
+    path("admin-panel/report/pdf/", views.admin_report_pdf_view, name="admin_report_pdf"),
     
     # Museum Info Management
     path("admin-panel/museum-info/", views.admin_edit_museum_view, name="admin_editmuseum"),

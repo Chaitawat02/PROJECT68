@@ -22,7 +22,7 @@ from django.contrib.auth import authenticate, login, logout, get_user_model
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.db import transaction, IntegrityError
 from django.db.utils import OperationalError
-from django.db.models import Q
+from django.db.models import Q, Count, Avg
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.core.files.base import ContentFile
@@ -31,6 +31,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 from django.http import JsonResponse, Http404
 from django.db.models import Max
+from django.db.models.functions import TruncMonth
 from .models import Workshop, Booking, WorkshopBooking
 
 User = get_user_model()
@@ -2152,6 +2153,193 @@ def admin_dashboard_view(request):
     }
 
     return render(request, 'admin_panel/admin_home.html', context)
+
+
+@login_required
+@user_passes_test(is_staff_or_admin)
+def admin_report_view(request):
+    """หน้ารายงานสรุปข้อมูลผ้า กิจกรรม การจอง และผลการประเมิน"""
+
+    # -------------------------
+    # 1) สรุปข้อมูลลายผ้าไหม
+    # -------------------------
+    silk_stats = {
+        'total_patterns': SilkPattern.objects.count(),
+        'total_silk_ratings': SilkPatternRating.objects.count(),
+    }
+
+    top_silk_patterns = (
+        SilkPattern.objects
+        .annotate(rating_count=Count('ratings'))
+        .order_by('-rating_count', 'Si_name')[:5]
+    )
+
+    # -------------------------
+    # 2) สรุปข้อมูลกิจกรรม/เวิร์กช็อป
+    # -------------------------
+    workshop_stats = {
+        'total_workshops': Workshop.objects.count(),
+        'active_workshops': Workshop.objects.filter(is_active=True).count(),
+        'total_workshop_bookings': WorkshopBooking.objects.count(),
+    }
+
+    top_workshops = (
+        Workshop.objects
+        .annotate(booking_count=Count('workshopbooking'))
+        .order_by('-booking_count', 'title')[:5]
+    )
+
+    # -------------------------
+    # 3) สรุปจำนวนการจองเข้าชม
+    # -------------------------
+    booking_stats = {
+        'total_bookings': Booking.objects.count(),
+        'pending': Booking.objects.filter(Re_status='pending').count(),
+        'approved': Booking.objects.filter(Re_status='approved').count(),
+        'rejected': Booking.objects.filter(Re_status='rejected').count(),
+    }
+
+    # จำนวนการจองรายเดือนย้อนหลังประมาณ 6 เดือน
+    today = timezone.now().date()
+    six_months_ago = today - timedelta(days=180)
+    bookings_by_month_qs = (
+        Booking.objects.filter(Re_date__gte=six_months_ago)
+        .annotate(month=TruncMonth('Re_date'))
+        .values('month')
+        .annotate(count=Count('id'))
+        .order_by('month')
+    )
+    bookings_by_month = list(bookings_by_month_qs)
+
+    # -------------------------
+    # 4) สรุปผลการประเมินแบบสอบถาม
+    # -------------------------
+    # 4.1 SurveyRating (คะแนน 1-5)
+    survey_stats = (
+        SurveyRating.objects
+        .values('question_id', 'question__question')
+        .annotate(
+            avg_rating=Avg('rating'),
+            responses=Count('id'),
+        )
+        .order_by('question_id')
+    )
+
+    # 4.2 BookingQuestionResponse (คำตอบตัวเลือก)
+    from collections import defaultdict
+
+    answer_rows = (
+        BookingQuestionResponse.objects
+        .values('question_id', 'question__question', 'answer')
+        .annotate(count=Count('id'))
+        .order_by('question_id', 'answer')
+    )
+
+    question_answer_stats = defaultdict(lambda: {
+        'question_id': None,
+        'question_text': '',
+        'answers': [],
+    })
+
+    for row in answer_rows:
+        qid = row['question_id']
+        qa = question_answer_stats[qid]
+        qa['question_id'] = qid
+        qa['question_text'] = row['question__question']
+        qa['answers'].append({
+            'answer': row['answer'],
+            'count': row['count'],
+        })
+
+    context = {
+        'silk_stats': silk_stats,
+        'top_silk_patterns': top_silk_patterns,
+        'workshop_stats': workshop_stats,
+        'top_workshops': top_workshops,
+        'booking_stats': booking_stats,
+        'bookings_by_month': bookings_by_month,
+        'survey_stats': survey_stats,
+        'question_answer_stats': list(question_answer_stats.values()),
+        'today': timezone.now(),
+    }
+
+    return render(request, 'admin_panel/report/report.html', context)
+
+
+@login_required
+@user_passes_test(is_staff_or_admin)
+def admin_report_pdf_view(request):
+    """ส่งออกไฟล์ PDF รายงานสรุป (ย่อเอาแต่ข้อมูลสำคัญ)"""
+    from django.http import HttpResponse
+
+    try:
+        from reportlab.lib.pagesizes import A4
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+        from reportlab.lib.styles import getSampleStyleSheet
+        from reportlab.lib import colors
+    except ImportError:
+        return HttpResponse(
+            "ต้องติดตั้งไลบรารี reportlab ก่อนใช้งานฟีเจอร์นี้ (pip install reportlab)",
+            content_type="text/plain; charset=utf-8",
+        )
+
+    # ใช้ข้อมูลสรุปแบบเดียวกับหน้า HTML แต่ย่อให้เหลือแต่หัวใจสำคัญ
+    silk_total = SilkPattern.objects.count()
+    workshop_total = Workshop.objects.count()
+    booking_total = Booking.objects.count()
+    survey_total = SurveyRating.objects.count()
+
+    # ค่าเฉลี่ยคะแนนรวมทุกคำถาม (ถ้ามีข้อมูล)
+    global_avg = SurveyRating.objects.aggregate(avg=Avg('rating'))['avg'] or 0
+
+    # เตรียม response
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = 'attachment; filename="museum_summary_report.pdf"'
+
+    doc = SimpleDocTemplate(response, pagesize=A4)
+    styles = getSampleStyleSheet()
+    story = []
+
+    # หัวรายงาน
+    title = Paragraph("รายงานสรุประบบพิพิธภัณฑ์ผ้าไหม", styles['Title'])
+    story.append(title)
+    story.append(Spacer(1, 12))
+
+    subtitle = Paragraph(
+        f"ออกรายงานเมื่อ {timezone.now().strftime('%d/%m/%Y %H:%M น.')}",
+        styles['Normal']
+    )
+    story.append(subtitle)
+    story.append(Spacer(1, 18))
+
+    # ตารางสรุปตัวเลขหลัก
+    summary_data = [
+        ["หัวข้อ", "ค่า (Summary)"] ,
+        ["จำนวนลายผ้าไหมทั้งหมด", f"{silk_total} รายการ"],
+        ["จำนวนกิจกรรม/เวิร์กช็อปทั้งหมด", f"{workshop_total} รายการ"],
+        ["จำนวนการจองเข้าชมทั้งหมด", f"{booking_total} รายการ"],
+        ["จำนวนคะแนนแบบประเมินที่บันทึก", f"{survey_total} รายการ"],
+        ["ค่าเฉลี่ยคะแนนแบบประเมินรวม", f"{global_avg:.2f} จาก 5"],
+    ]
+
+    table = Table(summary_data, hAlign='LEFT')
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#8B0000')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.whitesmoke, colors.lightgrey]),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+    ]))
+
+    story.append(Paragraph("สรุปภาพรวม (Key Metrics)", styles['Heading2']))
+    story.append(Spacer(1, 6))
+    story.append(table)
+
+    doc.build(story)
+    return response
 
 
 # ---------------------------------------------------------------------
