@@ -5,6 +5,7 @@ Django settings for myproject project.
 from pathlib import Path
 import os
 import mimetypes
+import dj_database_url  # ✅ เพิ่มบรรทัดนี้
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -12,22 +13,18 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECURITY SETTINGS
 # =====================================================================
 
-# อ่านค่า SECRET_KEY จาก Environment (ต้องตั้งค่าในโฮสต์)
 SECRET_KEY = os.environ.get(
     'DJANGO_SECRET_KEY',
     'dev-insecure-key-change-in-production',
 )
 
-# DEBUG: ใช้ค่า Environment ถ้าไม่ตั้งจะเป็น True (เหมาะกับการพัฒนาในเครื่อง)
 DEBUG = os.environ.get('DJANGO_DEBUG', 'True').lower() == 'true'
 
-# ✅ โฮสต์ที่อนุญาต: แยกด้วยจุลภาคใน ENV เช่น "myapp.onrender.com,localhost,127.0.0.1"
 ALLOWED_HOSTS = [h.strip() for h in os.environ.get(
     'DJANGO_ALLOWED_HOSTS',
     '.onrender.com,localhost,127.0.0.1',
 ).split(',') if h.strip()]
 
-# ✅ โดเมนที่ไว้ใจสำหรับ CSRF (Render + เพิ่มเองได้ใน ENV)
 CSRF_TRUSTED_ORIGINS = [o.strip() for o in os.environ.get(
     'DJANGO_CSRF_TRUSTED_ORIGINS',
     'https://*.onrender.com',
@@ -82,15 +79,26 @@ TEMPLATES = [
 WSGI_APPLICATION = 'myproject.wsgi.application'
 
 # =====================================================================
-# DATABASE (ใช้ SQLite สำหรับ Render ฟรี)
+# DATABASE (Render = Postgres via DATABASE_URL, Local = SQLite)
 # =====================================================================
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+DATABASE_URL = os.environ.get("DATABASE_URL")
+
+if DATABASE_URL:
+    DATABASES = {
+        "default": dj_database_url.parse(
+            DATABASE_URL,
+            conn_max_age=600,
+            ssl_require=True,
+        )
     }
-}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+    }
 
 # =====================================================================
 # PASSWORD VALIDATION
@@ -122,7 +130,6 @@ STATICFILES_DIRS = [
 ]
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
-# ใช้ WhiteNoise สำหรับเสิร์ฟไฟล์ static ใน Production
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 MEDIA_URL = '/media/'
