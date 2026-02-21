@@ -3,15 +3,15 @@
 <div class="max-w-3xl mx-auto py-8 px-4">
     <div class="bg-white rounded-2xl p-6 shadow">
         <h2 class="text-2xl font-bold mb-4">แบบประเมินหลังการเข้าชม — การจอง #{{ booking.id }}</h2>
-        <p class="text-sm text-gray-500 mb-4">กรุณาทำแบบประเมินนี้หลังจากเสร็จสิ้นกิจกรรมเพื่อช่วยพัฒนาการให้บริการ</p>
+        <p class="text-sm text-gray-500 mb-2">กรุณาทำแบบประเมินนี้หลังจากเสร็จสิ้นกิจกรรมเพื่อช่วยพัฒนาการให้บริการ</p>
 
-        <div class="mb-4">
-            <p class="text-xs text-gray-500">หรือสแกน QR เพื่อเข้าถึงแบบประเมิน</p>
-            {% if qr_data %}
-            <div class="mt-2">
-                <img src="{{ qr_data }}" alt="QR แบบประเมิน" style="width:120px;height:120px;" />
-            </div>
-            {% endif %}
+        <div class="mb-4 text-sm text-gray-600 bg-amber-50 border border-amber-100 rounded-lg p-3">
+            <p class="font-semibold mb-1">คำอธิบายระดับคะแนน</p>
+            <p>5 = พอใจมาก / ดีมากที่สุด</p>
+            <p>4 = พอใจ</p>
+            <p>3 = ปานกลาง</p>
+            <p>2 = น้อย / ไม่ค่อยพอใจ</p>
+            <p>1 = น้อยมาก / ไม่พอใจเลย</p>
         </div>
 
         <form method="post">

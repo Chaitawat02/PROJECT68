@@ -37,18 +37,30 @@ document.addEventListener("DOMContentLoaded", async () => {
     const container = document.querySelector("#ar-root");
     const modelBase = container.getAttribute("data-model-base") || "/static/main/models/";
 
-    // 3. Camera mode (front/back) from URL
+    // 3. Camera mode (front/back) from URL + device type
     const params = new URLSearchParams(window.location.search);
     const camParam = params.get("cam");
-    // ใช้กล้องหน้าเป็นค่าเริ่มต้น ให้รู้สึกเหมือนกระจกทันที
-    let facingMode = "user";
+
+    // ตรวจว่าขณะนี้เป็นมือถือหรือแท็บเล็ตหรือไม่ (สำหรับกำหนดค่าเริ่มต้น)
+    const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 900;
+
+    // ค่าเริ่มต้น:
+    // - Desktop: กล้องหน้า (user) ให้เหมือนกระจก
+    // - Mobile / Tablet: กล้องหลัง (environment) เพื่อสแกนเป้าได้สะดวก
+    let facingMode = isMobile ? "environment" : "user";
+
+    // ถ้ามี query ?cam=... ให้ใช้ตามที่ผู้ใช้เลือก
     if (camParam === "environment" || camParam === "back") {
         facingMode = "environment";
+    } else if (camParam === "user" || camParam === "front") {
+        facingMode = "user";
     }
 
     // Mirror only for front camera (remove mirroring on back camera)
     if (facingMode === "environment") {
         document.body.classList.add("no-mirror");
+    } else {
+        document.body.classList.remove("no-mirror");
     }
 
     // 4. Initialize MindAR with chosen camera

@@ -32,7 +32,7 @@ from django.views.decorators.http import require_POST
 from django.http import JsonResponse, Http404
 from django.db.models import Max
 from django.db.models.functions import TruncMonth
-from .models import Workshop, Booking, WorkshopBooking
+from .models import Workshop, Booking, WorkshopBooking, WorkshopGalleryImage
 
 User = get_user_model()
 
@@ -517,9 +517,12 @@ def workshops_list_view(request):
     else:
         rounds = WorkshopBooking.objects.none()
 
+    gallery_images = workshop_main.gallery_images.all()
+
     return render(request, 'workshops/workshops_list.html', {
         'workshop': workshop_main,
-        'rounds': rounds, # ส่ง 'rounds' ไปแสดงผลใน HTML
+        'rounds': rounds,  # ส่ง 'rounds' ไปแสดงผลใน HTML
+        'gallery_images': gallery_images,
     })
 # =====================================================
 # ส่วนที่ 2 หมวดหมู่หน้าเว็บสาธารณะและข้อมูล
@@ -946,14 +949,24 @@ def booking_responses_admin_view(request):
             })
 
         # ลงทะเบียนฟอนต์ภาษาไทย (ถ้าพบในระบบ)
+        import os
+
         base_font = "Helvetica"
-        try:
-            # พยายามใช้ TH Sarabun New ซึ่งมักมีใน Windows ภาษาไทย
-            pdfmetrics.registerFont(TTFont('THSarabunNew', 'C:/Windows/Fonts/THSarabunNew.ttf'))
-            base_font = 'THSarabunNew'
-        except Exception:
-            # ถ้าหาไฟล์ฟอนต์ไม่เจอ จะใช้ Helvetica ตามเดิม
-            base_font = "Helvetica"
+        font_candidates = [
+            ("THSarabunNew", "C:/Windows/Fonts/THSarabunNew.ttf"),
+            ("THSarabun", "C:/Windows/Fonts/THSarabun.ttf"),
+            ("THSarabunPSK", "C:/Windows/Fonts/THSarabunPSK.ttf"),
+            ("Tahoma", "C:/Windows/Fonts/tahoma.ttf"),  # มีเกือบทุกเครื่อง และรองรับภาษาไทย
+        ]
+
+        for font_name, font_path in font_candidates:
+            if os.path.exists(font_path):
+                try:
+                    pdfmetrics.registerFont(TTFont(font_name, font_path))
+                    base_font = font_name
+                    break
+                except Exception:
+                    continue
 
         buffer = io.BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=A4)
@@ -2277,6 +2290,8 @@ def admin_report_pdf_view(request):
         from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
         from reportlab.lib.styles import getSampleStyleSheet
         from reportlab.lib import colors
+        from reportlab.pdfbase import pdfmetrics
+        from reportlab.pdfbase.ttfonts import TTFont
     except ImportError:
         return HttpResponse(
             "ต้องติดตั้งไลบรารี reportlab ก่อนใช้งานฟีเจอร์นี้ (pip install reportlab)",
@@ -2292,53 +2307,311 @@ def admin_report_pdf_view(request):
     # ค่าเฉลี่ยคะแนนรวมทุกคำถาม (ถ้ามีข้อมูล)
     global_avg = SurveyRating.objects.aggregate(avg=Avg('rating'))['avg'] or 0
 
-    # เตรียม response
-    response = HttpResponse(content_type='application/pdf')
-    response['Content-Disposition'] = 'attachment; filename="museum_summary_report.pdf"'
+    # ข้อมูลพิพิธภัณฑ์สำหรับส่วนหัวรายงาน
+    museum_profile = MuseumProfile.objects.first()
+    museum_name = museum_profile.name if museum_profile else "พิพิธภัณฑ์ผ้าไหม"
+    museum_address = museum_profile.address or "" if museum_profile else ""
+    museum_phone = museum_profile.phone or "" if museum_profile else ""
 
-    doc = SimpleDocTemplate(response, pagesize=A4)
-    styles = getSampleStyleSheet()
-    story = []
+    # ข้อมูลเชิงลึกเพิ่มเติม (อ้างอิงโครงสร้างเดียวกับหน้า HTML report)
+    silk_stats = {
+        'total_patterns': silk_total,
+        'total_silk_ratings': SilkPatternRating.objects.count(),
+    }
 
-    # หัวรายงาน
-    title = Paragraph("รายงานสรุประบบพิพิธภัณฑ์ผ้าไหม", styles['Title'])
-    story.append(title)
-    story.append(Spacer(1, 12))
-
-    subtitle = Paragraph(
-        f"ออกรายงานเมื่อ {timezone.now().strftime('%d/%m/%Y %H:%M น.')}",
-        styles['Normal']
+    top_silk_patterns = (
+        SilkPattern.objects
+        .annotate(rating_count=Count('ratings'))
+        .order_by('-rating_count', 'Si_name')[:5]
     )
-    story.append(subtitle)
-    story.append(Spacer(1, 18))
 
-    # ตารางสรุปตัวเลขหลัก
-    summary_data = [
-        ["หัวข้อ", "ค่า (Summary)"] ,
-        ["จำนวนลายผ้าไหมทั้งหมด", f"{silk_total} รายการ"],
-        ["จำนวนกิจกรรม/เวิร์กช็อปทั้งหมด", f"{workshop_total} รายการ"],
-        ["จำนวนการจองเข้าชมทั้งหมด", f"{booking_total} รายการ"],
-        ["จำนวนคะแนนแบบประเมินที่บันทึก", f"{survey_total} รายการ"],
-        ["ค่าเฉลี่ยคะแนนแบบประเมินรวม", f"{global_avg:.2f} จาก 5"],
+    workshop_stats = {
+        'total_workshops': workshop_total,
+        'active_workshops': Workshop.objects.filter(is_active=True).count(),
+        'total_workshop_bookings': WorkshopBooking.objects.count(),
+    }
+
+    top_workshops = (
+        Workshop.objects
+        .annotate(booking_count=Count('workshopbooking'))
+        .order_by('-booking_count', 'title')[:5]
+    )
+
+    booking_stats = {
+        'total_bookings': booking_total,
+        'pending': Booking.objects.filter(Re_status='pending').count(),
+        'approved': Booking.objects.filter(Re_status='approved').count(),
+        'rejected': Booking.objects.filter(Re_status='rejected').count(),
+    }
+
+    today = timezone.now().date()
+    six_months_ago = today - timedelta(days=180)
+    bookings_by_month_qs = (
+        Booking.objects.filter(Re_date__gte=six_months_ago)
+        .annotate(month=TruncMonth('Re_date'))
+        .values('month')
+        .annotate(count=Count('id'))
+        .order_by('month')
+    )
+    bookings_by_month = list(bookings_by_month_qs)
+
+    survey_stats = list(
+        SurveyRating.objects
+        .values('question_id', 'question__question')
+        .annotate(
+            avg_rating=Avg('rating'),
+            responses=Count('id'),
+        )
+        .order_by('question_id')
+    )
+
+    # เตรียม response ให้เปิดดูในเบราว์เซอร์ก่อน (inline) แล้วค่อยเลือกดาวน์โหลดได้
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = 'inline; filename="museum_summary_report.pdf"'
+
+    page_width, page_height = A4
+
+    doc = SimpleDocTemplate(
+        response,
+        pagesize=A4,
+        leftMargin=40,
+        rightMargin=40,
+        topMargin=120,
+        bottomMargin=40,
+    )
+    styles = getSampleStyleSheet()
+
+    # ลงทะเบียนฟอนต์ภาษาไทย (ถ้าพบในระบบ)
+    import os
+
+    base_font = "Helvetica"
+    font_candidates = [
+        ("THSarabunNew", "C:/Windows/Fonts/THSarabunNew.ttf"),
+        ("THSarabun", "C:/Windows/Fonts/THSarabun.ttf"),
+        ("THSarabunPSK", "C:/Windows/Fonts/THSarabunPSK.ttf"),
+        ("Tahoma", "C:/Windows/Fonts/tahoma.ttf"),
     ]
 
-    table = Table(summary_data, hAlign='LEFT')
-    table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#8B0000')),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.whitesmoke, colors.lightgrey]),
-        ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
-    ]))
+    for font_name, font_path in font_candidates:
+        if os.path.exists(font_path):
+            try:
+                pdfmetrics.registerFont(TTFont(font_name, font_path))
+                base_font = font_name
+                break
+            except Exception:
+                continue
 
-    story.append(Paragraph("สรุปภาพรวม (Key Metrics)", styles['Heading2']))
+    # ปรับสไตล์ให้ใช้ฟอนต์ฐานที่รองรับภาษาไทย
+    styles['Normal'].fontName = base_font
+    styles['Heading2'].fontName = base_font
+    styles['Title'].fontName = base_font
+    story = []
+
+    # เว้นพื้นที่ส่วนหัวที่วาดด้วย canvas
+    story.append(Spacer(1, 14))
+
+    # ฟังก์ชันช่วยคำนวณเปอร์เซ็นต์
+    def _fmt_percent(count, total):
+        if not total:
+            return "-"
+        return f"{(count * 100.0 / total):.1f}%"
+
+    # ------------------------------------------------------------------
+    # 1) ข้อมูลภาพรวม
+    # ------------------------------------------------------------------
+    story.append(Paragraph("๑. ข้อมูลภาพรวม (Executive Summary)", styles['Heading2']))
     story.append(Spacer(1, 6))
-    story.append(table)
 
-    doc.build(story)
+    overview_data = [
+        ["หมวดข้อมูล", "จำนวน (รายการ)", "หมายเหตุ"],
+        ["ลายผ้าไหมในระบบ", f"{silk_stats['total_patterns']:,}", "จำนวนลายผ้าที่บันทึกในระบบทั้งหมด"],
+        ["การให้คะแนนลายผ้า", f"{silk_stats['total_silk_ratings']:,}", "นับจากแบบประเมินลายผ้า (SilkPatternRating)"],
+        ["กิจกรรม / เวิร์กช็อป", f"{workshop_stats['total_workshops']:,}", f"เปิดให้จอง {workshop_stats['active_workshops']:,} รายการ"],
+        ["Workshop Booking", f"{workshop_stats['total_workshop_bookings']:,}", "จำนวนการเข้าร่วมกิจกรรมทั้งหมด"],
+        ["การจองเข้าชมพิพิธภัณฑ์", f"{booking_stats['total_bookings']:,}", "รวมทุกสถานะการอนุมัติ"],
+        ["แบบประเมินความพึงพอใจ", f"{survey_total:,}", f"คะแนนเฉลี่ยรวม {global_avg:.2f} จาก 5"],
+    ]
+
+    overview_table = Table(overview_data, hAlign='LEFT', colWidths=[160, 90, 230])
+    overview_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+        ('FONTNAME', (0, 0), (-1, -1), base_font),
+        ('ALIGN', (1, 1), (1, -1), 'RIGHT'),
+        ('ALIGN', (0, 0), (0, -1), 'LEFT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
+    ]))
+    story.append(overview_table)
+
+    # ------------------------------------------------------------------
+    # 2) สถิติการจองเข้าชมพิพิธภัณฑ์
+    # ------------------------------------------------------------------
+    story.append(Spacer(1, 16))
+    story.append(Paragraph("๒. สถิติการจองเข้าชมพิพิธภัณฑ์", styles['Heading2']))
+    story.append(Spacer(1, 6))
+
+    booking_status_data = [
+        ["สถานะ", "จำนวน (รายการ)", "สัดส่วน"],
+        ["รอดำเนินการ", f"{booking_stats['pending']:,}", _fmt_percent(booking_stats['pending'], booking_stats['total_bookings'])],
+        ["อนุมัติแล้ว", f"{booking_stats['approved']:,}", _fmt_percent(booking_stats['approved'], booking_stats['total_bookings'])],
+        ["ถูกปฏิเสธ", f"{booking_stats['rejected']:,}", _fmt_percent(booking_stats['rejected'], booking_stats['total_bookings'])],
+    ]
+
+    booking_status_table = Table(booking_status_data, hAlign='LEFT', colWidths=[160, 90, 80])
+    booking_status_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+        ('FONTNAME', (0, 0), (-1, -1), base_font),
+        ('ALIGN', (1, 1), (2, -1), 'RIGHT'),
+        ('ALIGN', (0, 0), (0, -1), 'LEFT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+    ]))
+    story.append(booking_status_table)
+
+    # สถิติจำนวนการจองย้อนหลัง ๖ เดือน
+    if bookings_by_month:
+        story.append(Spacer(1, 8))
+        story.append(Paragraph("สถิติจำนวนการจองย้อนหลัง ๖ เดือน", styles['Normal']))
+        story.append(Spacer(1, 4))
+
+        month_rows = [["เดือน", "จำนวนการจอง"]]
+        for row in bookings_by_month:
+            month_label = row['month'].strftime('%B %Y') if row['month'] else 'ไม่ระบุ'
+            month_rows.append([month_label, f"{row['count']:,} รายการ"])
+
+        month_table = Table(month_rows, hAlign='LEFT', colWidths=[200, 130])
+        month_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.whitesmoke),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+            ('FONTNAME', (0, 0), (-1, -1), base_font),
+            ('ALIGN', (1, 1), (1, -1), 'RIGHT'),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ]))
+        story.append(month_table)
+
+    # ------------------------------------------------------------------
+    # 3) สถิติแบบประเมินความพึงพอใจ
+    # ------------------------------------------------------------------
+    if survey_stats:
+        story.append(Spacer(1, 16))
+        story.append(Paragraph("๓. สถิติแบบประเมินความพึงพอใจ", styles['Heading2']))
+        story.append(Spacer(1, 6))
+
+        survey_table_data = [["ข้อคำถาม", "คะแนนเฉลี่ย (เต็ม 5)", "จำนวนคำตอบ"]]
+        for item in survey_stats[:8]:  # แสดงสูงสุด 8 ข้อแรกเพื่อให้อ่านง่าย
+            question_text = f"Q{item['question_id']}: {item['question__question']}"
+            avg_text = f"{item['avg_rating']:.2f}" if item['avg_rating'] is not None else "-"
+            survey_table_data.append([
+                question_text,
+                avg_text,
+                f"{item['responses']:,} ครั้ง",
+            ])
+
+        survey_table = Table(survey_table_data, hAlign='LEFT', colWidths=[260, 80, 80])
+        survey_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+            ('FONTNAME', (0, 0), (-1, -1), base_font),
+            ('ALIGN', (1, 1), (2, -1), 'RIGHT'),
+            ('ALIGN', (0, 0), (0, -1), 'LEFT'),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('FONTSIZE', (0, 0), (-1, -1), 8),
+        ]))
+        story.append(survey_table)
+
+    # ฟังก์ชันส่วนหัว/ส่วนท้ายให้ดูเป็นเอกสารราชการมากขึ้น
+    header_generated_at = timezone.now().strftime('%d/%m/%Y %H:%M น.')
+
+    def _header_footer(canvas, doc):
+        canvas.saveState()
+
+        # กรอบรอบเนื้อหา (เลื่อนเส้นขอบด้านบนลงมาใกล้เนื้อหา)
+        canvas.setLineWidth(0.7)
+        box_left = 30
+        box_right = page_width - 30
+        box_bottom = 40
+        box_top_margin = 135  # ระยะจากขอบบนลงมาที่ต้องการให้เป็นเส้นกรอบ
+        box_height = page_height - box_top_margin - box_bottom
+        canvas.rect(box_left, box_bottom, box_right - box_left, box_height)
+
+        # ส่วนหัว - จัดรูปแบบหลายบรรทัดให้สั้น อ่านง่าย
+        center_x = page_width / 2
+        y = page_height - 46
+
+        # ชื่อพิพิธภัณฑ์ (ตัวหนาเล็กน้อย)
+        canvas.setFont(base_font, 16)
+        canvas.drawCentredString(center_x, y, museum_name)
+
+        # ชื่อรายงาน
+        y -= 16
+        canvas.setFont(base_font, 11)
+        canvas.drawCentredString(center_x, y, "รายงานสรุประบบพิพิธภัณฑ์ผ้าไหม")
+
+        # ที่อยู่ / โทรศัพท์ / อีเมล แยกเป็นหลายบรรทัด หากมีข้อมูล
+        y -= 14
+        canvas.setFont(base_font, 8.5)
+
+        address_lines = []
+        if museum_address:
+            # ตัดบรรทัดตาม \n และตัดให้สั้นไม่เกิน ~75 ตัวอักษร
+            for raw_line in str(museum_address).splitlines():
+                line = raw_line.strip()
+                if not line:
+                    continue
+                if len(line) > 75:
+                    line = line[:72] + "..."
+                address_lines.append(line)
+
+        for line in address_lines[:2]:  # แสดงไม่เกิน 2 บรรทัด
+            canvas.drawCentredString(center_x, y, line)
+            y -= 11
+
+        contact_parts = []
+        if museum_phone:
+            contact_parts.append(f"โทรศัพท์: {museum_phone}")
+        if getattr(museum_profile, 'email', None):
+            contact_parts.append(f"อีเมล: {museum_profile.email}")
+        if contact_parts:
+            canvas.drawCentredString(center_x, y, "  |  ".join(contact_parts))
+            y -= 11
+
+        # วันที่ออกรายงาน (มุมขวาบน)
+        canvas.setFont(base_font, 9)
+        canvas.drawRightString(page_width - 40, page_height - 46, f"ออกรายงานเมื่อ {header_generated_at}")
+
+        # ลายเซ็นด้านล่างกระดาษ (ให้อยู่ภายในกรอบ)
+        sig_y = box_bottom + 30
+        col_width = (box_right - box_left - 40) / 3.0
+        start_x = box_left + 20
+
+        canvas.setFont(base_font, 9)
+        canvas.drawCentredString(start_x + col_width * 0.5, sig_y + 18, "(ลงชื่อ) ...................................................")
+        canvas.drawCentredString(start_x + col_width * 1.5, sig_y + 18, "(ลงชื่อ) ...................................................")
+        canvas.drawCentredString(start_x + col_width * 2.5, sig_y + 18, "(ลงชื่อ) ...................................................")
+
+        canvas.setFont(base_font, 9)
+        canvas.drawCentredString(start_x + col_width * 0.5, sig_y, "ผู้จัดทำรายงาน")
+        canvas.drawCentredString(start_x + col_width * 1.5, sig_y, "ผู้ตรวจสอบ")
+        canvas.drawCentredString(start_x + col_width * 2.5, sig_y, "ผู้บริหารที่เกี่ยวข้อง")
+
+        canvas.setFont(base_font, 9)
+        canvas.drawCentredString(start_x + col_width * 0.5, sig_y - 16, "วันที่ ....../....../......")
+        canvas.drawCentredString(start_x + col_width * 1.5, sig_y - 16, "วันที่ ....../....../......")
+        canvas.drawCentredString(start_x + col_width * 2.5, sig_y - 16, "วันที่ ....../....../......")
+
+        # หมายเลขหน้า (มุมขวาล่าง)
+        canvas.setFont(base_font, 8)
+        canvas.drawRightString(page_width - 40, 30, f"หน้า {doc.page}")
+
+        canvas.restoreState()
+
+    doc.build(story, onFirstPage=_header_footer, onLaterPages=_header_footer)
     return response
 
 
@@ -2639,7 +2912,12 @@ def admin_events_add_view(request):
     if request.method == "POST":
         form = WorkshopForm(request.POST, request.FILES)
         if form.is_valid():
-            form.save()
+            workshop = form.save()
+            # บันทึกรูปประกอบกิจกรรมหลายรูป (ถ้ามีอัปโหลดมา)
+            gallery_files = request.FILES.getlist('gallery_images')
+            for f in gallery_files:
+                if f:
+                    WorkshopGalleryImage.objects.create(workshop=workshop, image=f)
             messages.success(request, "เพิ่มกิจกรรมเรียบร้อยแล้ว")
             return redirect("admin_events_list")
     else:
@@ -2668,9 +2946,23 @@ def admin_events_edit_view(request, workshop_id):
     """3. หน้าแก้ไขกิจกรรม (Update)"""
     workshop = get_object_or_404(Workshop, id=workshop_id)
     if request.method == "POST":
+        # กรณีกดปุ่มลบรูปประกอบจากแกลเลอรี
+        if 'delete_gallery_image' in request.POST:
+            image_id = request.POST.get('delete_gallery_image')
+            if image_id:
+                image = get_object_or_404(WorkshopGalleryImage, id=image_id, workshop=workshop)
+                image.delete()
+                messages.success(request, 'ลบรูปประกอบกิจกรรมเรียบร้อยแล้ว')
+            return redirect('admin_events_edit', workshop_id=workshop.id)
+
         form = WorkshopForm(request.POST, request.FILES, instance=workshop)
         if form.is_valid():
-            form.save()
+            workshop = form.save()
+            # เพิ่มรูปประกอบกิจกรรมเพิ่มเติม (ไม่ลบของเดิม)
+            gallery_files = request.FILES.getlist('gallery_images')
+            for f in gallery_files:
+                if f:
+                    WorkshopGalleryImage.objects.create(workshop=workshop, image=f)
             messages.success(request, "แก้ไขข้อมูลกิจกรรมเรียบร้อยแล้ว")
             return redirect("admin_events_list") # กลับหน้า List
     else:

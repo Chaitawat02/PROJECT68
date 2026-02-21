@@ -131,7 +131,6 @@
 
             <div class="flex gap-4">
                 <a href="{% url 'booking_history' %}" class="flex-1 text-center py-3 border border-gray-200 rounded-xl hover:bg-gray-50 transition font-medium">กลับไปที่ประวัติ</a>
-                <button onclick="window.print()" class="flex-1 bg-gray-800 text-white py-3 rounded-xl hover:bg-gray-900 transition font-medium">พิมพ์ใบยืนยัน</button>
             </div>
             
             {% if questionnaire_available %}
@@ -139,19 +138,30 @@
             <div class="mt-4 bg-amber-50 p-4 rounded">
                 <p class="font-medium text-gray-800">แบบประเมินหลังการเข้าชม</p>
                 <p class="text-sm text-gray-600 mb-3">กรุณาทำแบบประเมินเพื่อช่วยพัฒนาบริการ</p>
-                <div class="flex items-center gap-3">
+                <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4">
                     {% if questionnaire_url %}
-                        <a href="{{ questionnaire_url }}" class="px-4 py-2 bg-amber-600 text-white rounded">เริ่มแบบประเมิน</a>
+                        <a href="{{ questionnaire_url }}" class="px-4 py-2 bg-amber-600 text-white rounded-lg shadow-sm font-medium">เริ่มแบบประเมินสำหรับผู้จอง</a>
                     {% endif %}
+
                     {% if booking.qr_code %}
-                        <div class="ml-4">
-                            <p class="text-xs text-gray-500">หรือสแกน QR</p>
-                            <img src="{{ booking.qr_code.url }}" alt="QR แบบประเมิน" style="width:110px;height:110px;" />
+                        <div class="mt-2 sm:mt-0">
+                            <div class="bg-white border border-amber-200 shadow-md rounded-2xl p-3 flex items-center gap-3">
+                                <img src="{{ booking.qr_code.url }}" alt="QR แบบประเมิน" class="w-32 h-32 sm:w-36 sm:h-36 object-contain" />
+                                <div class="text-sm text-gray-700">
+                                    <p class="font-semibold">สแกน QR นี้เพื่อทำแบบประเมิน</p>
+                                    <p class="text-xs text-gray-500 mt-1">สามารถให้สมาชิกในกลุ่มสแกน QR นี้ เพื่อช่วยกันตอบแบบประเมินได้ทุกคน</p>
+                                </div>
+                            </div>
                         </div>
                     {% elif questionnaire_qr %}
-                        <div class="ml-4">
-                            <p class="text-xs text-gray-500">หรือสแกน QR</p>
-                            <img src="{{ questionnaire_qr }}" alt="QR แบบประเมิน" style="width:110px;height:110px;" />
+                        <div class="mt-2 sm:mt-0">
+                            <div class="bg-white border border-amber-200 shadow-md rounded-2xl p-3 flex items-center gap-3">
+                                <img src="{{ questionnaire_qr }}" alt="QR แบบประเมิน" class="w-32 h-32 sm:w-36 sm:h-36 object-contain" />
+                                <div class="text-sm text-gray-700">
+                                    <p class="font-semibold">สแกน QR นี้เพื่อทำแบบประเมิน</p>
+                                    <p class="text-xs text-gray-500 mt-1">สามารถให้สมาชิกในกลุ่มสแกน QR นี้ เพื่อช่วยกันตอบแบบประเมินได้ทุกคน</p>
+                                </div>
+                            </div>
                         </div>
                     {% endif %}
                 </div>

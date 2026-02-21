@@ -132,6 +132,19 @@ class Workshop(models.Model):
     end_date = models.DateField(null=True, blank=True, verbose_name="วันที่สิ้นสุดกิจกรรม")
     start_time = models.TimeField(null=True, blank=True, verbose_name="เวลาเริ่ม")
     end_time = models.TimeField(null=True, blank=True, verbose_name="เวลาสิ้นสุด")
+    SESSION_PERIOD_CHOICES = [
+        ("morning", "ช่วงเช้า"),
+        ("afternoon", "ช่วงบ่าย"),
+        ("both", "ทั้งเช้าและบ่าย"),
+    ]
+    session_period = models.CharField(
+        max_length=20,
+        choices=SESSION_PERIOD_CHOICES,
+        default="both",
+        blank=True,
+        verbose_name="ช่วงจัดกิจกรรม",
+        help_text="เลือกช่วงเวลาที่จัดกิจกรรม (เช้า / บ่าย / ทั้งเช้าและบ่าย)",
+    )
     duration = models.CharField(
         max_length=50,
         blank=True,
@@ -148,9 +161,37 @@ class Workshop(models.Model):
         help_text="เช่น วัสดุอุปกรณ์ไม่พอ / เต็มแล้ว / ปิดปรับปรุง",
     )
     image = models.ImageField(upload_to='workshops/', blank=True, null=True, verbose_name="รูปภาพ")
+    detail_image = models.ImageField(
+        upload_to='workshops/',
+        blank=True,
+        null=True,
+        verbose_name="รูปประกอบกิจกรรม",
+        help_text="รูปเพิ่มเติมที่ใช้แสดงในหน้ารายละเอียดกิจกรรม",
+    )
 
     def __str__(self):
         return self.title
+
+
+class WorkshopGalleryImage(models.Model):
+    workshop = models.ForeignKey(
+        Workshop,
+        on_delete=models.CASCADE,
+        related_name="gallery_images",
+        verbose_name="กิจกรรม",
+    )
+    image = models.ImageField(
+        upload_to="workshops/gallery/",
+        verbose_name="รูปประกอบกิจกรรมเพิ่มเติม",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "รูปประกอบกิจกรรม"
+        verbose_name_plural = "รูปประกอบกิจกรรม (หลายรูปต่อกิจกรรม)"
+
+    def __str__(self):
+        return f"รูปประกอบ {self.workshop.title}"
 
 
 # =========================================================

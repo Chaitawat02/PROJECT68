@@ -63,6 +63,57 @@
                             {% endif %}
                         </div>
 
+                        <div class="md:col-span-2 space-y-4">
+                            <label class="text-sm font-black text-gray-700 uppercase tracking-wide ml-1">รูปประกอบกิจกรรม (หน้ารายละเอียด)</label>
+                            <div class="flex items-center justify-center w-full">
+                                <label for="detail-image-upload" class="flex flex-col items-center justify-center w-full h-56 border-2 border-dashed border-gray-300 rounded-[2rem] cursor-pointer bg-gray-50 hover:bg-gray-100 transition-all relative overflow-hidden group">
+                                    <div class="flex flex-col items-center justify-center pt-5 pb-6 {% if form.instance.detail_image %}opacity-0{% endif %}" id="detail-upload-placeholder">
+                                        <i class="fas fa-images text-3xl text-gray-400 mb-3 group-hover:scale-110 transition-transform"></i>
+                                        <p class="mb-2 text-sm text-gray-500 font-bold">คลิกเพื่ออัปโหลดรูปประกอบกิจกรรม</p>
+                                        <p class="text-xs text-gray-400">รองรับไฟล์ JPG, PNG</p>
+                                    </div>
+                                    <img id="detail-image-preview" src="{% if form.instance.detail_image %}{{ form.instance.detail_image.url }}{% endif %}"
+                                         class="absolute inset-0 w-full h-full object-cover {% if not form.instance.detail_image %}hidden{% endif %}">
+                                    <input id="detail-image-upload" type="file" name="detail_image" class="hidden" accept="image/*">
+                                </label>
+                            </div>
+                            {% if form.detail_image.errors %}
+                            <p class="text-sm text-red-600 mt-1">{{ form.detail_image.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <div class="md:col-span-2 space-y-4">
+                            <label class="text-sm font-black text-gray-700 uppercase tracking-wide ml-1">รูปประกอบกิจกรรมเพิ่มเติม (อัปโหลดได้หลายรูป)</label>
+                            <div class="flex flex-col gap-4">
+                                <div class="flex items-center justify-center w-full">
+                                    <label for="gallery-images-upload" class="flex flex-col items-center justify-center w-full min-h-[140px] border-2 border-dashed border-gray-300 rounded-[2rem] cursor-pointer bg-gray-50 hover:bg-gray-100 transition-all">
+                                        <div class="flex flex-col items-center justify-center pt-4 pb-5 text-center">
+                                            <i class="fas fa-images text-2xl text-gray-400 mb-2"></i>
+                                            <p class="mb-1 text-sm text-gray-500 font-bold">คลิกเพื่ออัปโหลดรูปประกอบหลายรูป</p>
+                                            <p class="text-xs text-gray-400">เลือกได้มากกว่าหนึ่งไฟล์ (JPG, PNG)</p>
+                                        </div>
+                                        <input id="gallery-images-upload" type="file" name="gallery_images" class="hidden" accept="image/*" multiple>
+                                    </label>
+                                </div>
+
+                                {% if workshop and workshop.gallery_images.all %}
+                                <div class="border border-gray-100 rounded-3xl p-4 bg-gray-50/60">
+                                    <p class="text-xs font-semibold text-gray-600 mb-3">รูปประกอบที่มีอยู่แล้ว</p>
+                                    <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                        {% for img in workshop.gallery_images.all %}
+                                        <div class="relative overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm group">
+                                            <img src="{{ img.image.url }}" alt="{{ workshop.title }}" class="w-full h-24 object-cover">
+                                            <button type="submit" name="delete_gallery_image" value="{{ img.id }}" class="absolute top-1 right-1 w-8 h-8 flex items-center justify-center rounded-full bg-red-600/90 text-white text-xs shadow-sm opacity-0 group-hover:opacity-100 transition-opacity" title="ลบรูปนี้" onclick="return confirm('ยืนยันการลบรูปประกอบนี้หรือไม่?');">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
                         <div class="md:col-span-2 space-y-2">
                             <label class="text-sm font-black text-gray-700 uppercase tracking-wide ml-1">ชื่อกิจกรรม</label>
                             <input type="text" name="title" value="{{ form.title.value|default_if_none:'' }}" required
@@ -99,6 +150,21 @@
                                 placeholder="เช่น 3 ชม. หรือ 2 วัน">
                             {% if form.duration.errors %}
                             <p class="text-sm text-red-600 mt-1">{{ form.duration.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <div class="md:col-span-2 space-y-2">
+                            <label class="text-sm font-black text-gray-700 uppercase tracking-wide ml-1">ช่วงจัดกิจกรรม</label>
+                            {% with current=form.session_period.value|default_if_none:'both' %}
+                            <select name="session_period"
+                                    class="w-full px-6 py-4 rounded-2xl bg-gray-50 border-2 border-transparent focus:border-amber-500 focus:bg-white transition-all outline-none font-medium">
+                                <option value="morning" {% if current == 'morning' %}selected{% endif %}>ช่วงเช้า</option>
+                                <option value="afternoon" {% if current == 'afternoon' %}selected{% endif %}>ช่วงบ่าย</option>
+                                <option value="both" {% if current == 'both' %}selected{% endif %}>ทั้งเช้าและบ่าย</option>
+                            </select>
+                            {% endwith %}
+                            {% if form.session_period.errors %}
+                            <p class="text-sm text-red-600 mt-1">{{ form.session_period.errors.0 }}</p>
                             {% endif %}
                         </div>
 
