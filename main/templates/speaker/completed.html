@@ -1,0 +1,132 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block title %}{{ title }} - {{ speaker.name }}{% endblock %}
+
+{% block content %}
+<div class="min-h-screen py-10 px-4 sm:px-6 lg:px-8 bg-[#FDFBF7]">
+  <div class="max-w-6xl mx-auto space-y-8">
+
+    <!-- Header -->
+    <div class="relative overflow-hidden bg-white/80 border border-white/60 rounded-3xl p-8 shadow-sm">
+      <div class="absolute inset-0 pointer-events-none">
+        <div class="absolute -top-24 -right-24 w-72 h-72 rounded-full bg-emerald-100/40 blur-3xl"></div>
+        <div class="absolute -bottom-24 -left-24 w-72 h-72 rounded-full bg-amber-100/40 blur-3xl"></div>
+      </div>
+
+      <div class="relative flex flex-col md:flex-row md:items-end md:justify-between gap-5">
+        <div>
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-100">
+            <i class="fas fa-check-circle"></i> Completed
+          </div>
+          <h2 class="mt-3 text-3xl font-extrabold text-gray-800 tracking-tight">{{ title }}</h2>
+          <p class="text-gray-500 mt-1">ประวัติงานที่ปิดงานแล้ว</p>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <div class="px-4 py-2 rounded-2xl bg-emerald-50 border border-emerald-100 text-emerald-800 font-extrabold shadow-sm">
+            <i class="fas fa-list-check mr-2"></i>
+            {{ assignments|length }} งาน
+          </div>
+
+          <a href="{% url 'speaker_dashboard' %}"
+             class="px-4 py-2 rounded-2xl bg-gray-900 text-white font-extrabold hover:bg-gray-800 transition shadow-sm">
+            <i class="fas fa-house mr-2"></i> กลับแดชบอร์ด
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- List -->
+    <div class="space-y-4">
+      {% for assignment in assignments %}
+      <div class="group bg-white rounded-3xl border border-gray-100 shadow-sm p-6 md:p-7
+                  hover:shadow-md hover:-translate-y-0.5 transition-all">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-5">
+
+          <!-- Left -->
+          <div class="flex items-start gap-4 min-w-0">
+            <div class="shrink-0 w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-100 text-emerald-700 flex items-center justify-center shadow-sm">
+              <i class="fas fa-check-double text-lg"></i>
+            </div>
+
+            <div class="min-w-0">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-extrabold border border-emerald-100">
+                  เสร็จสิ้น
+                </span>
+                <span class="text-xs text-gray-400">
+                  <i class="fas fa-hashtag mr-1"></i> รหัสงาน: {{ assignment.assignment_id }}
+                </span>
+              </div>
+
+              <h3 class="mt-2 text-lg md:text-xl font-extrabold text-gray-900 leading-snug break-words">
+                {{ assignment.title|default:"บรรยายนำชมและสาธิต" }}
+              </h3>
+
+              <div class="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm text-gray-600">
+                <div class="flex items-center gap-2 bg-gray-50 border border-gray-100 rounded-2xl px-3 py-2">
+                  <i class="far fa-calendar text-emerald-600"></i>
+                  <span class="font-semibold text-gray-800">
+                    {{ assignment.booking.Re_date|date:"d/m/Y"|default:"-" }}
+                  </span>
+                </div>
+
+                <div class="flex items-center gap-2 bg-gray-50 border border-gray-100 rounded-2xl px-3 py-2">
+                  <i class="far fa-clock text-emerald-600"></i>
+                  <span class="text-gray-700">
+                    {% if assignment.booking.visit_session %}
+                      {{ assignment.booking.get_visit_session_display|default:assignment.booking.visit_session }}
+                    {% else %}
+                      -
+                    {% endif %}
+                  </span>
+                </div>
+
+                <div class="flex items-center gap-2 bg-gray-50 border border-gray-100 rounded-2xl px-3 py-2">
+                  <i class="fas fa-users text-emerald-600"></i>
+                  <span class="text-gray-700">
+                    <span class="font-semibold text-gray-800">{{ assignment.booking.Re_quantity|default:"-" }}</span> ท่าน
+                  </span>
+                </div>
+              </div>
+
+              <div class="mt-4">
+                <div class="h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right -->
+          <div class="shrink-0">
+            <a href="{% url 'speaker_assignment_detail' assignment.assignment_id %}"
+               class="inline-flex items-center justify-center px-5 py-2.5 rounded-2xl
+                      bg-white border border-emerald-200 text-emerald-700 font-extrabold
+                      hover:bg-emerald-50 transition shadow-sm">
+              <i class="fas fa-eye mr-2"></i> ดูรายละเอียด
+            </a>
+          </div>
+
+        </div>
+      </div>
+      {% empty %}
+      <div class="bg-white rounded-3xl border border-dashed border-gray-200 p-12 text-center">
+        <div class="mx-auto w-16 h-16 rounded-3xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-700">
+          <i class="fas fa-check-circle text-2xl"></i>
+        </div>
+        <h3 class="mt-4 text-xl font-extrabold text-gray-800">ยังไม่มีงานที่เสร็จสิ้น</h3>
+        <p class="mt-1 text-gray-500">เมื่อคุณปิดงานแล้ว รายการจะมาแสดงในหน้านี้</p>
+
+        <div class="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
+          <a href="{% url 'speaker_dashboard' %}"
+             class="px-6 py-3 rounded-2xl bg-gray-900 text-white font-extrabold hover:bg-gray-800 transition">
+            <i class="fas fa-house mr-2"></i> กลับหน้าแดชบอร์ด
+          </a>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+  </div>
+</div>
+{% endblock %}

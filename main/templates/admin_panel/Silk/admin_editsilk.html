@@ -4,7 +4,7 @@
 {% block title %}{{ title }} | Admin Panel{% endblock %}
 
 {% block content %}
-<script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.3.0/model-viewer.min.js"></script>
+<script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.3.0/model-viewer.min.js"></script>  
 
 <div class="flex flex-col lg:flex-row min-h-screen bg-gray-50/50">
     
@@ -111,20 +111,28 @@
                             <div class="form-group md:grid md:grid-cols-2 md:gap-4">
                                 <div>
                                     <label class="label-custom flex justify-between">
+                                        <span>ชื่อไฟล์ .mind (Target File)</span>
+                                        <span class="text-xs text-gray-500 font-normal bg-gray-50 px-2 py-0.5 rounded-full">เช่น targets0.mind</span>
+                                    </label>
+                                    <div class="input-wrapper">
+                                            {% if form.target_image.value and 'test0_T5BHzbA.jpg' in form.target_image.value %}
+                                                <!-- ซ่อนรูปนี้ ไม่แสดง -->
+                                            {% else %}
+                                                {{ form.target_file }}
+                                            {% endif %}
+                                    </div>
+                                    <div class="mt-2">
+                                        <span class="label-custom block mb-1 text-xs text-gray-600">อัปโหลดไฟล์ .mind เพื่อเก็บใน static/main/targets</span>
+                                        {{ form.mind_file }}
+                                    </div>
+                                </div>
+                                <div class="mt-4 md:mt-0">
+                                    <label class="label-custom flex justify-between">
                                         <span>ลำดับเป้าหมาย AR (Target Index)</span>
                                         <span class="text-xs text-amber-600 font-normal bg-amber-50 px-2 py-0.5 rounded-full">ตรงกับลำดับในไฟล์ .mind</span>
                                     </label>
                                     <div class="input-wrapper">
                                         {{ form.target_index }}
-                                    </div>
-                                </div>
-                                <div class="mt-4 md:mt-0">
-                                    <label class="label-custom flex justify-between">
-                                        <span>ชื่อไฟล์ .mind (Target File)</span>
-                                        <span class="text-xs text-gray-500 font-normal bg-gray-50 px-2 py-0.5 rounded-full">เช่น targets0.mind</span>
-                                    </label>
-                                    <div class="input-wrapper">
-                                        {{ form.target_file }}
                                     </div>
                                 </div>
                             </div>
@@ -136,53 +144,109 @@
                             <i class="fas fa-photo-video text-amber-500"></i> สื่อและไฟล์ 3D (เรียกจาก Media)
                         </h3>
                         
-                        <div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
-                            <div class="bg-gray-50 p-4 rounded-2xl border border-gray-200">
-                                <label class="label-custom mb-3 block">รูปประกอบ (Image)</label>
-                                <div class="mb-3 relative w-full h-48 bg-white rounded-xl border border-dashed border-gray-300 flex items-center justify-center overflow-hidden">
-                                    <img id="preview-image" src="{% if form.instance.image %}{{ form.instance.image.url }}{% endif %}" 
-                                         class="w-full h-full object-cover {% if not form.instance.image %}hidden{% endif %}">
-                                    <div class="{% if form.instance.image %}hidden{% endif %} text-gray-400 flex flex-col items-center" id="placeholder-image">
-                                        <i class="fas fa-image text-3xl mb-2"></i>
-                                        <span class="text-xs">ยังไม่มีรูปภาพ</span>
-                                    </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+
+                            <!-- รูปภาพหน้าปกผ้า -->
+                            <div class="md:col-span-2 space-y-4">
+                                <label class="text-sm font-black text-gray-700 uppercase tracking-wide ml-1">รูปภาพหน้าปกผ้า</label>
+                                <div class="flex items-center justify-center w-full">
+                                    <label for="image-upload" class="flex flex-col items-center justify-center w-full h-64 border-2 border-dashed border-gray-300 rounded-[2rem] cursor-pointer bg-gray-50 hover:bg-gray-100 transition-all relative overflow-hidden group">
+                                        <div class="flex flex-col items-center justify-center pt-5 pb-6 {% if form.instance.image %}opacity-0{% endif %}" id="upload-placeholder">
+                                            <i class="fas fa-image text-4xl text-gray-400 mb-3 group-hover:scale-110 transition-transform"></i>
+                                            <p class="mb-2 text-sm text-gray-500 font-bold">คลิกเพื่ออัปโหลดรูปภาพผ้า</p>
+                                            <p class="text-xs text-gray-400">แนะนำขนาด 1200x600px (JPG, PNG)</p>
+                                        </div>
+                                        <img id="image-preview" src="{% if form.instance.image %}{{ form.instance.image.url }}{% endif %}" 
+                                             class="absolute inset-0 w-full h-full object-cover {% if not form.instance.image %}hidden{% endif %}">
+                                        <input id="image-upload" type="file" name="image" class="hidden" accept="image/*" onchange="previewImage(this)">
+                                    </label>
                                 </div>
-                                {{ form.image }}
+                                {% if form.image.errors %}
+                                <p class="text-sm text-red-600 mt-1">{{ form.image.errors.0 }}</p>
+                                {% endif %}
                             </div>
 
-                            <div class="bg-gray-50 p-4 rounded-2xl border border-gray-200">
-                                <label class="label-custom mb-3 block">รูปอ้างอิง AR (Reference)</label>
-                                <div class="mb-3 relative w-full h-48 bg-white rounded-xl border border-dashed border-gray-300 flex items-center justify-center overflow-hidden">
-                                    <img id="preview-reference" src="{% if form.instance.reference %}{{ form.instance.reference.url }}{% endif %}" 
-                                         class="w-full h-full object-cover {% if not form.instance.reference %}hidden{% endif %}">
-                                    <div class="{% if form.instance.reference %}hidden{% endif %} text-gray-400 flex flex-col items-center" id="placeholder-reference">
-                                        <i class="fas fa-qrcode text-3xl mb-2"></i>
-                                        <span class="text-xs">Image Tracking</span>
+                            <!-- ✅✅✅ รูปประกอบผ้าเพิ่มเติม (อัปโหลดได้หลายรูป) -->
+                            <div class="md:col-span-2 space-y-4">
+                                <label class="text-sm font-black text-gray-700 uppercase tracking-wide ml-1">
+                                    รูปประกอบผ้าเพิ่มเติม (อัปโหลดได้หลายรูป)
+                                </label>
+
+                                <div class="flex flex-col gap-4">
+
+                                    <!-- ปุ่มอัปโหลด -->
+                                    <label for="gallery-images-upload"
+                                           class="flex flex-col items-center justify-center w-full min-h-[140px] border-2 border-dashed border-gray-300 rounded-[2rem] cursor-pointer bg-gray-50 hover:bg-gray-100 transition-all">
+                                        <div class="flex flex-col items-center justify-center pt-4 pb-5 text-center">
+                                            <i class="fas fa-images text-2xl text-gray-400 mb-2"></i>
+                                            <p class="mb-1 text-sm text-gray-500 font-bold">คลิกเพื่ออัปโหลดรูปผ้าหลายรูป</p>
+                                            <p class="text-xs text-gray-400">เลือกได้มากกว่าหนึ่งไฟล์ (JPG, PNG)</p>
+                                        </div>
+                                        <input id="gallery-images-upload" type="file" name="gallery_images" class="hidden" accept="image/*" multiple>
+                                    </label>
+
+                                    <!-- ✅ Preview ทั้งหมด: รูปที่มีอยู่แล้ว + รูปใหม่ที่เลือก (ยังไม่บันทึก) -->
+                                    <div id="preview-gallery-container" class="w-full flex flex-wrap gap-3 mt-2">
+
+                                        <!-- ✅ รูปที่มีอยู่แล้ว (จาก DB) -->
+                                        {% for img in gallery_images %}
+                                            <div class="relative w-32 h-32 existing-image">
+                                                <img src="{{ img.image.url }}" alt="Gallery Image"
+                                                     class="w-full h-full object-cover rounded-xl border border-gray-300">
+
+                                                <!-- ✅ ปุ่มลบ -->
+                                                <button type="button"
+                                                        class="delete-image-btn absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 text-xs shadow"
+                                                        data-image-id="{{ img.id }}"
+                                                        data-delete-url="{% url 'silk_gallery_image_delete' img.id %}">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </div>
+                                        {% empty %}
+                                            <p class="text-sm text-gray-400">ยังไม่มีรูปประกอบเพิ่มเติม</p>
+                                        {% endfor %}
+
                                     </div>
                                 </div>
-                                {{ form.reference }}
                             </div>
 
-                            <div class="bg-gray-50 p-4 rounded-2xl border border-gray-200">
-                                <label class="label-custom mb-3 block">โมเดล 3D (.glb)</label>
-                                <div class="mb-3 w-full h-48 bg-gray-800 rounded-xl overflow-hidden relative">
-                                    {% if form.instance.model_3d %}
-                                        <model-viewer src="{{ form.instance.model_3d.url }}" camera-controls auto-rotate shadow-intensity="1" class="w-full h-full"></model-viewer>
-                                        <div class="absolute top-2 right-2 bg-green-500 text-white text-[10px] px-2 py-0.5 rounded-full shadow-sm">
-                                            <i class="fas fa-check"></i> ใช้งานอยู่
+                            <!-- ส่วน AR Reference และ 3D Model -->
+                            <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
+                                <div class="bg-gray-50 p-4 rounded-2xl border border-gray-200">
+                                    <label class="label-custom mb-3 block">รูปอ้างอิง AR (Reference)</label>
+                                    <div class="mb-3 relative w-full h-48 bg-white rounded-xl border border-dashed border-gray-300 flex items-center justify-center overflow-hidden">
+                                        <img id="preview-reference" src="{% if form.instance.reference %}{{ form.instance.reference.url }}{% endif %}" 
+                                             class="w-full h-full object-cover {% if not form.instance.reference %}hidden{% endif %}">
+                                        <div class="{% if form.instance.reference %}hidden{% endif %} text-gray-400 flex flex-col items-center" id="placeholder-reference">
+                                            <i class="fas fa-qrcode text-3xl mb-2"></i>
+                                            <span class="text-xs">Image Tracking</span>
                                         </div>
-                                    {% else %}
-                                        <div class="flex flex-col items-center justify-center h-full text-gray-400">
-                                            <i class="fas fa-cube text-3xl mb-2"></i>
-                                            <span class="text-xs">ยังไม่มีโมเดล 3D</span>
-                                        </div>
-                                    {% endif %}
+                                    </div>
+                                    {{ form.reference }}
                                 </div>
-                                {{ form.model_3d }}
-                                <p class="text-[10px] text-amber-600 mt-2">
-                                    <i class="fas fa-exclamation-circle"></i> รองรับเฉพาะ .glb (ขนาดไม่เกิน 50MB)
-                                </p>
+
+                                <div class="bg-gray-50 p-4 rounded-2xl border border-gray-200">
+                                    <label class="label-custom mb-3 block">โมเดล 3D (.glb)</label>
+                                    <div class="mb-3 w-full h-48 bg-gray-800 rounded-xl overflow-hidden relative">
+                                        {% if form.instance.model_3d %}
+                                            <model-viewer src="{{ form.instance.model_3d.url }}" camera-controls auto-rotate shadow-intensity="1" class="w-full h-full"></model-viewer>
+                                            <div class="absolute top-2 right-2 bg-green-500 text-white text-[10px] px-2 py-0.5 rounded-full shadow-sm">
+                                                <i class="fas fa-check"></i> ใช้งานอยู่
+                                            </div>
+                                        {% else %}
+                                            <div class="flex flex-col items-center justify-center h-full text-gray-400">
+                                                <i class="fas fa-cube text-3xl mb-2"></i>
+                                                <span class="text-xs">ยังไม่มีโมเดล 3D</span>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    {{ form.model_3d }}
+                                    <p class="text-[10px] text-amber-600 mt-2">
+                                        <i class="fas fa-exclamation-circle"></i> รองรับเฉพาะ .glb (ขนาดไม่เกิน 50MB)
+                                    </p>
+                                </div>
                             </div>
+
                         </div>
                     </div>
 
@@ -194,6 +258,7 @@
                             ยกเลิก
                         </a>
                     </div>
+
                 </form>
             </div>
         </div>
@@ -218,6 +283,37 @@
 </style>
 
 <script>
+    // Multiple image preview: แสดงรูปที่มีอยู่แล้วเสมอ + รูปใหม่ที่เลือก (ยังไม่บันทึก)
+    function handleMultipleImagePreview(inputName, containerId, maxImages = 5) {
+        const input = document.querySelector(`input[name="${inputName}"]`);
+        const container = document.getElementById(containerId);
+        if (input && container) {
+            input.addEventListener('change', function(e) {
+                // ลบเฉพาะ preview รูปใหม่ (ที่เคยเลือกไว้ก่อนหน้า)
+                container.querySelectorAll('.preview-new-image').forEach(el => el.remove());
+
+                // เพิ่ม preview รูปใหม่
+                const files = Array.from(e.target.files).slice(0, maxImages);
+                files.forEach(file => {
+                    const reader = new FileReader();
+                    reader.onload = function(ev) {
+                        const div = document.createElement('div');
+                        div.className = 'relative w-32 h-32 preview-new-image';
+                        div.innerHTML = `
+                          <img src="${ev.target.result}"
+                               class="w-full h-full object-cover rounded-xl border border-amber-400 ring-2 ring-amber-400">
+                          <div class="absolute bottom-1 left-1 bg-amber-600 text-white text-[10px] px-2 py-0.5 rounded-full shadow">
+                              ใหม่ (ยังไม่บันทึก)
+                          </div>
+                        `;
+                        container.appendChild(div);
+                    };
+                    reader.readAsDataURL(file);
+                });
+            });
+        }
+    }
+
     function handleImagePreview(fieldName, imgId, placeholderId) {
         const actualInput = document.querySelector(`input[name="${fieldName}"]`);
         if(actualInput) {
@@ -225,10 +321,10 @@
                 const file = e.target.files[0];
                 if (file) {
                     const reader = new FileReader();
-                    reader.onload = function(e) {
+                    reader.onload = function(ev) {
                         const img = document.getElementById(imgId);
                         const placeholder = document.getElementById(placeholderId);
-                        img.src = e.target.result;
+                        img.src = ev.target.result;
                         img.classList.remove('hidden');
                         if(placeholder) placeholder.classList.add('hidden');
                     }
@@ -239,9 +335,34 @@
     }
 
     document.addEventListener('DOMContentLoaded', () => {
-        handleImagePreview('image', 'preview-image', 'placeholder-image');
+        handleMultipleImagePreview('gallery_images', 'preview-gallery-container', 5);
         handleImagePreview('reference', 'preview-reference', 'placeholder-reference');
-        
+
+        // ✅✅✅ ลบรูปภาพ (AJAX) - ใช้ URL จาก data-delete-url (ไม่ hardcode)
+        document.querySelectorAll('.delete-image-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                if(!confirm('คุณต้องการลบรูปนี้ใช่หรือไม่?')) return;
+
+                const deleteUrl = this.getAttribute('data-delete-url');
+
+                fetch(deleteUrl, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                    },
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if(data.ok) {
+                        this.closest('.existing-image').remove();
+                    } else {
+                        alert(data.error || 'เกิดข้อผิดพลาดในการลบรูป');
+                    }
+                })
+                .catch(() => alert('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์'));
+            });
+        });
+
         const glbInput = document.querySelector('input[name="model_3d"]');
         if(glbInput){
             glbInput.addEventListener('change', function(e){
@@ -252,6 +373,20 @@
                 }
             });
         }
+
+        // เมื่อเลือกไฟล์ .mind ให้กรอกชื่อไฟล์ลงช่อง Target File อัตโนมัติ
+        const mindInput = document.querySelector('input[name="mind_file"]');
+        const targetFileInput = document.querySelector('input[name="target_file"]');
+        if (mindInput && targetFileInput) {
+            mindInput.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    targetFileInput.value = file.name;
+                }
+            });
+        }
     });
+
+    // หมายเหตุ: ถ้าคุณมีฟังก์ชัน previewImage อยู่ในไฟล์อื่นแล้วก็ใช้ของเดิมได้
 </script>
 {% endblock %}

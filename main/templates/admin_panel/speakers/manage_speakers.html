@@ -10,15 +10,50 @@
     </aside>
 
     <main class="w-full lg:w-3/4 xl:w-4/5 space-y-6">
+        {% if messages %}
+        <div class="space-y-3">
+            {% for message in messages %}
+            <div class="p-4 rounded-2xl border-l-4 shadow-sm animate-bounce-subtle
+                {% if message.tags == 'success' %}bg-green-50 border-green-500 text-green-800
+                {% elif message.tags == 'error' %}bg-red-50 border-red-500 text-red-800
+                {% else %}bg-blue-50 border-blue-500 text-blue-800{% endif %} flex items-center">
+                <div class="mr-3 p-2 rounded-full {% if message.tags == 'success' %}bg-green-100{% else %}bg-red-100{% endif %}">
+                    <i class="fas {% if message.tags == 'success' %}fa-check-circle{% else %}fa-exclamation-circle{% endif %} text-lg"></i>
+                </div>
+                <span class="font-medium">{{ message }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
         <div class="flex justify-between items-center border-b border-gray-200 pb-4">
+        <div class="flex items-start gap-3">
             <div>
-                <h2 class="text-3xl font-bold text-gray-800">งานที่รอมอบหมาย</h2>
-                <p class="text-gray-500 mt-1">รายการจองที่อนุมัติแล้วและยังไม่มีวิทยากรประจำการ</p>
+            <div class="flex items-center gap-2">
+                <h2 class="text-3xl font-bold text-gray-800">รอมอบหมายวิทยากร</h2>
+
+                {# ✅ จุดเตือนเล็กๆ แสดงเฉพาะเมื่อยังมีงานค้าง #}
+                {% if pending_assignments.count > 0 %}
+                <span class="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5
+                            rounded-full text-[11px] font-extrabold
+                            bg-amber-100 text-amber-700 border border-amber-200
+                            shadow-sm">
+                    {{ pending_assignments.count }}
+                </span>
+                <span class="text-xs font-semibold text-amber-700">
+                    ยังมีงานที่ยังไม่ได้มอบหมาย
+                </span>
+                {% endif %}
             </div>
-            <div class="text-right">
-                <span class="block text-2xl font-bold text-indigo-600">{{ pending_assignments.count }}</span>
-                <span class="text-xs text-gray-400 uppercase font-bold">งานที่เหลือ</span>
+
+            <p class="text-gray-500 mt-1">รายการจองที่อนุมัติแล้วและยังไม่มีวิทยากรประจำการ</p>
             </div>
+        </div>
+
+        <div class="text-right">
+            <span class="block text-2xl font-bold text-indigo-600">{{ pending_assignments.count }}</span>
+            <span class="text-xs text-gray-400 uppercase font-bold">งานที่เหลือ</span>
+        </div>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">

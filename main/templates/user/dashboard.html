@@ -1,0 +1,85 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block title %}แดชบอร์ดผู้ใช้งานทั่วไป{% endblock %}
+
+{% block content %}
+<div class="container mx-auto max-w-7xl flex flex-col lg:flex-row gap-8 py-6 px-2 md:px-4">
+
+  <!-- Sidebar (ซ้าย) -->
+  <aside class="w-full lg:w-1/4 xl:w-1/5 shrink-0">
+    {% include 'user/dashboard_menu.html' %}
+  </aside>
+
+  <!-- Main (ขวา) -->
+  <main class="w-full lg:w-3/4 xl:w-4/5">
+    <div class="mb-6">
+      <h2 class="text-3xl font-extrabold text-gray-800 tracking-tight flex items-center gap-3">
+        <i class="fas fa-user-circle text-amber-600"></i>
+        แดชบอร์ดผู้ใช้งานทั่วไป
+      </h2>
+      <p class="text-gray-500 mt-1">
+        จัดการโปรไฟล์ ตรวจสอบประวัติการจอง และประวัติการประเมินของคุณ
+      </p>
+    </div>
+
+    {% if not section or section == 'home' %}
+      <!-- Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 mb-8">
+
+        <!-- 1. จัดการโปรไฟล์ -->
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col items-center text-center">
+          <div class="w-12 h-12 rounded-xl bg-amber-50 flex items-center justify-center mb-3">
+            <i class="fas fa-id-card text-2xl text-amber-600"></i>
+          </div>
+          <h3 class="font-extrabold text-lg mb-1 text-gray-800">จัดการโปรไฟล์</h3>
+          <p class="text-xs text-gray-500 mb-5">แก้ไขข้อมูลส่วนตัวและรูปโปรไฟล์</p>
+          <a href="{% url 'user_dashboard' %}?section=profile"
+             class="w-full inline-flex items-center justify-center gap-2 bg-amber-600 text-white px-4 py-2.5 rounded-xl font-bold hover:bg-amber-700 transition">
+            <i class="fas fa-pen"></i> แก้ไขโปรไฟล์
+          </a>
+        </div>
+
+        <!-- 2. ประวัติการจอง -->
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col items-center text-center">
+          <div class="w-12 h-12 rounded-xl bg-green-50 flex items-center justify-center mb-3">
+            <i class="fas fa-calendar-check text-2xl text-green-600"></i>
+          </div>
+          <h3 class="font-extrabold text-lg mb-1 text-gray-800">ประวัติการจอง</h3>
+          <p class="text-xs text-gray-500 mb-5">ดู/แก้ไข/ยกเลิกการจองกิจกรรมของคุณ</p>
+          <a href="{% url 'user_dashboard' %}?section=booking"
+             class="w-full inline-flex items-center justify-center gap-2 bg-green-600 text-white px-4 py-2.5 rounded-xl font-bold hover:bg-green-700 transition">
+            <i class="fas fa-history"></i> ดูประวัติการจอง
+          </a>
+        </div>
+
+        <!-- 3. ประวัติการประเมิน -->
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col items-center text-center">
+          <div class="w-12 h-12 rounded-xl bg-yellow-50 flex items-center justify-center mb-3">
+            <i class="fas fa-star text-2xl text-yellow-500"></i>
+          </div>
+          <h3 class="font-extrabold text-lg mb-1 text-gray-800">ประวัติการประเมิน</h3>
+          <p class="text-xs text-gray-500 mb-5">ดูผลการประเมินกิจกรรมที่คุณเคยเข้าร่วม</p>
+          <a href="{% url 'user_dashboard' %}?section=rating"
+             class="w-full inline-flex items-center justify-center gap-2 bg-yellow-500 text-white px-4 py-2.5 rounded-xl font-bold hover:bg-yellow-600 transition">
+            <i class="fas fa-star-half-alt"></i> ดูประวัติการประเมิน
+          </a>
+        </div>
+
+      </div>
+
+    {% elif section == 'profile' %}
+      {% include 'user/profile_edit.html' %}
+
+    {% elif section == 'booking' %}
+      {# ✅ ใช้ partial เพื่อไม่ให้ navbar ซ้อน #}
+      {% include 'user/booking_history_partial.html' %}
+
+    {% elif section == 'rating' %}
+      {% include 'user/rating_history_partial.html' %}
+
+    {% endif %}
+  </main>
+
+</div>
+{% endblock %}

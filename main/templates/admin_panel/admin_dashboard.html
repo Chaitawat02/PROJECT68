@@ -93,6 +93,40 @@
             </span>
             จัดการข้อมูลกิจกรรม
         </a>
+                <a href="{% url 'approve_bookings' %}" 
+           class="group flex items-center px-4 py-3 rounded-xl transition-all duration-200 font-medium text-sm
+           {% if 'approve_bookings' in request.path or 'booking' in request.path %}
+                bg-amber-50 text-amber-900 shadow-sm border border-amber-100
+           {% else %}
+                text-gray-600 hover:bg-gray-50 hover:text-amber-800 hover:pl-5
+           {% endif %}">
+            <span class="w-8 flex justify-center mr-2 transition-transform group-hover:scale-110">
+                <i class="fas fa-clock text-lg {% if 'approve_bookings' in request.path or 'booking' in request.path %}text-amber-600{% else %}text-gray-400 group-hover:text-amber-600{% endif %}"></i>
+            </span>
+            รออนุมัติ
+            <span class="ml-auto text-[11px] font-black px-2 py-0.5 rounded-full
+                         {% if pending_count|default:0|add:0 > 0 %}bg-yellow-100 text-yellow-700{% else %}bg-gray-100 text-gray-500{% endif %}">
+                {{ pending_count|default:"0" }}
+            </span>
+        </a>
+
+        <a href="{% url 'manage_speakers' %}" 
+        class="group flex items-center px-4 py-3 rounded-xl transition-all duration-200 font-medium text-sm
+        {% if 'speaker' in request.path %}
+                bg-amber-50 text-amber-900 shadow-sm border border-amber-100
+        {% else %}
+                text-gray-600 hover:bg-gray-50 hover:text-amber-800 hover:pl-5
+        {% endif %}">
+            <span class="w-8 flex justify-center mr-2 transition-transform group-hover:scale-110">
+                <i class="fas fa-user-tie text-lg {% if 'speaker' in request.path %}text-amber-600{% else %}text-gray-400 group-hover:text-amber-600{% endif %}"></i>
+            </span>
+            มอบหมายวิทยากร
+
+            <span class="ml-auto text-[11px] font-black px-2 py-0.5 rounded-full
+                        {% if pending_assign_count|default:0|add:0 > 0 %}bg-yellow-100 text-yellow-700{% else %}bg-gray-100 text-gray-500{% endif %}">
+                {{ pending_assign_count|default:"0" }}
+            </span>
+        </a>
         
            <a href="{% url 'admin_report' %}" 
              class="group flex items-center px-4 py-3 rounded-xl transition-all duration-200 font-medium text-sm

@@ -17,12 +17,12 @@
             
             <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
                 <div class="flex items-center gap-8">
-                    <div class="w-24 h-24 bg-gradient-to-br from-[#8B0000] to-[#5e0000] text-white rounded-[2rem] flex items-center justify-center shadow-2xl shadow-red-200 rotate-3 group-hover:rotate-0 transition-all duration-500">
+                    <div class="w-24 h-24 bg-gradient-to-br from-amber-700 to-amber-900 text-white rounded-[2rem] flex items-center justify-center shadow-2xl shadow-amber-200 rotate-3 group-hover:rotate-0 transition-all duration-500">
                         <i class="fas fa-landmark text-4xl"></i>
                     </div>
                     <div>
                         <nav class="flex text-[11px] text-gray-400 uppercase tracking-[0.3em] mb-3">
-                            <span class="hover:text-[#8B0000] cursor-default">Admin Panel</span>
+                            <span class="hover:text-amber-700 cursor-default">Admin Panel</span>
                             <i class="fas fa-chevron-right mx-3 text-[8px] opacity-50"></i>
                             <span class="text-amber-600 font-black">Identity Management</span>
                         </nav>
@@ -57,7 +57,7 @@
         </div>
         {% endif %}
 
-        <form method="POST" enctype="multipart/form-data" class="space-y-10 pb-40">
+        <form method="POST" enctype="multipart/form-data" class="space-y-10">
             {% csrf_token %}
             
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-10">
@@ -68,7 +68,7 @@
                         <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-transparent via-amber-200/30 to-transparent"></div>
                         
                         <div class="flex items-center gap-5 mb-12">
-                            <div class="w-14 h-14 bg-gray-50 rounded-[1.25rem] flex items-center justify-center text-[#8B0000] shadow-inner border border-gray-100">
+                            <div class="w-14 h-14 bg-gray-50 rounded-[1.25rem] flex items-center justify-center text-amber-700 shadow-inner border border-gray-100">
                                 <i class="fas fa-feather-alt text-2xl"></i>
                             </div>
                             <div>
@@ -174,27 +174,24 @@
                     </div>
                 </div>
             </div>
-            </div>
 
-            <div class="fixed bottom-10 left-1/2 -translate-x-1/2 w-[90%] lg:w-[calc(100%-35rem)] lg:left-[calc(50%+10rem)] max-w-5xl z-[100]">
-                <div class="bg-white/80 backdrop-blur-3xl px-10 py-6 rounded-[3rem] border border-white/40 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.15)] flex items-center justify-between">
-                    <div class="hidden md:flex items-center gap-5">
-                        <div class="relative">
-                            <div class="w-4 h-4 bg-emerald-500 rounded-full animate-ping absolute opacity-75"></div>
-                            <div class="w-4 h-4 bg-emerald-500 rounded-full relative"></div>
-                        </div>
-                        <div class="flex flex-col">
-                            <span class="text-[11px] font-black text-gray-800 uppercase tracking-widest">Status: Ready</span>
-                            <span class="text-[10px] text-gray-400 font-medium">ทุกฟิลด์จะได้รับการบันทึกลงฐานข้อมูลทันที</span>
-                        </div>
+            <div class="bg-white p-6 md:p-8 rounded-[2.5rem] shadow-xl shadow-gray-200/30 border border-gray-50 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+                <div class="hidden md:flex items-center gap-4">
+                    <div class="relative">
+                        <div class="w-3 h-3 bg-emerald-500 rounded-full animate-ping absolute opacity-75"></div>
+                        <div class="w-3 h-3 bg-emerald-500 rounded-full relative"></div>
                     </div>
-                    
-                    <div class="flex gap-4 w-full md:w-auto">
-                        <button type="submit" class="flex-1 md:flex-none bg-[#8B0000] text-white px-16 py-5 rounded-[1.75rem] font-black shadow-2xl shadow-red-900/20 hover:shadow-red-900/40 hover:bg-[#7a0000] hover:-translate-y-1 active:scale-95 transition-all duration-300 text-xs uppercase tracking-[0.2em] flex items-center justify-center gap-4 group">
-                            <i class="fas fa-cloud-upload-alt text-lg group-hover:rotate-12 transition-transform"></i>
-                            Save Museum Profile
-                        </button>
+                    <div class="flex flex-col">
+                        <span class="text-[11px] font-black text-gray-800 uppercase tracking-widest">Status: Ready</span>
+                        <span class="text-[10px] text-gray-400 font-medium">ทุกฟิลด์จะได้รับการบันทึกลงฐานข้อมูลทันที</span>
                     </div>
+                </div>
+
+                <div class="flex gap-4 w-full md:w-auto">
+                    <button type="submit" class="w-full md:w-auto bg-amber-700 text-white px-12 py-5 rounded-[1.75rem] font-black shadow-2xl shadow-amber-900/20 hover:shadow-amber-900/30 hover:bg-amber-800 hover:-translate-y-1 active:scale-95 transition-all duration-300 text-xs uppercase tracking-[0.2em] flex items-center justify-center gap-4 group">
+                        <i class="fas fa-cloud-upload-alt text-lg group-hover:rotate-12 transition-transform"></i>
+                        บันทึกข้อมูลพิพิธภัณฑ์
+                    </button>
                 </div>
             </div>
         </form>
@@ -202,65 +199,17 @@
 </div>
 
 <style>
-    /* Custom Input Styling */
-    input[type="text"], input[type="email"], input[type="number"], textarea {
-        width: 100% !important;
-        background-color: #F8FAFC !important;
-        border-radius: 1.5rem !important;
-        border: 2px solid #F1F5F9 !important;
-        padding: 1.25rem 1.75rem !important;
-        font-size: 0.95rem !important;
-        font-weight: 600 !important;
-        color: #1E293B !important;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-    }
-
-    input:focus, textarea:focus {
-        background-color: #ffffff !important;
-        border-color: #8B0000 !important;
-        box-shadow: 0 20px 25px -5px rgba(139, 0, 0, 0.1), 0 8px 10px -6px rgba(139, 0, 0, 0.1) !important;
-        outline: none !important;
-        transform: translateY(-2px);
-    }
-
-    /* GPS Input Specific (Dark Mode) */
-    .bg-gradient-to-br input {
-        background-color: rgba(255, 255, 255, 0.03) !important;
-        border-color: rgba(255, 255, 255, 0.08) !important;
-        color: #FCD34D !important;
-        font-family: 'JetBrains Mono', 'Fira Code', monospace !important;
-        letter-spacing: 0.05em !important;
-    }
-    
-    .bg-gradient-to-br input:focus {
-        background-color: rgba(255, 255, 255, 0.07) !important;
-        border-color: #FCD34D !important;
-        box-shadow: 0 0 20px rgba(252, 211, 77, 0.15) !important;
-    }
-
-    textarea { 
-        min-height: 200px !important; 
-        line-height: 1.8 !important;
-        resize: none;
-    }
-
-    /* Animations */
+    /* Animations (optional) */
     .fade-in { animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1); }
-    @keyframes fadeIn { 
-        from { opacity: 0; transform: translateY(20px); } 
-        to { opacity: 1; transform: translateY(0); } 
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
     }
-    
+
     @keyframes animate-fade-in-down {
         from { opacity: 0; transform: translateY(-15px); }
         to { opacity: 1; transform: translateY(0); }
     }
     .animate-fade-in-down { animation: animate-fade-in-down 0.5s ease-out; }
-
-    /* Custom Scrollbar for Textarea */
-    textarea::-webkit-scrollbar { width: 6px; }
-    textarea::-webkit-scrollbar-track { background: transparent; }
-    textarea::-webkit-scrollbar-thumb { background: #E2E8F0; border-radius: 10px; }
-    textarea::-webkit-scrollbar-thumb:hover { background: #CBD5E1; }
 </style>
 {% endblock %}

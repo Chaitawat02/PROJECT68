@@ -63,18 +63,8 @@
                     <p class="text-xs text-gray-400 uppercase font-bold">เบอร์โทรศัพท์</p>
                     <p class="text-gray-800 font-medium">{{ booking.phone }}</p>
                 </div>
-
-                <div>
-                    <p class="text-xs text-gray-400 uppercase font-bold">เวลาที่ต้องการเช็คอิน</p>
-                    <p class="text-gray-800 font-medium">{{ booking.check_in|default:"-" }}</p>
-                </div>
-                <div>
-                    <p class="text-xs text-gray-400 uppercase font-bold">เวลาที่ต้องการเช็คเอาท์</p>
-                    <p class="text-gray-800 font-medium">{{ booking.check_out|default:"-" }}</p>
-                </div>
-
                 <div class="col-span-2">
-                    <p class="text-xs text-gray-400 uppercase font-bold">กิจกรรม / เวิร์กช็อปที่จอง</p>
+                    <p class="text-xs text-gray-400 uppercase font-bold">กิจกรรม</p>
                     {% with items=booking.workshop_items.all %}
                         {% if items %}
                             <ul class="list-disc ml-6 text-gray-800">
@@ -101,11 +91,23 @@
             <div class="grid grid-cols-2 gap-6">
                 <div>
                     <p class="text-xs text-gray-400 uppercase font-bold">ผู้อนุมัติ</p>
-                    <p class="text-gray-800">{% if booking.decided_by %}{{ booking.decided_by.get_full_name|default:booking.decided_by.username }}{% else %}-{% endif %}</p>
+                    <p class="text-gray-800">
+                        {% if booking.decided_by %}
+                            {{ booking.decided_by.get_full_name|default:booking.decided_by.username }}
+                        {% else %}
+                            <span class="text-gray-500">ยังไม่อนุมัติ</span>
+                        {% endif %}
+                    </p>
                 </div>
                 <div>
                     <p class="text-xs text-gray-400 uppercase font-bold">วันที่อนุมัติ</p>
-                    <p class="text-gray-800">{{ booking.decided_at|date:"j F Y H:i"|default:"-" }}</p>
+                    <p class="text-gray-800">
+                        {% if booking.decided_at %}
+                            {{ booking.decided_at|date:"j F Y H:i" }}
+                        {% else %}
+                            <span class="text-gray-500">ยังไม่อนุมัติ</span>
+                        {% endif %}
+                    </p>
                 </div>
 
                 <div>
@@ -119,56 +121,12 @@
             </div>
 
             <hr class="border-gray-100">
-
-            {% if booking.speaker_assignment %}
-            <div class="bg-white p-4 rounded-xl border">
-                <p class="text-xs text-gray-400 uppercase font-bold mb-2">ข้อมูลวิทยากรที่มอบหมาย</p>
-                <p class="text-gray-800 font-medium">{{ booking.speaker_assignment.speaker.name }}</p>
-                <p class="text-sm text-gray-600">สถานะงาน: {{ booking.speaker_assignment.status }}</p>
-                <p class="mt-2"><a href="{% url 'speaker_assignment_detail' booking.speaker_assignment.assignment_id %}" class="text-amber-600 hover:underline">ดูรายละเอียดการมอบหมาย</a></p>
+<div class="flex gap-4">
+                <a href="{% url 'user_dashboard' %}?section=booking"
+                   class="flex-1 text-center py-3 border border-gray-200 rounded-xl hover:bg-gray-50 transition font-medium">
+                   กลับไปที่ประวัติ
+                </a>
             </div>
-            {% endif %}
-
-            <div class="flex gap-4">
-                <a href="{% url 'booking_history' %}" class="flex-1 text-center py-3 border border-gray-200 rounded-xl hover:bg-gray-50 transition font-medium">กลับไปที่ประวัติ</a>
-            </div>
-            
-            {% if questionnaire_available %}
-            <hr class="border-gray-100">
-            <div class="mt-4 bg-amber-50 p-4 rounded">
-                <p class="font-medium text-gray-800">แบบประเมินหลังการเข้าชม</p>
-                <p class="text-sm text-gray-600 mb-3">กรุณาทำแบบประเมินเพื่อช่วยพัฒนาบริการ</p>
-                <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                    {% if questionnaire_url %}
-                        <a href="{{ questionnaire_url }}" class="px-4 py-2 bg-amber-600 text-white rounded-lg shadow-sm font-medium">เริ่มแบบประเมินสำหรับผู้จอง</a>
-                    {% endif %}
-
-                    {% if booking.qr_code %}
-                        <div class="mt-2 sm:mt-0">
-                            <div class="bg-white border border-amber-200 shadow-md rounded-2xl p-3 flex items-center gap-3">
-                                <img src="{{ booking.qr_code.url }}" alt="QR แบบประเมิน" class="w-32 h-32 sm:w-36 sm:h-36 object-contain" />
-                                <div class="text-sm text-gray-700">
-                                    <p class="font-semibold">สแกน QR นี้เพื่อทำแบบประเมิน</p>
-                                    <p class="text-xs text-gray-500 mt-1">สามารถให้สมาชิกในกลุ่มสแกน QR นี้ เพื่อช่วยกันตอบแบบประเมินได้ทุกคน</p>
-                                </div>
-                            </div>
-                        </div>
-                    {% elif questionnaire_qr %}
-                        <div class="mt-2 sm:mt-0">
-                            <div class="bg-white border border-amber-200 shadow-md rounded-2xl p-3 flex items-center gap-3">
-                                <img src="{{ questionnaire_qr }}" alt="QR แบบประเมิน" class="w-32 h-32 sm:w-36 sm:h-36 object-contain" />
-                                <div class="text-sm text-gray-700">
-                                    <p class="font-semibold">สแกน QR นี้เพื่อทำแบบประเมิน</p>
-                                    <p class="text-xs text-gray-500 mt-1">สามารถให้สมาชิกในกลุ่มสแกน QR นี้ เพื่อช่วยกันตอบแบบประเมินได้ทุกคน</p>
-                                </div>
-                            </div>
-                        </div>
-                    {% endif %}
-                </div>
-            </div>
-            {% else %}
-            <div class="mt-4 text-sm text-gray-500">แบบประเมินยังไม่ถูกเปิดใช้งาน</div>
-            {% endif %}
         </div>
     </div>
 </div>

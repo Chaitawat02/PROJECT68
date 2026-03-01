@@ -1,0 +1,101 @@
+{% extends "admin_panel/report/base_receipt_report.html" %}
+
+{% block report_actions %}
+  <a href="{% url 'admin_report' %}"
+     class="px-4 py-2 rounded-xl bg-white border border-gray-200 text-gray-700 font-semibold hover:bg-gray-50">
+    กลับหน้ารวมรายงาน
+  </a>
+  <button onclick="window.print()"
+          class="px-4 py-2 rounded-xl bg-amber-600 text-white font-semibold hover:bg-amber-700">
+    พิมพ์ / PDF
+  </button>
+{% endblock %}
+
+{% block report_filters %}
+  <section class="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
+    <h2 class="text-lg font-extrabold text-gray-800">การกรองข้อมูล</h2>
+    <p class="text-sm text-gray-500 mt-1">รายงานภาพรวม (ไม่มีการกรอง)</p>
+
+    <div class="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+      <div class="rounded-2xl border border-gray-100 bg-gray-50/60 p-4">
+        <p class="text-xs font-semibold text-gray-500">ช่วงข้อมูล</p>
+        <p class="font-bold text-gray-800 mt-1">ทั้งหมด</p>
+      </div>
+      <div class="rounded-2xl border border-gray-100 bg-gray-50/60 p-4">
+        <p class="text-xs font-semibold text-gray-500">ประเภท</p>
+        <p class="font-bold text-gray-800 mt-1">ผ้าไหม</p>
+      </div>
+      <div class="rounded-2xl border border-gray-100 bg-gray-50/60 p-4">
+        <p class="text-xs font-semibold text-gray-500">หมายเหตุ</p>
+        <p class="font-bold text-gray-800 mt-1">สรุปภาพรวม + ลายผ้ายอดนิยม</p>
+      </div>
+    </div>
+  </section>
+{% endblock %}
+
+{% block report_data %}
+  <section class="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+    <div class="p-6 border-b border-gray-100">
+      <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2">
+        <div>
+          <h2 class="text-xl font-extrabold text-gray-800">ข้อมูลลายผ้าไหมยอดนิยม</h2>
+          <p class="text-sm text-gray-500 mt-1">แสดง 20 อันดับลายผ้าที่มีการให้คะแนนมากที่สุด</p>
+        </div>
+        <div class="text-xs font-semibold text-gray-500">เรียงจากคะแนนมาก → น้อย</div>
+      </div>
+    </div>
+
+    <div class="overflow-x-auto">
+      <table class="w-full text-left border-collapse">
+        <thead class="bg-gray-50 text-gray-500 text-xs uppercase font-semibold tracking-wider">
+          <tr>
+            <th class="px-6 py-4 whitespace-nowrap">รหัส</th>
+            <th class="px-6 py-4 whitespace-nowrap">ชื่อลายผ้า</th>
+            <th class="px-6 py-4 whitespace-nowrap">ประเภท</th>
+            <th class="px-6 py-4 whitespace-nowrap">แหล่งผลิต</th>
+            <th class="px-6 py-4 text-right whitespace-nowrap">จำนวนการให้คะแนน</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100 text-sm">
+          {% for p in top_patterns %}
+            <tr class="hover:bg-gray-50/60">
+              <td class="px-6 py-4 font-semibold text-gray-800">{{ p.Si_ID|default:"-" }}</td>
+              <td class="px-6 py-4 text-gray-700">{{ p.Si_name|default:"-" }}</td>
+              <td class="px-6 py-4 text-gray-700">{{ p.Si_type|default:"-" }}</td>
+              <td class="px-6 py-4 text-gray-700">{{ p.Si_address|default:"-" }}</td>
+              <td class="px-6 py-4 text-right font-semibold text-gray-800 tabular-nums">{{ p.rating_count|default:"0" }}</td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="5" class="px-6 py-10 text-center text-gray-500">
+                ยังไม่มีข้อมูลลายผ้า หรือยังไม่มีการให้คะแนน
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% endblock %}
+
+{% block report_summary %}
+  <section class="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
+    <h2 class="text-xl font-extrabold text-gray-800">สรุป</h2>
+    <p class="text-sm text-gray-500 mt-1">สรุปภาพรวมข้อมูลผ้าไหม</p>
+
+    <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="rounded-2xl border border-gray-100 p-6">
+        <p class="text-sm text-gray-500">จำนวนลายผ้าทั้งหมด</p>
+        <p class="text-3xl font-extrabold text-gray-800 mt-1">{{ summary.total_patterns|default:"0" }}</p>
+      </div>
+      <div class="rounded-2xl border border-gray-100 p-6">
+        <p class="text-sm text-gray-500">จำนวนการให้คะแนนลายผ้า</p>
+        <p class="text-3xl font-extrabold text-gray-800 mt-1">{{ summary.total_ratings|default:"0" }}</p>
+      </div>
+      <div class="rounded-2xl border border-gray-100 p-6">
+        <p class="text-sm text-gray-500">คะแนนสูงสุด (ต่อ 1 ลายผ้า)</p>
+        <p class="text-3xl font-extrabold text-gray-800 mt-1">{{ summary.top_pattern_ratings|default:"0" }}</p>
+      </div>
+    </div>
+  </section>
+{% endblock %}

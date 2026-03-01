@@ -1,0 +1,130 @@
+{% extends "main/base.html" %}
+{% load static %}
+
+{% block title %}รายงานการประเมิน - {{ speaker.name }}{% endblock %}
+
+{% block content %}
+<div class="min-h-screen py-10 px-4 sm:px-6 lg:px-8 bg-[#FDFBF7]">
+  <div class="max-w-7xl mx-auto space-y-8">
+
+    <div class="bg-white/80 border border-white/60 rounded-3xl p-8 shadow-sm">
+      <h2 class="text-3xl font-extrabold text-gray-800">รายงานการประเมิน</h2>
+      <p class="text-gray-500 mt-1">แสดงเฉพาะแบบประเมินจากงานที่มอบหมายให้คุณเท่านั้น</p>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
+        <p class="text-sm text-gray-500">จำนวนแบบประเมิน (SilkPatternRating)</p>
+        <p class="text-3xl font-black text-amber-700 mt-2">{{ rating_summary.total|default:0 }}</p>
+      </div>
+
+      <div class="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
+        <p class="text-sm text-gray-500">ค่าเฉลี่ยข้อ 10 (แนะนำ)</p>
+        <p class="text-3xl font-black text-emerald-700 mt-2">{{ rating_summary.avg_q10|floatformat:2|default:"0.00" }}</p>
+      </div>
+
+      <div class="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
+        <p class="text-sm text-gray-500">ค่าเฉลี่ยรวม (10 ข้อ)</p>
+        {% with a1=rating_summary.avg_q1 a2=rating_summary.avg_q2 a3=rating_summary.avg_q3 a4=rating_summary.avg_q4 a5=rating_summary.avg_q5 a6=rating_summary.avg_q6 a7=rating_summary.avg_q7 a8=rating_summary.avg_q8 a9=rating_summary.avg_q9 a10=rating_summary.avg_q10 %}
+          {% if a1 %}
+            {% widthratio a1|add:a2|add:a3|add:a4|add:a5|add:a6|add:a7|add:a8|add:a9|add:a10 10 1 as avg_all %}
+            <p class="text-3xl font-black text-blue-700 mt-2">{{ avg_all|floatformat:2 }}</p>
+          {% else %}
+            <p class="text-3xl font-black text-blue-700 mt-2">0.00</p>
+          {% endif %}
+        {% endwith %}
+      </div>
+    </div>
+
+    <!-- Rating List -->
+    <div class="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+      <div class="p-6 border-b border-gray-100">
+        <h3 class="text-xl font-extrabold text-gray-800">รายการแบบประเมิน</h3>
+        <p class="text-sm text-gray-500 mt-1">เฉพาะงานที่อยู่ภายใต้การมอบหมายของคุณ</p>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-sm">
+          <thead class="bg-gray-50 text-gray-600">
+            <tr>
+              <th class="text-left px-6 py-3">วันที่เข้าชม</th>
+              <th class="text-left px-6 py-3">ช่วงเวลา</th>
+              <th class="text-left px-6 py-3">ผู้จอง</th>
+              <th class="text-left px-6 py-3">จำนวน</th>
+              <th class="text-left px-6 py-3">เฉลี่ยรวม</th>
+              <th class="text-left px-6 py-3">ความคิดเห็น</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-100">
+            {% for r in rating_list %}
+            <tr class="hover:bg-amber-50/30">
+              <td class="px-6 py-4 font-semibold text-gray-800">
+              <a class="text-amber-700 hover:underline"
+                href="{% url 'speaker_report_booking_detail' r.booking_id %}">
+                {{ r.booking__Re_date|date:"d/m/Y" }}
+              </a>
+            </td>
+              <td class="px-6 py-4 text-gray-600">
+                {% if r.booking__visit_session == "morning" %}ช่วงเช้า{% elif r.booking__visit_session == "afternoon" %}ช่วงบ่าย{% else %}-{% endif %}
+              </td>
+              <td class="px-6 py-4 text-gray-600">{{ r.booking__Us_ID__username }}</td>
+              <td class="px-6 py-4 text-gray-600">{{ r.booking__Re_quantity }}</td>
+              <td class="px-6 py-4">
+                <span class="inline-flex px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 font-bold">
+                  {{ r.avg_total|floatformat:2 }}
+                </span>
+              </td>
+              <td class="px-6 py-4 text-gray-600">
+                {{ r.comment|default:"-"|truncatechars:80 }}
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="6" class="px-6 py-10 text-center text-gray-400">
+                ยังไม่มีข้อมูลแบบประเมินสำหรับงานของคุณ
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Question Responses Summary -->
+    <div class="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+      <div class="p-6 border-b border-gray-100">
+        <h3 class="text-xl font-extrabold text-gray-800">สรุปคำตอบแบบประเมินหลังเข้าชม</h3>
+      </div>
+
+      <div class="p-6 space-y-4">
+        <table class="min-w-full text-sm">
+          <thead>
+            <tr>
+              <th class="text-left px-4 py-2">ข้อ</th>
+              <th class="text-left px-4 py-2">คำถาม</th>
+              <th class="text-left px-4 py-2">คำตอบ</th>
+              <th class="text-left px-4 py-2">จำนวน</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in response_summary %}
+            <tr>
+              <td class="px-4 py-2 font-bold">Q{{ row.question_id }}</td>
+              <td class="px-4 py-2">{{ row.question__question }}</td>
+              <td class="px-4 py-2">{{  row.answer_display }}</td>
+              <td class="px-4 py-2">{{ row.cnt }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="4" class="text-center text-gray-400 py-4">ยังไม่มีข้อมูลคำตอบแบบประเมินหลังเข้าชม</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

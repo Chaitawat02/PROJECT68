@@ -66,12 +66,15 @@
                     <a href="{% url 'booking' %}" class="bg-amber-700 hover:bg-amber-600 text-white px-4 py-2 rounded-lg transition-colors shadow-sm border border-amber-600">
                         จองเข้าชม
                     </a>
+                    <a href="{% url 'work_gallery' %}" class="hover:text-amber-200 transition-colors py-2">
+                        รูปงานและกิจกรรม
+                    </a>
                 </div>
                 
                 <div class="flex items-center gap-4">
                     {% if user.is_authenticated %}
                     <div class="flex items-center gap-3">
-                        <a href="{% if user.is_superuser or user.is_staff %}{% url 'admin_dashboard' %}{% elif user.profile.role == 'speaker' %}{% url 'speaker_dashboard' %}{% else %}{% url 'home' %}{% endif %}" 
+                        <a href="{% if user.is_superuser or user.is_staff %}{% url 'admin_dashboard' %}{% elif user.profile.role == 'speaker' %}{% url 'speaker_dashboard' %}{% else %}{% url 'user_dashboard' %}{% endif %}" 
                            class="flex items-center gap-2 cursor-pointer hover:bg-amber-800 px-3 py-1 rounded-lg transition-colors border border-transparent hover:border-amber-700">
                             <div class="text-right hidden md:block">
                                 <p class="font-bold text-sm">{{ user.first_name|default:user.username }}</p>
@@ -82,7 +85,9 @@
                                 </p>
                             </div>
                             <div class="w-10 h-10 bg-amber-200 rounded-full flex items-center justify-center text-amber-900 font-bold border-2 border-white shadow-sm overflow-hidden">
-                                {% if user.profile and user.profile.image and user.profile.image|file_exists %}
+                                {% if user.profile.role == 'speaker' and user.speaker and user.speaker.profile_picture %}
+                                    <img src="{{ user.speaker.profile_picture.url }}?t={% now 'U' %}" alt="Profile" class="w-full h-full object-cover">
+                                {% elif user.profile and user.profile.image and user.profile.image|file_exists %}
                                     <img src="{{ user.profile.image.url }}" alt="Profile" class="w-full h-full object-cover">
                                 {% else %}
                                     <i class="fas fa-user"></i>
@@ -131,6 +136,10 @@
                 </a>
                 <a href="{% url 'booking' %}" class="mt-2 flex items-center justify-center w-full bg-amber-700 hover:bg-amber-600 text-white py-2.5 rounded-lg font-semibold shadow-sm">
                     <i class="fas fa-calendar-check mr-2"></i> จองเข้าชม
+                </a>
+
+                <a href="{% url 'work_gallery' %}" class="mt-2 flex items-center justify-center w-full bg-amber-800 hover:bg-amber-700 text-white py-2.5 rounded-lg font-semibold shadow-sm">
+                    <i class="fas fa-images mr-2"></i> รูปงานและกิจกรรม
                 </a>
 
                 {% if user.is_authenticated %}

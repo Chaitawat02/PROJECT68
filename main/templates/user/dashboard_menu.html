@@ -1,0 +1,61 @@
+{% load static %}
+<div class="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden sticky top-24 transition-all duration-300">
+
+  <div class="bg-gradient-to-br from-[#8B0000] to-[#5e0000] p-6 text-center text-white relative overflow-hidden">
+    <div class="absolute top-0 right-0 -mr-4 -mt-4 w-24 h-24 rounded-full bg-white/10 blur-xl"></div>
+    <div class="absolute bottom-0 left-0 -ml-4 -mb-4 w-16 h-16 rounded-full bg-white/10 blur-xl"></div>
+
+    <div class="relative z-10">
+      <div class="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center mx-auto mb-3 backdrop-blur-sm">
+        <i class="fas fa-user text-2xl"></i>
+      </div>
+      <h5 class="font-bold text-lg tracking-wide">User Dashboard</h5>
+      <p class="text-xs text-amber-100/80 font-light mt-1">จัดการข้อมูลของคุณ</p>
+    </div>
+  </div>
+
+  <nav class="flex flex-col p-3 space-y-1.5 bg-white">
+
+    <!-- โปรไฟล์ -->
+    <a href="{% url 'user_dashboard' %}?section=profile"
+       class="group flex items-center px-4 py-3 rounded-xl transition-all duration-200 font-medium text-sm
+       {% if section == 'profile' %}
+            bg-amber-50 text-amber-900 shadow-sm border border-amber-100
+       {% else %}
+            text-gray-600 hover:bg-gray-50 hover:text-amber-800 hover:pl-5
+       {% endif %}">
+      <span class="w-8 flex justify-center mr-2 transition-transform group-hover:scale-110">
+        <i class="fas fa-id-card text-lg {% if section == 'profile' %}text-amber-600{% else %}text-gray-400 group-hover:text-amber-600{% endif %}"></i>
+      </span>
+      จัดการโปรไฟล์
+    </a>
+
+    <!-- ประวัติการจอง -->
+    <a href="{% url 'user_dashboard' %}?section=booking"
+       class="group flex items-center px-4 py-3 rounded-xl transition-all duration-200 font-medium text-sm
+       {% if section == 'booking' %}
+            bg-amber-50 text-amber-900 shadow-sm border border-amber-100
+       {% else %}
+            text-gray-600 hover:bg-gray-50 hover:text-amber-800 hover:pl-5
+       {% endif %}">
+      <span class="w-8 flex justify-center mr-2 transition-transform group-hover:scale-110">
+        <i class="fas fa-calendar-check text-lg {% if section == 'booking' %}text-amber-600{% else %}text-gray-400 group-hover:text-amber-600{% endif %}"></i>
+      </span>
+      ประวัติการจอง
+    </a>
+    <!-- ประวัติการประเมิน -->
+    <a href="{% url 'user_dashboard' %}?section=rating"
+       class="group flex items-center px-4 py-3 rounded-xl transition-all duration-200 font-medium text-sm
+       {% if section == 'rating' %}
+            bg-amber-50 text-amber-900 shadow-sm border border-amber-100
+       {% else %}
+            text-gray-600 hover:bg-gray-50 hover:text-amber-800 hover:pl-5
+       {% endif %}">
+      <span class="w-8 flex justify-center mr-2 transition-transform group-hover:scale-110">
+        <i class="fas fa-star text-lg {% if section == 'rating' %}text-amber-600{% else %}text-gray-400 group-hover:text-amber-600{% endif %}"></i>
+      </span>
+      ประวัติการประเมิน
+    </a>
+
+  </nav>
+</div>

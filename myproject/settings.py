@@ -5,7 +5,8 @@ Django settings for myproject project.
 from pathlib import Path
 import os
 import mimetypes
-import dj_database_url  # ✅ เพิ่มบรรทัดนี้
+import dj_database_url
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -71,6 +72,7 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'django.template.context_processors.media',
                 'main.context_processors.museum_context',
+                'main.context_processors.admin_sidebar_counts',
             ],
         },
     },
@@ -79,12 +81,15 @@ TEMPLATES = [
 WSGI_APPLICATION = 'myproject.wsgi.application'
 
 # =====================================================================
-# DATABASE (Render = Postgres via DATABASE_URL, Local = SQLite)
+# DATABASE
+# - Production (Render): Postgres via DATABASE_URL
+# - Localhost: MySQL
 # =====================================================================
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
 if DATABASE_URL:
+    # ✅ Production (Render) - Postgres
     DATABASES = {
         "default": dj_database_url.parse(
             DATABASE_URL,
@@ -93,10 +98,18 @@ if DATABASE_URL:
         )
     }
 else:
+    # ✅ Localhost - MySQL
     DATABASES = {
         "default": {
-            "ENGINE": "django.db.backends.sqlite3",
-            "NAME": BASE_DIR / "db.sqlite3",
+            "ENGINE": "django.db.backends.mysql",
+            "NAME": "museum_db",
+            "USER": "root",
+            "PASSWORD": "1234",
+            "HOST": "127.0.0.1",
+            "PORT": "3306",
+            "OPTIONS": {
+                "charset": "utf8mb4",
+            },
         }
     }
 

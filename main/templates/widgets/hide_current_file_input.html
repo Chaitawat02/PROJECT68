@@ -1,0 +1,9 @@
+{# ไม่แสดง Currently/path เลย แสดงแค่ปุ่มเลือกไฟล์ และ (ถ้ามี) checkbox ลบไฟล์เดิม #}
+<input type="file" name="{{ widget.name }}"{% include "django/forms/widgets/attrs.html" %}>
+
+{% if widget.is_initial and not widget.required %}
+  <label style="margin-left:8px; font-size:12px; color:#6b7280;">
+    <input type="checkbox" name="{{ widget.checkbox_name }}" id="{{ widget.checkbox_id }}">
+    ลบไฟล์เดิม
+  </label>
+{% endif %}

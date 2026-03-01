@@ -1,9 +1,18 @@
-"""
-main/forms.py
-"""
 from django import forms
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
+from django.forms.widgets import ClearableFileInput
+
+# =========================================================
+# Custom Widget: Hide "Currently: <path>" for file fields
+# =========================================================
+class HideCurrentFileInput(ClearableFileInput):
+    """
+    ปิดการแสดงผล "Currently: main/...." (path) ที่ Django ชอบโชว์ใต้ input file
+    โดยใช้ template widget ของเราเอง
+    """
+    template_name = "widgets/hide_current_file_input.html"
+
 
 # =========================================================
 # IMPORT MODELS
@@ -22,13 +31,18 @@ from .models import (
 # 1) AUTH & USER FORMS
 # =========================================================
 class SignUpForm(forms.ModelForm):
+    def clean_username(self):
+        username = self.cleaned_data.get('username')
+        if username and User.objects.filter(username=username).exists():
+            raise ValidationError("ชื่อผู้ใช้นี้ถูกใช้แล้ว กรุณาเลือกชื่อใหม่")
+        return username
     # 1. เพิ่มช่องกรอกเบอร์โทรศัพท์
     phone = forms.CharField(
         label="เบอร์โทรศัพท์",
         max_length=20,
         widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': '0xx-xxx-xxxx'})
     )
-    
+
     password1 = forms.CharField(
         label="รหัสผ่าน",
         widget=forms.PasswordInput(attrs={'class': 'form-control'})
@@ -58,17 +72,17 @@ class SignUpForm(forms.ModelForm):
         # 1. สร้าง User ตามปกติ
         user = super().save(commit=False)
         user.set_password(self.cleaned_data["password1"])
-        
+
         if commit:
             user.save()
-            
+
             # 2. บันทึกเบอร์โทรลง Profile (ต้องทำหลังจาก user.save())
             # ตรวจสอบว่ามี profile หรือไม่ (ปกติจะมีจาก signals.py)
             if hasattr(user, 'profile'):
                 profile = user.profile
                 profile.phone = self.cleaned_data['phone']
                 profile.save()
-            
+
         return user
 
 
@@ -179,39 +193,103 @@ class WorkshopBookingForm(forms.ModelForm):
 
 
 class WorkshopForm(forms.ModelForm):
+    # ✅ ฟิกให้กรอกเป็นตัวเลขเท่านั้น (หน่วย: นาที)
+    duration = forms.IntegerField(
+        required=False,
+        min_value=1,
+        label="ระยะเวลารวม (นาที)",
+        widget=forms.NumberInput(attrs={
+            'type': 'number',
+            'class': 'form-control',
+            'min': '1',
+            'step': '1',
+            'placeholder': 'เช่น 90'
+        })
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # ✅ ถ้า record เก่า duration เป็นข้อความ ให้ดึง “เลข” ตัวแรกมาใส่ initial
+        if self.instance and self.instance.pk and self.instance.duration:
+            import re
+            m = re.search(r"\d+", str(self.instance.duration))
+            if m:
+                self.fields["duration"].initial = int(m.group(0))
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+
+        minutes = self.cleaned_data.get("duration")
+        # ✅ เก็บลง DB เป็น “ตัวเลขล้วน” (หมายถึงนาที)
+        instance.duration = str(minutes) if minutes is not None else ""
+
+        if commit:
+            instance.save()
+            self.save_m2m()
+        return instance
+
     class Meta:
         model = Workshop
         fields = [
-            'title', 'description', 'start_date', 'end_date', 
-            'start_time', 'end_time', 'session_period', 'location', 'duration',
-            'max_participants', 'is_active', 'inactive_reason', 'image', 'detail_image'
+            'title', 'description', 'start_date', 'end_date',
+            'start_time', 'end_time', 'location', 'duration',
+            'is_active', 'inactive_reason', 'image', 'detail_image'
         ]
         widgets = {
             'start_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
             'end_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
             'start_time': forms.TimeInput(attrs={'type': 'time', 'class': 'form-control'}),
             'end_time': forms.TimeInput(attrs={'type': 'time', 'class': 'form-control'}),
-            'session_period': forms.Select(attrs={'class': 'form-select'}),
             'description': forms.Textarea(attrs={'rows': 4, 'class': 'form-control'}),
             'title': forms.TextInput(attrs={'class': 'form-control'}),
             'location': forms.TextInput(attrs={'class': 'form-control'}),
-            'duration': forms.TextInput(attrs={'class': 'form-control'}),
-            'max_participants': forms.NumberInput(attrs={'class': 'form-control'}),
+
             'inactive_reason': forms.TextInput(attrs={'class': 'form-control'}),
-            'image': forms.ClearableFileInput(attrs={'class': 'form-control'}),
-            'detail_image': forms.ClearableFileInput(attrs={'class': 'form-control'}),
+            'image': HideCurrentFileInput(attrs={'class': 'form-control'}),
+            'detail_image': HideCurrentFileInput(attrs={'class': 'form-control'}),
         }
 
 # =========================================================
 # 3) SILK / MUSEUM / RATING FORMS
 # =========================================================
 class SilkPatternForm(forms.ModelForm):
+    def clean(self):
+        cleaned_data = super().clean()
+        # ใช้ชื่อไฟล์จาก mind_file ถ้ามี mind_file อัปโหลดใหม่
+        mind_file = self.files.get('mind_file') if hasattr(self, 'files') else None
+        if mind_file:
+            target_file = mind_file.name
+        else:
+            target_file = cleaned_data.get('target_file')
+
+        target_index = cleaned_data.get('target_index')
+
+        # ตรวจสอบความซ้ำของ (target_file, target_index) เฉพาะในไฟล์เดียวกัน
+        if target_file is not None and target_index is not None:
+            qs = SilkPattern.objects.filter(target_file=target_file, target_index=target_index)
+            if self.instance.pk:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                self.add_error(
+                    'target_index',
+                    'ลำดับนี้ถูกใช้ไปแล้วในไฟล์ .mind นี้ (Target Index ซ้ำในไฟล์เดียวกัน)'
+                )
+        return cleaned_data
+
+    # ฟิลด์เสริมสำหรับอัปโหลดไฟล์ .mind ไปเก็บใน static/main/targets
+    mind_file = forms.FileField(
+        required=False,
+        label="ไฟล์ .mind (Target File)",
+        widget=HideCurrentFileInput(attrs={'class': 'form-control'}),
+        help_text="อัปโหลดไฟล์ .mind จะถูกเก็บใน static/main/targets และตั้งชื่อให้กับช่อง Target File อัตโนมัติ",
+    )
+
     class Meta:
         model = SilkPattern
-        # อัปเดตเป็นชื่อฟิลด์ใหม่ตาม Model
         fields = [
-            'Si_ID', 'Si_name', 'Si_address', 'Si_type', 
-            'Si_color', 'Si_history', 'reference', 
+            'Si_ID', 'Si_name', 'Si_address', 'Si_type',
+            'Si_color', 'Si_history', 'reference',
             'target_index', 'target_file', 'model_3d', 'image'
         ]
         widgets = {
@@ -221,12 +299,20 @@ class SilkPatternForm(forms.ModelForm):
             'Si_type': forms.TextInput(attrs={'class': 'form-control'}),
             'Si_color': forms.TextInput(attrs={'class': 'form-control'}),
             'Si_history': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
-            'reference': forms.ClearableFileInput(attrs={'class': 'form-control'}),
+
+            # ✅ เปลี่ยนเป็น HideCurrentFileInput (ไม่โชว์ path)
+            'reference': HideCurrentFileInput(attrs={'class': 'form-control'}),
+
             'target_index': forms.NumberInput(attrs={'class': 'form-control'}),
-            'target_file': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'เช่น targets0.mind'}),
-            'model_3d': forms.ClearableFileInput(attrs={'class': 'form-control'}),
-            'image': forms.ClearableFileInput(attrs={'class': 'form-control'}),
+            'target_file': forms.TextInput(
+                attrs={'class': 'form-control', 'placeholder': 'เช่น targets0.mind', 'readonly': 'readonly'}
+            ),
+
+            # ✅ เปลี่ยนเป็น HideCurrentFileInput (ไม่โชว์ path)
+            'model_3d': HideCurrentFileInput(attrs={'class': 'form-control'}),
+            'image': HideCurrentFileInput(attrs={'class': 'form-control'}),
         }
+
 
 class MuseumProfileForm(forms.ModelForm):
     class Meta:
@@ -237,16 +323,58 @@ class MuseumProfileForm(forms.ModelForm):
             'hero_image', 'gallery_image1', 'gallery_image2', 'gallery_image3',
         ]
         widgets = {
-            'name': forms.TextInput(attrs={'class': 'form-control'}),
-            'history': forms.Textarea(attrs={'rows': 5, 'class': 'form-control'}),
-            'address': forms.Textarea(attrs={'rows': 3, 'class': 'form-control'}),
-            'opening_hours': forms.TextInput(attrs={'class': 'form-control'}),
-            'phone': forms.TextInput(attrs={'class': 'form-control'}),
-            'email': forms.EmailInput(attrs={'class': 'form-control'}),
-            'hero_image': forms.ClearableFileInput(attrs={'class': 'form-control'}),
-            'gallery_image1': forms.ClearableFileInput(attrs={'class': 'form-control'}),
-            'gallery_image2': forms.ClearableFileInput(attrs={'class': 'form-control'}),
-            'gallery_image3': forms.ClearableFileInput(attrs={'class': 'form-control'}),
+            'name': forms.TextInput(attrs={
+                'class': 'w-full rounded-2xl border border-gray-200 bg-white px-5 py-4 text-gray-800 font-semibold '
+                         'focus:border-amber-500 focus:ring-amber-500',
+            }),
+            'history': forms.Textarea(attrs={
+                'rows': 5,
+                'class': 'w-full rounded-2xl border border-gray-200 bg-white px-5 py-4 text-gray-800 font-semibold '
+                         'leading-relaxed resize-none focus:border-amber-500 focus:ring-amber-500',
+            }),
+            'address': forms.Textarea(attrs={
+                'rows': 3,
+                'class': 'w-full rounded-2xl border border-gray-200 bg-white px-5 py-4 text-gray-800 font-semibold '
+                         'leading-relaxed resize-none focus:border-amber-500 focus:ring-amber-500',
+            }),
+            'opening_hours': forms.TextInput(attrs={
+                'class': 'w-full rounded-2xl border border-gray-200 bg-white px-5 py-4 text-gray-800 font-semibold '
+                         'focus:border-amber-500 focus:ring-amber-500',
+            }),
+            'phone': forms.TextInput(attrs={
+                'class': 'w-full rounded-2xl border border-gray-200 bg-white px-5 py-4 text-gray-800 font-semibold '
+                         'focus:border-amber-500 focus:ring-amber-500',
+            }),
+            'email': forms.EmailInput(attrs={
+                'class': 'w-full rounded-2xl border border-gray-200 bg-white px-5 py-4 text-gray-800 font-semibold '
+                         'focus:border-amber-500 focus:ring-amber-500',
+            }),
+
+            # ✅ HideCurrentFileInput (ไม่โชว์ path) + แต่งด้วย Tailwind
+            'hero_image': HideCurrentFileInput(attrs={
+                'class': 'block w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600 '
+                         'file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 '
+                         'file:text-sm file:font-semibold file:bg-amber-50 file:text-amber-700 '
+                         'hover:file:bg-amber-100 cursor-pointer',
+            }),
+            'gallery_image1': HideCurrentFileInput(attrs={
+                'class': 'block w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600 '
+                         'file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 '
+                         'file:text-sm file:font-semibold file:bg-amber-50 file:text-amber-700 '
+                         'hover:file:bg-amber-100 cursor-pointer',
+            }),
+            'gallery_image2': HideCurrentFileInput(attrs={
+                'class': 'block w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600 '
+                         'file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 '
+                         'file:text-sm file:font-semibold file:bg-amber-50 file:text-amber-700 '
+                         'hover:file:bg-amber-100 cursor-pointer',
+            }),
+            'gallery_image3': HideCurrentFileInput(attrs={
+                'class': 'block w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600 '
+                         'file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 '
+                         'file:text-sm file:font-semibold file:bg-amber-50 file:text-amber-700 '
+                         'hover:file:bg-amber-100 cursor-pointer',
+            }),
         }
 
 
@@ -279,14 +407,13 @@ class SpeakerAssignFromBookingForm(forms.ModelForm):
             'status': forms.Select(attrs={'class': 'form-select'}),
         }
 
+
 class QuestionForm(forms.ModelForm):
     class Meta:
         model = Question
-        # เหลือแค่ฟิลด์ที่มีอยู่ใน Model จริงๆ
         fields = ['question', 'option_a', 'option_b', 'option_c', 'option_d', 'option_e', 'is_active']
         widgets = {
             'question': forms.Textarea(attrs={'rows': 3, 'placeholder': 'ระบุหัวข้อการประเมิน...'}),
-            # สเกลถูกล็อกเป็น 5-4-3-2-1 แก้ไขได้เฉพาะหัวข้อคำถาม
             'option_a': forms.TextInput(attrs={'placeholder': '5', 'readonly': 'readonly'}),
             'option_b': forms.TextInput(attrs={'placeholder': '4', 'readonly': 'readonly'}),
             'option_c': forms.TextInput(attrs={'placeholder': '3', 'readonly': 'readonly'}),
@@ -297,7 +424,6 @@ class QuestionForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # ล็อกค่า option ให้เป็น 5-4-3-2-1 และปิดไม่ให้แก้ไขในฟอร์ม
         fixed_options = {
             'option_a': '5',
             'option_b': '4',
@@ -310,11 +436,9 @@ class QuestionForm(forms.ModelForm):
             if name in self.fields:
                 self.fields[name].initial = value
                 self.fields[name].disabled = True
-                # ให้แสดงค่าใน input ทันที
                 self.fields[name].widget.attrs['value'] = value
 
     def save(self, commit=True):
-        """บันทึกคำถามโดยบังคับสเกลตัวเลือกเป็น 5-4-3-2-1 เสมอ"""
         instance = super().save(commit=False)
         instance.option_a = '5'
         instance.option_b = '4'
@@ -337,8 +461,18 @@ class SurveyRatingForm(forms.ModelForm):
     ]
 
     rating = forms.ChoiceField(choices=RATING_CHOICES, widget=forms.RadioSelect, label='คะแนน')
-    comment = forms.CharField(required=False, widget=forms.Textarea(attrs={'rows':3}), label='ข้อเสนอแนะ (ถ้ามี)')
+    comment = forms.CharField(required=False, widget=forms.Textarea(attrs={'rows': 3}), label='ข้อเสนอแนะ (ถ้ามี)')
 
     class Meta:
         model = SurveyRating
         fields = ['rating', 'comment']
+
+class ProfileEditForm(forms.ModelForm):
+    class Meta:
+        model = Profile
+        fields = ["full_name", "phone", "image"]
+        widgets = {
+            "full_name": forms.TextInput(attrs={"class": "w-full px-4 py-2 rounded-xl border border-gray-300"}),
+            "phone": forms.TextInput(attrs={"class": "w-full px-4 py-2 rounded-xl border border-gray-300"}),
+            # image ใช้ input file ปกติได้ (template คุณจัดสไตล์เองอยู่แล้ว)
+        }

@@ -1,68 +1,114 @@
-{% extends 'main/base.html' %}
-{% block content %}
-<div class="max-w-6xl mx-auto py-8 px-4">
-    <h2 class="text-2xl font-bold mb-4">สรุปผลการประเมินแยกตามรอบการจอง</h2>
-    <div class="mb-4 flex items-center justify-between gap-4">
+{% extends "admin_panel/report/base_receipt_report.html" %}
 
-        <form method="get" action="" class="flex items-center gap-2 text-sm">
+{% block report_actions %}
+    <a href="{% url 'admin_report' %}"
+         class="px-4 py-2 rounded-xl bg-white border border-gray-200 text-gray-700 font-semibold hover:bg-gray-50">
+        กลับหน้ารวมรายงาน
+    </a>
+    <button onclick="window.print()"
+                    class="px-4 py-2 rounded-xl bg-amber-600 text-white font-semibold hover:bg-amber-700">
+        พิมพ์ / PDF
+    </button>
+{% endblock %}
+
+{% block report_filters %}
+    <section class="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
+        <h2 class="text-lg font-extrabold text-gray-800">การกรองข้อมูล</h2>
+        <p class="text-sm text-gray-500 mt-1">สรุปตัวกรองที่ใช้ในรายงานนี้</p>
+
+        <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+            <div class="rounded-2xl border border-gray-100 bg-gray-50/60 p-4">
+                <p class="text-xs font-semibold text-gray-500">เรียงตามการจอง</p>
+                <p class="font-bold text-gray-800 mt-1">{{ selected_order_label|default:"ใหม่ล่าสุดก่อน" }}</p>
+            </div>
+            <div class="rounded-2xl border border-gray-100 bg-gray-50/60 p-4">
+                <p class="text-xs font-semibold text-gray-500">หมายเหตุ</p>
+                <p class="font-bold text-gray-800 mt-1">สรุปคะแนนรายรอบการจอง</p>
+            </div>
+        </div>
+
+        <form method="get" action="" class="mt-5 flex items-center gap-2 text-sm print:hidden">
             <span class="text-gray-500">เรียงตามการจอง:</span>
-            <select name="order" class="border border-gray-200 rounded px-2 py-1 text-sm bg-white" onchange="this.form.submit()">
-                <option value="newest" {% if order == 'newest' %}selected{% endif %}>ใหม่ล่าสุดก่อน</option>
-                <option value="oldest" {% if order == 'oldest' %}selected{% endif %}>เก่าที่สุดก่อน</option>
+            <select name="order" class="rounded-xl border-gray-200 px-3 py-2 text-sm bg-white focus:border-amber-500 focus:ring-amber-500" onchange="this.form.submit()">
+                <option value="newest" {% if filters.order == 'newest' %}selected{% endif %}>ใหม่ล่าสุดก่อน</option>
+                <option value="oldest" {% if filters.order == 'oldest' %}selected{% endif %}>เก่าที่สุดก่อน</option>
             </select>
         </form>
-    </div>
+    </section>
+{% endblock %}
 
-    <div class="bg-white rounded p-4 border">
-        <table class="w-full text-sm">
-            <thead>
-                <tr class="text-left text-gray-600">
-                    <th class="p-2">การจองที่</th>
-                    <th class="p-2">วันที่จอง</th>
-                    <th class="p-2">รอบเข้าชม</th>
-                    <th class="p-2">จำนวนผู้ประเมิน</th>
-                    <th class="p-2">ค่าเฉลี่ย</th>
-                    <th class="p-2">ส่วนเบี่ยงเบนมาตรฐาน</th>
-                    <th class="p-2 text-right">จัดการ</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for b in bookings %}
-                <tr class="border-t">
-                    <td class="p-2">#{{ b.id }}</td>
-                    <td class="p-2">
-                        {% if b.Re_date %}
-                            {{ b.Re_date|date:'j M Y' }}
-                        {% else %}
-                            -
-                        {% endif %}
-                    </td>
-                    <td class="p-2">
-                        {% if b.visit_session == 'morning' %}
-                            ช่วงเช้า (09:00-12:00)
-                        {% elif b.visit_session == 'afternoon' %}
-                            ช่วงบ่าย (13:00-16:00)
-                        {% else %}-{% endif %}
-                    </td>
-                    <td class="p-2">{{ b.respondent_count }}</td>
-                    <td class="p-2">
-                        {% if b.avg_score %}
-                            {{ b.avg_score }}
-                        {% else %}-{% endif %}
-                    </td>
-                    <td class="p-2">
-                        {% if b.stddev_score %}
-                            {{ b.stddev_score }}
-                        {% else %}-{% endif %}
-                    </td>
-                    <td class="p-2 text-right">
-                        <a href="{% url 'booking_responses_admin' %}?booking_id={{ b.id }}" class="px-3 py-1 bg-amber-600 text-white rounded">ดูคำตอบ</a>
-                        <a href="{% url 'booking_responses_admin' %}?booking_id={{ b.id }}&export=pdf" class="px-3 py-1 border ml-2 rounded">ดาวน์โหลด PDF</a>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
+{% block report_data %}
+    <section class="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+        <div class="p-6 border-b border-gray-100">
+            <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2">
+                <div>
+                    <h2 class="text-xl font-extrabold text-gray-800">ข้อมูลผลการประเมิน</h2>
+                    <p class="text-sm text-gray-500 mt-1">สรุปผลการประเมินแยกตามรอบการจอง</p>
+                </div>
+                <div class="text-xs font-semibold text-gray-500">เรียงตามตัวกรองด้านบน</div>
+            </div>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-sm">
+                <thead class="bg-gray-50 text-gray-500 text-xs uppercase font-semibold tracking-wider">
+                    <tr>
+                        <th class="px-6 py-4 whitespace-nowrap">การจองที่</th>
+                        <th class="px-6 py-4 whitespace-nowrap">วันที่จอง</th>
+                        <th class="px-6 py-4 whitespace-nowrap">รอบเข้าชม</th>
+                        <th class="px-6 py-4 whitespace-nowrap">จำนวนผู้ประเมิน</th>
+                        <th class="px-6 py-4 whitespace-nowrap">ค่าเฉลี่ย</th>
+                        <th class="px-6 py-4 whitespace-nowrap">ส่วนเบี่ยงเบนมาตรฐาน</th>
+                        <th class="px-6 py-4 text-right whitespace-nowrap print:hidden">จัดการ</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    {% for b in bookings %}
+                        <tr class="hover:bg-gray-50/60">
+                            <td class="px-6 py-4 font-semibold text-gray-800 tabular-nums">#{{ b.id }}</td>
+                            <td class="px-6 py-4 text-gray-700 whitespace-nowrap">{% if b.Re_date %}{{ b.Re_date|date:'j M Y' }}{% else %}-{% endif %}</td>
+                            <td class="px-6 py-4 text-gray-700">{{ b.get_visit_session_display|default:"-" }}</td>
+                            <td class="px-6 py-4 text-gray-700 tabular-nums">{{ b.respondent_count|default:0 }}</td>
+                            <td class="px-6 py-4 text-gray-700 tabular-nums">{% if b.avg_score %}{{ b.avg_score }}{% else %}-{% endif %}</td>
+                            <td class="px-6 py-4 text-gray-700 tabular-nums">{% if b.stddev_score %}{{ b.stddev_score }}{% else %}-{% endif %}</td>
+                            <td class="px-6 py-4 text-right print:hidden">
+                                <div class="flex items-center justify-end gap-2 flex-wrap">
+                                    <a href="{% url 'booking_responses_admin' %}?booking_id={{ b.id }}"
+                                       class="inline-flex items-center px-3 py-1 rounded-xl bg-amber-600 text-white font-semibold whitespace-nowrap">
+                                        ดูคำตอบ
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="7" class="px-6 py-10 text-center text-gray-500">ไม่พบข้อมูลตามเงื่อนไขที่เลือก</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+{% endblock %}
+
+{% block report_summary %}
+    <section class="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
+        <h2 class="text-xl font-extrabold text-gray-800">สรุป</h2>
+        <p class="text-sm text-gray-500 mt-1">สรุปผลรวมจากข้อมูลด้านบน</p>
+
+        <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="rounded-2xl border border-gray-100 p-6">
+                <p class="text-sm text-gray-500">จำนวนรอบการจอง</p>
+                <p class="text-3xl font-extrabold text-gray-800 mt-1 tabular-nums">{{ summary.total_bookings|default:"0" }}</p>
+            </div>
+            <div class="rounded-2xl border border-gray-100 p-6">
+                <p class="text-sm text-gray-500">จำนวนผู้ประเมินรวม</p>
+                <p class="text-3xl font-extrabold text-gray-800 mt-1 tabular-nums">{{ summary.total_respondents|default:"0" }}</p>
+            </div>
+            <div class="rounded-2xl border border-gray-100 p-6">
+                <p class="text-sm text-gray-500">คะแนนเฉลี่ยรวม</p>
+                <p class="text-3xl font-extrabold text-gray-800 mt-1 tabular-nums">{% if summary.avg_score is not None %}{{ summary.avg_score }}{% else %}-{% endif %}</p>
+            </div>
+        </div>
+    </section>
 {% endblock %}

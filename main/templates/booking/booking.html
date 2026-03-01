@@ -65,7 +65,7 @@
 
                     <div class="mt-8 border-t border-gray-100 pt-8">
                         <h4 class="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                            <i class="fas fa-calendar-check text-amber-500"></i> กิจกรรมประจำพิพิธภัณฑ์ ประจำวันที่ {{ preselect_date }}
+                            <i class="fas fa-calendar-check text-amber-500"></i> กิจกรรมประจำพิพิธภัณฑ์
                         </h4>
                         
                         <div id="workshop-list-container" class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -90,9 +90,30 @@
 
                                     <div class="flex-1">
                                         <span class="block font-bold text-gray-900 group-hover:text-amber-700 leading-tight">{{ workshop.title }}</span>
+
+                                        <!-- ✅ เวลาใช้ทำกิจกรรม -->
                                         <span class="text-xs text-gray-500 font-medium mt-1 block">
-                                            <i class="far fa-clock mr-1"></i> {{ workshop.start_time|time:"H:i" }} - {{ workshop.end_time|time:"H:i" }} น.
+                                            <i class="far fa-clock mr-1"></i>
+                                            {% if workshop.duration %}
+                                                ใช้เวลา {{ workshop.duration }} นาที
+                                            {% else %}
+                                                ไม่ระบุระยะเวลา
+                                            {% endif %}
                                         </span>
+
+                                        <!-- ✅ สถานที่ -->
+                                        {% if workshop.location %}
+                                        <span class="text-xs text-gray-500 font-medium mt-1 block">
+                                            <i class="fas fa-map-marker-alt mr-1"></i> {{ workshop.location }}
+                                        </span>
+                                        {% endif %}
+
+                                        <!-- ✅ รายละเอียดสั้น ๆ -->
+                                        {% if workshop.description %}
+                                        <p class="text-[11px] text-gray-500 mt-2 leading-snug">
+                                            {{ workshop.description|truncatechars:90 }}
+                                        </p>
+                                        {% endif %}
                                     </div>
                                 </div>
                             </label>
@@ -113,26 +134,14 @@
                 </form>
             </div>
         </div>
-
-        <div class="space-y-6">
-            <div class="bg-amber-50 rounded-3xl p-8 border border-amber-100">
-                <h4 class="text-xl font-bold text-amber-900 mb-2">ตรวจสอบรายการจอง</h4>
-                <a href="{% url 'booking_history' %}" class="w-full bg-white text-amber-800 border border-amber-200 py-3 rounded-xl font-bold text-center block hover:bg-amber-100 transition-colors mt-4">
-                    ไปยังประวัติการจอง
-                </a>
-            </div>
-        </div>
     </div>
 </div>
 
 <script>
-// ฟังก์ชันสำหรับ Refresh หน้าเมื่อเปลี่ยนวันที่
 function refreshWorkshops(date) {
     if (!date) return;
     const url = new URL(window.location.href);
     url.searchParams.set('date', date);
-    // รักษาค่า workshop_id เดิมไว้ถ้าจำเป็น หรือลบออกถ้าต้องการให้เลือกใหม่
-    // url.searchParams.delete('workshop_id'); 
     window.location.href = url.toString();
 }
 </script>

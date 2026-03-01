@@ -1,0 +1,18 @@
+{% extends "main/base.html" %}
+{% load static %}
+{% block title %}อัปโหลดผลงาน - {{ speaker.name }}{% endblock %}
+
+{% block content %}
+<div class="min-h-screen py-10 px-4 sm:px-6 lg:px-8 bg-[#FDFBF7]">
+  <div class="max-w-7xl mx-auto space-y-8">
+
+    <!-- Header -->
+    <div class="bg-white/80 border border-white/60 rounded-3xl p-8 shadow-sm">
+      <h2 class="text-3xl font-extrabold text-gray-800">อัปโหลดผลงาน</h2>
+      <p class="text-gray-500 mt-1">อัปโหลดรูปภาพที่ถ่ายจากการปฏิบัติงาน เพื่อเก็บเป็นหลักฐาน/รายงาน</p>
+    </div>
+
+    {% include "speaker/_upload_work_partial.html" %}
+  </div>
+</div>
+{% endblock %}

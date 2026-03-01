@@ -17,7 +17,115 @@
         <div class="p-8">
             <form method="POST" class="space-y-6">
                 {% csrf_token %}
-                
+                <div class="rounded-2xl border border-gray-100 bg-gray-50/60 p-5">
+                    <div class="flex items-start justify-between gap-4 flex-col md:flex-row">
+                        <div>
+                            <h3 class="text-lg font-extrabold text-gray-800 flex items-center">
+                                <span class="w-8 h-8 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mr-3 text-sm">
+                                    <i class="fas fa-receipt"></i>
+                                </span>
+                                รายละเอียดการจอง #{{ booking.id }}
+                            </h3>
+
+                            <p class="text-sm text-gray-500 mt-1">
+                                สถานะ:
+                                <span class="font-bold text-gray-800">
+                                    {% if booking.get_Re_status_display %}
+                                        {{ booking.get_Re_status_display }}
+                                    {% else %}
+                                        {{ booking.Re_status|default:"-" }}
+                                    {% endif %}
+                                </span>
+                                {% if booking.created_at %}
+                                    • สร้างเมื่อ {{ booking.created_at|date:"d M Y H:i" }}
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-500 mb-1">ชื่อผู้จอง</label>
+                            <input value="{{ booking.fullname|default:'-' }}" disabled
+                                   class="w-full rounded-xl border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-800" />
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-500 mb-1">วันที่เข้าชม</label>
+                            <input value="{% if booking.Re_date %}{{ booking.Re_date|date:'d M Y' }}{% else %}-{% endif %}" disabled
+                                   class="w-full rounded-xl border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-800" />
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-500 mb-1">ช่วงเวลา</label>
+                            <input value="{% if booking.get_visit_session_display %}{{ booking.get_visit_session_display }}{% else %}{{ booking.visit_session|default:'-' }}{% endif %}" disabled
+                                   class="w-full rounded-xl border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-800" />
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-500 mb-1">จำนวนที่จอง (คน)</label>
+                            <input value="{{ booking.Re_quantity|default:'-' }}" disabled
+                                   class="w-full rounded-xl border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-800" />
+                        </div>
+
+                        <div class="md:col-span-2">
+                            <label class="block text-xs font-semibold text-gray-500 mb-1">กิจกรรม</label>
+                            <input value="{% if booking.workshop %}{{ booking.workshop.title }}{% else %}-{% endif %}" disabled
+                                   class="w-full rounded-xl border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-800" />
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-500 mb-1">บัญชีผู้ใช้</label>
+                            <input value="{{ booking.Us_ID.username|default:'-' }}" disabled
+                                   class="w-full rounded-xl border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-800" />
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-500 mb-1">ตัดสินใจโดย</label>
+                            <input value="{{ booking.decided_by.username|default:'-' }}" disabled
+                                   class="w-full rounded-xl border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-800" />
+                        </div>
+
+                        <div class="md:col-span-2">
+                            <label class="block text-xs font-semibold text-gray-500 mb-1">หมายเหตุตัดสินใจ</label>
+                            <textarea rows="2" disabled
+                                      class="w-full rounded-xl border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-800">{{ booking.decision_note|default:"-" }}</textarea>
+                        </div>
+
+                        <div class="md:col-span-2">
+                            <label class="block text-xs font-semibold text-gray-500 mb-1">เหตุผลยกเลิก</label>
+                            <textarea rows="2" disabled
+                                      class="w-full rounded-xl border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-800">{{ booking.cancel_reason|default:"-" }}</textarea>
+                        </div>
+                    </div>
+                    {% with items=booking.workshop_items.all %}
+                      {% if items %}
+                        <div class="mt-5">
+                          <h4 class="text-sm font-extrabold text-gray-800 mb-2">รายการกิจกรรมที่เลือก</h4>
+                          <div class="overflow-x-auto rounded-2xl border border-gray-100 bg-white">
+                            <table class="min-w-full text-sm">
+                              <thead class="bg-gray-50 text-gray-600">
+                                <tr class="text-left">
+                                  <th class="px-4 py-3 font-bold">กิจกรรม</th>
+                                  <th class="px-4 py-3 font-bold">จำนวน</th>
+                                  <th class="px-4 py-3 font-bold">หมายเหตุ</th>
+                                </tr>
+                              </thead>
+                              <tbody class="divide-y divide-gray-100">
+                                {% for it in items %}
+                                <tr>
+                                  <td class="px-4 py-3 font-semibold text-gray-800">{% if it.workshop %}{{ it.workshop.title }}{% else %}-{% endif %}</td>
+                                  <td class="px-4 py-3 text-gray-700">{{ it.qty|default:"-" }}</td>
+                                  <td class="px-4 py-3 text-gray-600">{{ it.note|default:"-" }}</td>
+                                </tr>
+                                {% endfor %}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      {% endif %}
+                    {% endwith %}
+                </div>
                 <h3 class="text-lg font-bold text-gray-800 mb-6 flex items-center">
                     <span class="w-8 h-8 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mr-3 text-sm">
                         <i class="fas fa-user-check"></i>
@@ -29,7 +137,7 @@
                     {% for speaker in speakers %}
                     <label class="relative flex items-center p-4 rounded-2xl border-2 border-gray-100 cursor-pointer hover:bg-indigo-50 hover:border-indigo-200 transition-all has-[:checked]:border-indigo-600 has-[:checked]:bg-indigo-50/50">
                         <input type="radio" name="speaker" value="{{ speaker.id }}" data-name="{{ speaker.name }}" class="hidden peer" required>
-                        
+
                         <div class="w-12 h-12 rounded-full bg-gray-200 mr-4 overflow-hidden">
                             {% if speaker.profile_picture %}
                                 <img src="{{ speaker.profile_picture.url }}" class="w-full h-full object-cover">
@@ -79,7 +187,7 @@
 
                 <div class="mt-10">
                     <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-2xl font-bold text-lg shadow-lg shadow-indigo-200 transition-all transform active:scale-[0.98]">
-                        บันทึกและมอบหมายงาน (รหัสอัตโนมัติ)
+                        บันทึกและมอบหมายงาน
                     </button>
                 </div>
             </form>
@@ -103,13 +211,9 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     radios.forEach((radio) => {
-        if (radio.checked) {
-            updateFromRadio(radio);
-        }
+        if (radio.checked) updateFromRadio(radio);
         radio.addEventListener('change', function() {
-            if (this.checked) {
-                updateFromRadio(this);
-            }
+            if (this.checked) updateFromRadio(this);
         });
     });
 });

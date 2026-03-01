@@ -1,3 +1,26 @@
+from django.db import models
+# =========================================================
+# 5.1) SILK PATTERN GALLERY IMAGE (Many images per pattern)
+# =========================================================
+class SilkPatternGalleryImage(models.Model):
+    silkpattern = models.ForeignKey(
+        'SilkPattern',
+        on_delete=models.CASCADE,
+        related_name='gallery_images',
+        verbose_name="ลายผ้า"
+    )
+    image = models.ImageField(
+        upload_to='main/gallery_images/',
+        verbose_name="รูปประกอบผ้าเพิ่มเติม"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "รูปประกอบผ้าเพิ่มเติม"
+        verbose_name_plural = "รูปประกอบผ้าเพิ่มเติมทั้งหมด"
+
+    def __str__(self):
+        return f"Gallery Image for {self.silkpattern.Si_name if self.silkpattern else '-'}"
 """
 main/models.py
 """
@@ -28,7 +51,7 @@ class Profile(models.Model):
     )
     full_name = models.CharField(max_length=200, blank=True)
     phone = models.CharField(max_length=20, blank=True)
-    image = models.ImageField(upload_to='profile_pics/', blank=True, null=True, verbose_name="รูปโปรไฟล์")
+    image = models.ImageField(upload_to='profile_pics/', blank=True, null=True, verbose_name="รูปโปรไฟล์", unique=False)
 
     role = models.CharField(
         max_length=20,
@@ -49,9 +72,11 @@ def create_or_update_user_profile(sender, instance, created, **kwargs):
     if created:
         first = (instance.first_name or "").strip()
         last = (instance.last_name or "").strip()
-        Profile.objects.create(
+        Profile.objects.update_or_create(
             user=instance,
-            full_name=f"{first} {last}".strip()
+            defaults={
+                'full_name': f"{first} {last}".strip()
+            }
         )
     elif hasattr(instance, 'profile'):
         instance.profile.save()
@@ -198,8 +223,9 @@ class WorkshopGalleryImage(models.Model):
 # 4) BOOKING & RESERVATION
 # =========================================================
 class Booking(models.Model):
-    Re_date = models.DateField(null=True, blank=True) 
+    Re_date = models.DateField(null=True, blank=True)
     Re_quantity = models.IntegerField(default=1)
+
     VISIT_SESSION_CHOICES = [
         ('morning', 'ช่วงเช้า (09:00-12:00)'),
         ('afternoon', 'ช่วงบ่าย (13:00-16:00)'),
@@ -211,14 +237,17 @@ class Booking(models.Model):
         blank=True,
         verbose_name="ช่วงเวลาเข้าชม",
     )
-    
+
     STATUS_CHOICES = [
-        ('pending', 'รอดำเนินการ'),
+        ('pending', 'รออนุมัติการจอง'),
         ('approved', 'อนุมัติแล้ว'),
         ('rejected', 'ปฏิเสธ'),
+        ('cancelled', 'ยกเลิกโดยผู้ใช้'),
+        ('confirmed', 'มอบหมายวิทยากรแล้ว'),
+        ('completed', 'เสร็จสิ้นการเข้าชม'),
     ]
     Re_status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
-    
+
     Us_ID = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -231,7 +260,7 @@ class Booking(models.Model):
         null=True, blank=True,
         verbose_name="กิจกรรม"
     )
-    
+
     fullname = models.CharField(max_length=255, blank=True)
     email = models.EmailField(blank=True)
     phone = models.CharField(max_length=20, blank=True, null=True, verbose_name="เบอร์โทรศัพท์")
@@ -253,13 +282,31 @@ class Booking(models.Model):
     decided_at = models.DateTimeField(null=True, blank=True)
     decision_note = models.TextField(null=True, blank=True)
 
+    # ✅ เพิ่ม: เหตุผล + เวลาที่ยกเลิก
+    cancel_reason = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        verbose_name="เหตุผลการยกเลิก"
+    )
+    cancelled_at = models.DateTimeField(
+        blank=True,
+        null=True,
+        verbose_name="เวลาที่ยกเลิก"
+    )
+
     # QR code image for this booking (generated and stored on server)
-    qr_code = models.ImageField(upload_to='qr_codes/', null=True, blank=True, verbose_name="QR Code สำหรับการจอง")
+    qr_code = models.ImageField(
+        upload_to='qr_codes/',
+        null=True,
+        blank=True,
+        verbose_name="QR Code สำหรับการจอง"
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        db_table = "booking"
+        db_table = "main_booking"
         ordering = ['-Re_date', '-created_at']
 
     def __str__(self):
@@ -296,11 +343,11 @@ from django.db import models
 class SilkPattern(models.Model):
     # --- ข้อมูลทั่วไป ---
     Si_ID = models.CharField(
-        max_length=13, 
-        unique=True, 
-        null=True, 
-        blank=True, 
-        db_index=True, 
+        max_length=13,
+        unique=True,
+        null=True,
+        blank=True,
+        db_index=True,
         verbose_name="รหัสผ้า (Si_ID)"
     )
     Si_name = models.CharField(max_length=100, verbose_name="ชื่อลายผ้า")
@@ -310,17 +357,16 @@ class SilkPattern(models.Model):
     Si_history = models.TextField(blank=True, verbose_name="ประวัติและความเป็นมา")
 
     # --- ส่วนประกอบสำหรับ AR (CRUD ผ่าน Admin) ---
-    
-    # 1. ลำดับ Index ในไฟล์ .mind (สำคัญมากในการจับคู่โมเดลกับรูปภาพ)
+
+    # 1) ลำดับ Index ในไฟล์ .mind
     target_index = models.PositiveIntegerField(
-        unique=True, 
-        null=True, 
-        blank=True, 
+        null=True,
+        blank=True,
         verbose_name="ลำดับเป้าหมายในไฟล์ .mind (Target Index)",
         help_text="ใส่เลข 0, 1, 2... ให้ตรงกับลำดับรูปที่ใช้ทำไฟล์ .mind"
     )
-    # Optional: ระบุชื่อไฟล์ .mind ที่ใช้งานร่วมกับรายการนี้ (เช่น targets0.mind)
-    # ถ้าว่าง หมายถึงไฟล์เดียวกันที่กำหนดเป็น default หรือยังไม่ได้ระบุ
+
+    # 2) ชื่อไฟล์ .mind ที่ใช้งานร่วมกับรายการนี้
     target_file = models.CharField(
         max_length=100,
         blank=True,
@@ -328,65 +374,46 @@ class SilkPattern(models.Model):
         verbose_name="ชื่อไฟล์ .mind ที่เก็บรูป (เช่น targets0.mind)",
         help_text="ระบุชื่อไฟล์ .mind ที่ประกอบด้วยรูปของรายการนี้ (ว่างได้)"
     )
-    
-    # 2. เก็บไฟล์โมเดล .glb (ค่าเดิม ใช้เป็นค่า default หรือเพื่อ backward compatibility)
+
+    # 3) ไฟล์โมเดล 3D (.glb) ใช้ช่องเดียว
     model_3d = models.FileField(
-        upload_to="main/models/", 
-        blank=True, 
-        null=True, 
-        verbose_name="ไฟล์โมเดล 3 มิติ (.glb) (เก่า)"
-    )
-
-    # 2.1 โมเดลผ้า (เช่น แผ่นผ้า หรือตัวอย่างลาย)
-    silk_model_3d = models.FileField(
         upload_to="main/models/",
         blank=True,
         null=True,
-        verbose_name="โมเดลผ้า (.glb)"
+        verbose_name="โมเดล 3D (.glb)"
     )
 
-    # 2.2 โมเดลหุ่น (หุ่นสวมผ้า)
-    mannequin_model_3d = models.FileField(
-        upload_to="main/models/",
-        blank=True,
-        null=True,
-        verbose_name="โมเดลหุ่น (.glb)"
-    )
-
-    # 3. รูปภาพอ้างอิง (สำหรับโชว์ในเว็บ หรือใช้ดูเทียบ)
-    # หมายเหตุ: อันนี้ไม่ใช่ไฟล์ .mind นะครับ เป็นแค่รูปภาพ (.jpg/.png)
+    # 4) รูปภาพอ้างอิง AR (jpg/png)
     reference = models.ImageField(
-        upload_to="main/targets/", 
-        blank=True, 
-        null=True, 
+        upload_to="main/targets/",
+        blank=True,
+        null=True,
         verbose_name="รูปภาพอ้างอิง AR (Reference Image)"
     )
-    
-    # 4. รูปภาพทั่วไปสำหรับแสดงในหน้าเว็บ
+
+    # 5) รูปภาพประกอบลายผ้า
     image = models.ImageField(
-        upload_to="main/images/", 
-        blank=True, 
-        null=True, 
+        upload_to="main/images/",
+        blank=True,
+        null=True,
         verbose_name="รูปภาพประกอบลายผ้า"
     )
 
     class Meta:
-        ordering = ['target_index']
+        ordering = ["target_index"]
         verbose_name = "ข้อมูลลายผ้าไหม"
         verbose_name_plural = "จัดการลายผ้าไหม (AR & Info)"
+        unique_together = ("target_file", "target_index")
 
     def __str__(self):
         return f"{self.Si_ID} - {self.Si_name}" if self.Si_ID else self.Si_name
 
-    # ฟังก์ชันช่วยตรวจสอบนามสกุลไฟล์โมเดล (ป้องกันการอัพโหลดไฟล์ผิดประเภท)
-def clean(self):
-        from django.core.exceptions import ValidationError
+    # ✅ ตรวจนามสกุลไฟล์โมเดล 3D
+    def clean(self):
         if self.model_3d:
-            # ตอนนี้จะใช้งาน os.path ได้แล้ว ไม่ Error
-            ext = os.path.splitext(self.model_3d.name)[1]
-            if ext.lower() != '.glb':
-                raise ValidationError('ระบบรองรับเฉพาะไฟล์โมเดลนามสกุล .glb เท่านั้น')
-
+            ext = os.path.splitext(self.model_3d.name)[1].lower()
+            if ext != ".glb":
+                raise ValidationError("ระบบรองรับเฉพาะไฟล์โมเดลนามสกุล .glb เท่านั้น")
 
 class SilkPatternRating(models.Model):
     GROUP_CHOICES = [
@@ -433,7 +460,7 @@ class Question(models.Model):
 
 class SpeakerAssignment(models.Model):
     assignment_id = models.CharField(
-        max_length=13, 
+        max_length=13,
         primary_key=True,         # ใช้เป็นคีย์หลักแทน ID ปกติ
         default=generate_assignment_id,
         blank=True,               # ใน Form อนุญาตให้ว่างได้ (เพราะเดี๋ยว Default จะเติมให้)
@@ -445,8 +472,8 @@ class SpeakerAssignment(models.Model):
     schedule_text = models.TextField(blank=True, null=True, verbose_name="วันที่-เวลา")
 
     speaker = models.ForeignKey(
-        'Speaker', 
-        on_delete=models.CASCADE, 
+        'Speaker',
+        on_delete=models.CASCADE,
         related_name='assignments',
         verbose_name="วิทยากร"
     )
@@ -526,3 +553,54 @@ class SurveyRating(models.Model):
         return f"Q{self.question.id} => {self.rating}"
 
 # main/models.py
+# =========================================================
+# 10) SPEAKER WORK UPLOAD (วิทยากรอัปโหลดรูปงาน)
+# =========================================================
+class SpeakerWorkUpload(models.Model):
+    speaker = models.ForeignKey(
+        Speaker,
+        on_delete=models.CASCADE,
+        related_name="work_uploads",
+        verbose_name="วิทยากร",
+    )
+
+    # ผูกกับงานที่ได้รับมอบหมาย (ถ้าเลือก)
+    assignment = models.ForeignKey(
+        SpeakerAssignment,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="work_uploads",
+        verbose_name="งานที่รับผิดชอบ",
+    )
+
+    title = models.CharField(max_length=255, blank=True, verbose_name="หัวข้อ/ชื่อชุดรูป")
+    note = models.TextField(blank=True, verbose_name="หมายเหตุ/รายละเอียด")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "ชุดรูปผลงานวิทยากร"
+        verbose_name_plural = "ชุดรูปผลงานวิทยากร"
+
+    def __str__(self):
+        return f"Upload by {self.speaker.name} ({self.created_at:%Y-%m-%d %H:%M})"
+
+
+class SpeakerWorkImage(models.Model):
+    upload = models.ForeignKey(
+        SpeakerWorkUpload,
+        on_delete=models.CASCADE,
+        related_name="images",
+        verbose_name="ชุดอัปโหลด",
+    )
+    image = models.ImageField(upload_to="speaker/work/", verbose_name="รูปภาพ")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "รูปผลงานวิทยากร"
+        verbose_name_plural = "รูปผลงานวิทยากร"
+
+    def __str__(self):
+        return f"WorkImage #{self.pk}"

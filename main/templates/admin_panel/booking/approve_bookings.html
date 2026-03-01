@@ -5,84 +5,242 @@
 
 {% block content %}
 <div class="flex flex-col lg:flex-row gap-8 py-6">
-    
-    <aside class="w-full lg:w-1/4 xl:w-1/5 shrink-0">
-        {% include 'admin_panel/admin_dashboard.html' %}
-    </aside>
 
-    <main class="w-full lg:w-3/4 xl:w-4/5">
-        <div class="mb-8">
-            <h2 class="text-3xl font-bold text-gray-800">จัดการรายการจอง</h2>
-            <p class="text-gray-500">ตรวจสอบและอนุมัติคำขอเข้าชมพิพิธภัณฑ์</p>
+  <aside class="w-full lg:w-1/4 xl:w-1/5 shrink-0">
+    {% include 'admin_panel/admin_dashboard.html' %}
+  </aside>
+
+  <main class="w-full lg:w-3/4 xl:w-4/5">
+    <!-- Header -->
+    <div class="mb-6">
+      <h2 class="text-3xl font-extrabold text-gray-800 tracking-tight">จัดการรายการจอง</h2>
+      <p class="text-gray-500 mt-1">ตรวจสอบและอนุมัติคำขอเข้าชมพิพิธภัณฑ์</p>
+    </div>
+
+    <!-- Filters -->
+    <div class="mb-6 bg-white rounded-2xl border border-gray-100 shadow-sm">
+      <form method="get" class="p-4 flex flex-col lg:flex-row gap-3 lg:items-end">
+
+        <div class="flex-1 min-w-[220px]">
+          <label class="block text-[11px] font-black text-gray-500 uppercase tracking-wider mb-1">กรองตามวันที่</label>
+          <input type="date" name="date" value="{{ filter_date }}"
+                 class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm bg-gray-50 focus:bg-white focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition">
         </div>
 
-        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse">
-                    <thead class="bg-gray-50 text-gray-500 text-xs uppercase font-bold">
-                        <tr>
-                            <th class="px-6 py-4">ผู้จอง</th>
-                            <th class="px-6 py-4">วันที่/เวลา</th>
-                            <th class="px-6 py-4">จำนวน</th>
-                            <th class="px-6 py-4">สถานะ</th>
-                            <th class="px-6 py-4 text-center">ดำเนินการ</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-100">
-                        {% for booking in bookings %}
-                        <tr class="hover:bg-gray-50/50 transition-colors">
-                            <td class="px-6 py-4">
-                                <div class="font-bold text-gray-800">{{ booking.fullname }}</div>
-                                <div class="text-xs text-gray-400">{{ booking.email }}</div>
-                            </td>
-                            <td class="px-6 py-4 text-sm text-gray-600">
-                                {{ booking.Re_date|date:"d M Y" }}<br>
-                                <span class="text-xs font-mono text-amber-600">{{ booking.check_in|time:"H:i" }} น.</span>
-                            </td>
-                            <td class="px-6 py-4">
-                                <span class="px-2 py-1 bg-gray-100 rounded text-xs">{{ booking.Re_quantity }} ท่าน</span>
-                            </td>
-                            <td class="px-6 py-4">
-                                {% if booking.Re_status == 'approved' %}
-                                    <span class="text-green-600 bg-green-50 px-2 py-1 rounded-full text-xs font-bold">อนุมัติแล้ว</span>
-                                {% elif booking.Re_status == 'rejected' %}
-                                    <span class="text-red-600 bg-red-50 px-2 py-1 rounded-full text-xs font-bold">ปฏิเสธ</span>
-                                {% else %}
-                                    <span class="text-yellow-600 bg-yellow-50 px-2 py-1 rounded-full text-xs font-bold animate-pulse">รอตรวจสอบ</span>
-                                {% endif %}
-                            </td>
-                            <td class="px-6 py-4">
-                                <div class="flex justify-center gap-2">
-                                    <form method="post" action="{% url 'update_booking_status' booking.id 'approved' %}">
-                                        {% csrf_token %}
-                                        <button type="submit" class="p-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition shadow-sm" title="อนุมัติ">
-                                            <i class="fas fa-check"></i>
-                                        </button>
-                                    </form>
-                                    <form method="post" action="{% url 'update_booking_status' booking.id 'rejected' %}">
-                                        {% csrf_token %}
-                                        <button type="submit" class="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition shadow-sm" title="ปฏิเสธ">
-                                            <i class="fas fa-times"></i>
-                                        </button>
-                                    </form>
-                                    <a href="{% url 'booking_detail' booking.id %}" class="p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition">
-                                        <i class="fas fa-eye"></i>
-                                    </a>
-                                </div>
-                            </td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="5" class="px-6 py-20 text-center text-gray-400">
-                                <i class="fas fa-clipboard-list text-5xl mb-4 opacity-20"></i>
-                                <p>ไม่มีรายการจองที่รอการอนุมัติในขณะนี้</p>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+        <div class="flex-1 min-w-[220px]">
+          <label class="block text-[11px] font-black text-gray-500 uppercase tracking-wider mb-1">ช่วงเวลา</label>
+          <select name="session"
+                  class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm bg-gray-50 focus:bg-white focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition">
+            <option value="">ทั้งหมด</option>
+            <option value="morning" {% if filter_session == 'morning' %}selected{% endif %}>ช่วงเช้า</option>
+            <option value="afternoon" {% if filter_session == 'afternoon' %}selected{% endif %}>ช่วงบ่าย</option>
+          </select>
         </div>
-    </main>
+
+        <div class="flex-1 min-w-[220px]">
+          <label class="block text-[11px] font-black text-gray-500 uppercase tracking-wider mb-1">เรียงลำดับ</label>
+          <select name="sort"
+                  class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm bg-gray-50 focus:bg-white focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition">
+            <option value="oldest" {% if sort == 'oldest' %}selected{% endif %}>มาก่อนขึ้นก่อน</option>
+            <option value="newest" {% if sort == 'newest' %}selected{% endif %}>มาหลังขึ้นก่อน</option>
+          </select>
+        </div>
+
+        <div class="flex gap-2 lg:pl-2">
+          <button class="px-5 py-3 rounded-xl bg-gradient-to-r from-amber-600 to-amber-800 text-white font-black text-sm shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all">
+            <i class="fas fa-filter mr-2"></i>กรอง
+          </button>
+          <a href="{% url 'approve_bookings' %}"
+             class="px-5 py-3 rounded-xl bg-gray-100 text-gray-700 font-black text-sm hover:bg-gray-200 transition">
+            ล้างตัวกรอง
+          </a>
+        </div>
+
+      </form>
+    </div>
+
+    <!-- ✅ Table (เหลือแค่ชุดเดียว) -->
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+          <thead class="bg-gray-50 text-gray-500 text-xs uppercase font-black">
+            <tr>
+              <th class="px-6 py-4">ผู้จอง</th>
+              <th class="px-6 py-4">วันที่</th>
+              <th class="px-6 py-4">เวลาที่จอง</th>
+              <th class="px-6 py-4">จำนวน</th>
+              <th class="px-6 py-4 text-center">ดำเนินการ</th>
+            </tr>
+          </thead>
+
+          <tbody class="divide-y divide-gray-100">
+            {% for booking in bookings %}
+            <tr class="hover:bg-amber-50/30 transition-colors">
+              <!-- ผู้จอง -->
+              <td class="px-6 py-4">
+                <div class="font-extrabold text-gray-800 leading-tight">{{ booking.fullname }}</div>
+                <div class="text-xs text-gray-400 mt-0.5">{{ booking.email }}</div>
+              </td>
+
+              <!-- วันที่ (วันที่เข้าชม) -->
+              <td class="px-6 py-4 text-sm text-gray-700">
+                <div class="font-semibold">{{ booking.Re_date|date:"d M Y" }}</div>
+              </td>
+
+              <!-- ✅ เวลาที่จองจริง (created_at) -->
+              <td class="px-6 py-4">
+                <div class="text-xs font-mono text-amber-700">
+                  <i class="far fa-clock mr-1"></i>
+                  {% if booking.created_at %}
+                    {{ booking.created_at|date:"H:i" }} น.
+                  {% else %}
+                    -
+                  {% endif %}
+                </div>
+              </td>
+
+              <!-- จำนวน -->
+              <td class="px-6 py-4">
+                <span class="inline-flex items-center gap-2 px-3 py-1 bg-gray-100 rounded-full text-xs font-bold text-gray-700">
+                  <i class="fas fa-users text-[10px]"></i> {{ booking.Re_quantity }} ท่าน
+                </span>
+              </td>
+
+              <!-- ดำเนินการ -->
+              <td class="px-6 py-4">
+                <div class="flex justify-center gap-2">
+                  <!-- อนุมัติ -->
+                  <form method="post" action="{% url 'update_booking_status' booking.id 'approved' %}">
+                    {% csrf_token %}
+                    <button type="submit"
+                            class="w-10 h-10 inline-flex items-center justify-center bg-green-600 text-white rounded-xl hover:bg-green-700 transition shadow-sm"
+                            title="อนุมัติ">
+                      <i class="fas fa-check"></i>
+                    </button>
+                  </form>
+
+                  <!-- ปฏิเสธ -->
+                  <button type="button"
+                          class="w-10 h-10 inline-flex items-center justify-center bg-red-600 text-white rounded-xl hover:bg-red-700 transition shadow-sm"
+                          title="ปฏิเสธ"
+                          onclick="openRejectModal('{{ booking.id }}', '{{ booking.fullname|escapejs }}')">
+                    <i class="fas fa-times"></i>
+                  </button>
+
+                  <!-- ดูรายละเอียด -->
+                  <a href="{% url 'booking_detail' booking.id %}"
+                     class="w-10 h-10 inline-flex items-center justify-center bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition"
+                     title="ดูรายละเอียด">
+                    <i class="fas fa-eye"></i>
+                  </a>
+                </div>
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="5" class="px-6 py-20 text-center text-gray-400">
+                <i class="fas fa-clipboard-list text-5xl mb-4 opacity-20"></i>
+                <p class="font-semibold">ไม่มีรายการจองที่รอการอนุมัติในขณะนี้</p>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+
+        </table>
+      </div>
+    </div>
+
+  </main>
 </div>
+
+<!-- Modal ปฏิเสธ + ฟอร์มส่งเหตุผล -->
+<div id="rejectModal" class="fixed inset-0 z-50 hidden">
+  <div class="absolute inset-0 bg-black/40" onclick="closeRejectModal()"></div>
+
+  <div class="relative mx-auto mt-24 w-[92%] max-w-lg bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden">
+    <div class="px-6 py-4 bg-red-50 border-b border-red-100 flex items-center justify-between">
+      <div>
+        <p class="text-sm font-black text-red-700">ปฏิเสธการจอง</p>
+        <p class="text-xs text-red-600" id="rejectModalSub">กรุณากรอกเหตุผล</p>
+      </div>
+      <button type="button" class="text-red-700 hover:text-red-900" onclick="closeRejectModal()" title="ปิด">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+
+    <form id="rejectForm" method="post" class="p-6 space-y-4">
+      {% csrf_token %}
+      <input type="hidden" name="decision_note" id="decision_note_hidden">
+
+      <div>
+        <label class="block text-sm font-bold text-gray-800 mb-2">
+          เหตุผลที่ปฏิเสธ <span class="text-red-500">*</span>
+        </label>
+        <textarea id="decision_note_text"
+                  class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-400 outline-none transition-all bg-gray-50 focus:bg-white"
+                  rows="4"
+                  placeholder="เช่น ข้อมูลไม่ครบ / เลือกวันที่ไม่ถูกต้อง / เกินจำนวนที่รองรับ"
+                  required></textarea>
+        <p class="text-xs text-gray-400 mt-1">* จำเป็นต้องกรอกเหตุผลก่อนกดยืนยัน</p>
+      </div>
+
+      <div class="flex gap-3 pt-1">
+        <button type="button"
+                onclick="closeRejectModal()"
+                class="flex-1 py-3 rounded-xl border border-gray-200 hover:bg-gray-50 transition font-bold text-gray-700">
+          ยกเลิก
+        </button>
+        <button type="submit"
+                class="flex-1 py-3 rounded-xl bg-gradient-to-r from-red-600 to-red-800 hover:to-red-900 transition font-bold text-white shadow-sm hover:shadow-md">
+          ยืนยันการปฏิเสธ
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  function openRejectModal(bookingId, fullname) {
+    const modal = document.getElementById('rejectModal');
+    const form = document.getElementById('rejectForm');
+    const sub = document.getElementById('rejectModalSub');
+    const textarea = document.getElementById('decision_note_text');
+
+    const base = "{% url 'update_booking_status' 0 'rejected' %}";
+    form.action = base.replace("/0/", `/${bookingId}/`);
+
+    sub.textContent = `ผู้จอง: ${fullname} (ต้องกรอกเหตุผลก่อนปฏิเสธ)`;
+    textarea.value = "";
+    document.getElementById('decision_note_hidden').value = "";
+
+    modal.classList.remove('hidden');
+    setTimeout(() => textarea.focus(), 50);
+  }
+
+  function closeRejectModal() {
+    document.getElementById('rejectModal').classList.add('hidden');
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const form = document.getElementById('rejectForm');
+    const textarea = document.getElementById('decision_note_text');
+    const hidden = document.getElementById('decision_note_hidden');
+
+    form.addEventListener('submit', (e) => {
+      const reason = (textarea.value || "").trim();
+      if (!reason) {
+        e.preventDefault();
+        alert("กรุณากรอกเหตุผลการปฏิเสธก่อน");
+        textarea.focus();
+        return;
+      }
+      hidden.value = reason;
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeRejectModal();
+    });
+  });
+</script>
+
 {% endblock %}

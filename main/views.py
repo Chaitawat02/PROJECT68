@@ -1,40 +1,32 @@
-# =====================================================================
-# museum/views.py
-# =====================================================================
-"""
-Views สำหรับระบบพิพิธภัณฑ์ผ้าไหม
-- Public Pages
-- Utilities / Decorators
-- Auth Helpers
-"""
-
+# ฟังก์ชันตรวจสอบสิทธิ์วิทยากร (ต้องอยู่ก่อนใช้งาน)
 # =====================================================================
 # IMPORTS
 # =====================================================================
 import json
+import statistics
+import io
+import base64
 from datetime import datetime, time, timedelta
 from urllib.parse import quote_plus
-from django.core.serializers.json import DjangoJSONEncoder
 
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout, get_user_model
 from django.contrib.auth.decorators import login_required, user_passes_test
-from django.db import transaction, IntegrityError
+from django.views.decorators.http import require_http_methods
+from django.shortcuts import get_object_or_404, redirect, render
+from django.core.files.base import ContentFile
+from django.core.serializers.json import DjangoJSONEncoder
+from django.db import IntegrityError
 from django.db.utils import OperationalError
-from django.db.models import Q, Count, Avg
+from django.db.models import Q, Count, Avg, Max, IntegerField
+from django.db.models.functions import TruncMonth, Cast
+from django.http import JsonResponse, Http404
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
-from django.core.files.base import ContentFile
-from django.conf import settings
 from django.utils import timezone
 from django.views.decorators.http import require_POST
-from django.http import JsonResponse, Http404
-from django.db.models import Max
-from django.db.models.functions import TruncMonth
-from .models import Workshop, Booking, WorkshopBooking, WorkshopGalleryImage
-
-User = get_user_model()
+from .models import SpeakerWorkUpload, SpeakerWorkImage
 
 # =====================================================================
 # MODELS
@@ -42,7 +34,9 @@ User = get_user_model()
 from .models import (
     SilkPattern, Booking, WorkshopBooking, Reservation, ARAsset,
     MuseumProfile, Speaker, SpeakerAssignment, SilkPatternRating,
-    SpeakerSchedule, Profile, Workshop, Question
+    SpeakerSchedule, Profile, Workshop, Question,
+    BookingQuestionResponse, SurveyRating,
+    WorkshopGalleryImage, SilkPatternGalleryImage,
 )
 
 # =====================================================================
@@ -53,15 +47,13 @@ from .forms import (
     SilkPatternForm, BookingForm, QuestionForm, WorkshopForm,
     MuseumProfileForm,
     ForgotPasswordForm, SetNewPasswordForm,
-    SpeakerAssignFromBookingForm, BookingRatingForm
+    SpeakerAssignFromBookingForm, BookingRatingForm,
+    SurveyRatingForm
 )
-from .forms import SurveyRatingForm
-# For questionnaire handling
-from .models import BookingQuestionResponse, Question as QuestionModel
-from .models import SurveyRating
-import statistics
-import io
-import base64
+# ใช้ชื่อ alias สำหรับคำถามแบบประเมิน
+QuestionModel = Question
+
+User = get_user_model()
 
 
 def _generate_qr_data_uri(text: str) -> str:
@@ -100,6 +92,53 @@ def _get_latest_ar_items(request, limit: int = 4):
 # =====================================================================
 # PERMISSION HELPERS
 # =====================================================================
+
+def is_speaker(user):
+    return hasattr(user, 'profile') and user.profile.role == 'speaker'
+
+from django.db import transaction
+from django.contrib.auth.decorators import login_required
+
+@login_required
+@user_passes_test(is_speaker)
+@require_http_methods(["GET", "POST"])
+def reject_assignment(request, assignment_id):
+    assignment = get_object_or_404(
+        SpeakerAssignment,
+        assignment_id=assignment_id,
+        speaker__user=request.user
+    )
+
+    if assignment.status not in ['pending', 'assigned']:
+        messages.warning(request, "ไม่สามารถปฏิเสธงานนี้ได้")
+        return redirect('speaker_pending')
+
+    if request.method == "POST":
+        reason = (request.POST.get("reason") or "").strip()
+
+        with transaction.atomic():
+            # ✅ เก็บ booking ไว้ก่อนตัดความสัมพันธ์
+            booking = assignment.booking
+
+            # 1) เซฟว่า rejected + เก็บเหตุผล
+            assignment.status = "rejected"
+            if reason:
+                assignment.note = (assignment.note or "") + f"\n[ปฏิเสธโดยวิทยากร] {reason}"
+
+            # 2) คืนงานให้แอดมิน: ทำให้ booking กลับไปอยู่สถานะที่รอมอบหมาย
+            # (ในระบบคุณใช้ assign แล้ว set confirmed ดังนั้นตอนคืนควรกลับไป approved)
+            if booking:
+                booking.Re_status = "approved"
+                booking.save(update_fields=["Re_status"])
+
+            # 3) ปลด booking ออกจาก assignment เพื่อให้ admin assign ใหม่ได้
+            assignment.booking = None
+            assignment.save(update_fields=["status", "note", "booking"])
+
+        messages.success(request, "ปฏิเสธงานเรียบร้อยแล้ว และส่งกลับให้แอดมินมอบหมายใหม่")
+        return redirect("speaker_pending")
+
+    return render(request, "speaker/reject_assignment.html", {"assignment": assignment})
 
 def is_admin(user):
     """ตรวจสอบว่าเป็นแอดมินหรือไม่"""
@@ -326,7 +365,7 @@ def forgot_password_view(request):
     if request.method == "POST":
         # 1. รับค่าจากฟอร์ม HTML (name="email")
         email = request.POST.get('email', '').strip().lower()
-        
+
         if email:
             # 2. ค้นหา User จาก Email
             user = User.objects.filter(email__iexact=email).first()
@@ -340,7 +379,7 @@ def forgot_password_view(request):
                 messages.error(request, "ไม่พบบัญชีผู้ใช้ที่มีอีเมลนี้")
         else:
             messages.error(request, "กรุณากรอกอีเมล")
-            
+
     # 4. [สำคัญ] แก้ Path ให้ตรงกับไฟล์ที่สร้างไว้ใน main/templates/main/
     return render(request, "main/forgot_password.html")
 
@@ -369,7 +408,7 @@ def reset_password_view(request, token=None):
             if user:
                 user.set_password(new_pass)
                 user.save()
-                
+
                 # ล้าง Session และแจ้งเตือน
                 del request.session["reset_user_id"]
                 messages.success(request, "เปลี่ยนรหัสผ่านสำเร็จ! กรุณาเข้าสู่ระบบ")
@@ -506,7 +545,7 @@ def workshops_view(request):
 def workshops_list_view(request):
     workshop_id = request.GET.get('workshop_id')
     workshop_main = get_object_or_404(Workshop, id=workshop_id)
-    
+
     # ดึงข้อมูลจาก WorkshopBooking (ซึ่งคือ "รอบ" ของกิจกรรม)
     # หากกิจกรรมถูกปิดไม่ให้จอง (is_active=False) ไม่ต้องแสดงรอบให้เลือก
     if workshop_main.is_active:
@@ -541,7 +580,7 @@ def workshops_list_view(request):
 @login_required
 def booking_view(request):
     today = timezone.localdate()
-    
+
     # --- 1. จัดการวันที่ ---
     selected_date_str = request.GET.get("date") or request.POST.get('Re_date')
     try:
@@ -581,7 +620,7 @@ def booking_view(request):
                 # บันทึกข้อมูลการจองหลัก
                 booking = Booking.objects.create(
                     Us_ID=request.user,
-                    fullname=fullname,  
+                    fullname=fullname,
                     email=email,
                     phone=phone,
                     Re_date=target_date, # ใช้ target_date ที่เป็น object date แล้ว
@@ -593,13 +632,13 @@ def booking_view(request):
                 if selected_ws_ids:
                     for ws_id in selected_ws_ids:
                         workshop_obj = Workshop.objects.select_for_update().get(id=ws_id)
-                        
+
                         # ตรวจสอบจำนวนผู้เข้าร่วม (นับจากจำนวนคนที่จองจริง)
                         current_bookings = WorkshopBooking.objects.filter(
-                            workshop=workshop_obj, 
+                            workshop=workshop_obj,
                             date=target_date
                         ).count()
-                        
+
                         if current_bookings < workshop_obj.max_participants:
                             WorkshopBooking.objects.create(
                                 booking=booking, # <--- สำคัญมาก: ควรเชื่อมกับ Booking หลัก
@@ -613,13 +652,13 @@ def booking_view(request):
 
                 # ถ้าผ่านหมดถึงจะ Success
                 messages.success(request, "บันทึกข้อมูลการจองเรียบร้อยแล้ว!")
-                return redirect('booking_history')
+                return redirect('/user/dashboard/?section=booking')
 
         except ValueError as e:
             messages.error(request, str(e))
         except Exception as e:
             messages.error(request, f"เกิดข้อผิดพลาดทางระบบ: {str(e)}")
-            
+
     # --- 3. เตรียมข้อมูลแสดงผล (GET) ---
     # (ส่วนนี้คงเดิมตามที่คุณเขียนไว้ได้เลยครับ)
     user_initial_data = {
@@ -649,7 +688,7 @@ def assign_speaker_view(request, booking_id):
     ฟังก์ชันสำหรับ Admin มอบหมายวิทยากรให้กับการจอง
     """
     booking = get_object_or_404(Booking, id=booking_id)
-    
+
     if request.method == "POST":
         speaker_id = request.POST.get('speaker_id')
         title = request.POST.get('title', 'นำชมพิพิธภัณฑ์')
@@ -677,10 +716,16 @@ def assign_speaker_view(request, booking_id):
                 'status': 'assigned'
             }
         )
-        
+
         # อัปเดตสถานะการจองหลักให้สมาชิกทราบ
         booking.Re_status = 'confirmed'
-        booking.save()
+        # บันทึกผู้ดำเนินการและเวลา (เพื่อให้หน้า booking detail แสดงผู้อนุมัติ/วันที่อนุมัติ)
+        if not booking.decided_by_id:
+            booking.decided_by = request.user
+        if not booking.decided_at:
+            booking.decided_at = timezone.now()
+
+        booking.save(update_fields=['Re_status', 'decided_by', 'decided_at'])
 
         messages.success(request, f"มอบหมายวิทยากร {speaker.name} สำเร็จ")
         return redirect('manage_assignments')
@@ -695,25 +740,214 @@ def assign_speaker_view(request, booking_id):
 # =====================================================================
 
 @login_required
-def booking_history_view(request):
-    """
-    ประวัติการจองของผู้ใช้
-    """
-    # ดึงการจองหลักของผู้ใช้
-    bookings = Booking.objects.filter(
-        Us_ID=request.user
-    ).order_by('-created_at')
+def user_dashboard_view(request):
+    section = request.GET.get('section', 'home')
+    profile = getattr(request.user, 'profile', None)
+    bookings = Booking.objects.filter(Us_ID=request.user).order_by('-Re_date')
 
-    # ดึง WorkshopBooking ที่ยังไม่ผูกกับ Booking (orphan workshops)
-    orphan_workshops = WorkshopBooking.objects.filter(
-        user=request.user,
-        booking__isnull=True
-    ).order_by('-date')
+    # ✅ ประวัติแบบประเมินการจอง (สรุปต่อ booking)
+    responses = (
+        BookingQuestionResponse.objects
+        .filter(user=request.user)
+        .select_related('booking', 'booking__workshop')
+        .annotate(score_int=Cast('answer', IntegerField()))   # answer เป็น string -> แปลงเป็น int
+        .values('booking_id', 'booking__Re_date', 'booking__workshop__title')
+        .annotate(
+            avg_score=Avg('score_int'),
+            latest_at=Max('created_at')
+        )
+        .order_by('-latest_at')
+    )
 
-    return render(request, 'booking/booking_history.html', {
+    return render(request, 'user/dashboard.html', {
+        'section': section,
+        'profile': profile,
         'bookings': bookings,
-        'orphan_workshops': orphan_workshops,
+        'ratings': responses,   # ส่งให้ template ใช้ชื่อตัวเดิมได้เลย
     })
+
+
+
+import logging
+logger = logging.getLogger("django")
+
+ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
+MAX_UPLOAD_SIZE = 2 * 1024 * 1024  # 2MB
+
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import render, redirect
+from django.urls import reverse
+from django.core.validators import validate_email
+from django.core.exceptions import ValidationError
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
+
+@login_required
+def user_profile_edit_view(request):
+    # ถ้าไม่มีโปรไฟล์ ให้สร้างก่อน
+    profile, _ = Profile.objects.get_or_create(user=request.user)
+
+    if request.method == "POST":
+        full_name = (request.POST.get("full_name") or "").strip()
+        email = (request.POST.get("email") or "").strip().lower()
+        phone = (request.POST.get("phone") or "").strip()
+        new_image = request.FILES.get("image")
+
+        logger.info(f"[PROFILE_EDIT] POST keys: {list(request.POST.keys())}")
+        logger.info(f"[PROFILE_EDIT] FILES keys: {list(request.FILES.keys())}")
+        logger.info(f"[PROFILE_EDIT] new_image: {new_image}")
+
+        # =========================
+        # 1) อัปเดต Profile fields
+        # =========================
+        profile.full_name = full_name
+        profile.phone = phone
+
+        # =========================
+        # 2) อัปเดต User name (optional)
+        # =========================
+        try:
+            if full_name:
+                parts = full_name.split()
+                request.user.first_name = parts[0] if parts else ""
+                request.user.last_name = " ".join(parts[1:]) if len(parts) > 1 else ""
+                request.user.save(update_fields=["first_name", "last_name"])
+        except Exception as e:
+            logger.warning(f"[PROFILE_EDIT] Failed to sync name to User: {e}")
+
+        # =========================
+        # 3) อัปเดต Email (User.email)
+        # =========================
+        if email:
+            try:
+                validate_email(email)
+            except ValidationError:
+                messages.error(request, "รูปแบบอีเมลไม่ถูกต้อง")
+                return redirect(f"{reverse('user_dashboard')}?section=profile")
+
+            # กัน email ซ้ำกับคนอื่น
+            if User.objects.filter(email__iexact=email).exclude(pk=request.user.pk).exists():
+                messages.error(request, "อีเมลนี้ถูกใช้งานแล้ว กรุณาใช้อีเมลอื่น")
+                return redirect(f"{reverse('user_dashboard')}?section=profile")
+
+            # เซฟเฉพาะตอนเปลี่ยนจริง
+            if email != ((request.user.email or "").strip().lower()):
+                request.user.email = email
+                try:
+                    request.user.save(update_fields=["email"])
+                except Exception as e:
+                    logger.error(f"[PROFILE_EDIT] Failed to save user email: {e}")
+                    messages.error(request, "เกิดข้อผิดพลาดขณะบันทึกอีเมล โปรดลองใหม่")
+                    return redirect(f"{reverse('user_dashboard')}?section=profile")
+
+        # =========================
+        # 4) รูปโปรไฟล์
+        # =========================
+        if new_image:
+            content_type = getattr(new_image, "content_type", "") or ""
+            if content_type not in ALLOWED_CONTENT_TYPES:
+                messages.error(request, "รองรับเฉพาะไฟล์รูป JPG/PNG/WEBP เท่านั้น")
+                return redirect(f"{reverse('user_dashboard')}?section=profile")
+
+            if new_image.size > MAX_UPLOAD_SIZE:
+                messages.error(request, "ไฟล์รูปต้องมีขนาดไม่เกิน 2MB")
+                return redirect(f"{reverse('user_dashboard')}?section=profile")
+
+            if profile.image:
+                try:
+                    profile.image.delete(save=False)
+                except Exception as e:
+                    logger.warning(f"[PROFILE_EDIT] Failed to delete old image: {e}")
+
+            profile.image = new_image
+
+        # =========================
+        # 5) เซฟ Profile
+        # =========================
+        try:
+            fields = ["full_name", "phone"]
+            if new_image:
+                fields.append("image")
+            profile.save(update_fields=fields)
+        except Exception as e:
+            logger.error(f"[PROFILE_EDIT] Failed to save profile: {e}")
+            messages.error(request, "เกิดข้อผิดพลาดขณะบันทึกข้อมูล โปรดลองใหม่หรือติดต่อผู้ดูแลระบบ")
+            return redirect(f"{reverse('user_dashboard')}?section=profile")
+
+        messages.success(request, "บันทึกโปรไฟล์เรียบร้อยแล้ว")
+        return redirect(f"{reverse('user_dashboard')}?section=profile")
+
+    # GET
+    return render(request, "user/profile_edit.html", {"profile": profile})
+
+
+
+@login_required
+@require_POST
+def user_profile_delete_image_view(request):
+    profile = get_object_or_404(Profile, user=request.user)
+
+    if profile.image:
+        try:
+            profile.image.delete(save=False)
+        except Exception:
+            pass
+        profile.image = None
+        profile.save(update_fields=["image"])
+
+    messages.success(request, "ลบรูปโปรไฟล์เรียบร้อยแล้ว")
+    return redirect(f"{reverse('user_dashboard')}?section=profile")
+
+
+
+
+@login_required
+def user_booking_history_view(request):
+    bookings = Booking.objects.filter(Us_ID=request.user).order_by('-Re_date')
+    return render(request, 'user/booking_history.html', {'bookings': bookings})
+
+@login_required
+@require_POST
+def booking_cancel_view(request, booking_id):
+    booking = get_object_or_404(Booking, pk=booking_id, Us_ID=request.user)
+
+    # ✅ บังคับเหตุผล
+    reason = (request.POST.get("cancel_reason") or "").strip()
+    if not reason:
+        messages.error(request, "กรุณาระบุเหตุผลการยกเลิกก่อนยืนยัน")
+        return redirect('user_dashboard')
+
+    # ✅ ยกเลิกได้เฉพาะ pending
+    if booking.Re_status != 'pending':
+        messages.error(request, "ไม่สามารถยกเลิกการจองที่ได้รับการอนุมัติหรือปฏิเสธแล้วได้")
+        return redirect('user_dashboard')
+
+    # ✅ เซฟสถานะ + เหตุผล
+    booking.Re_status = 'cancelled'
+    booking.cancel_reason = reason
+    booking.cancelled_at = timezone.now()
+    booking.save(update_fields=['Re_status', 'cancel_reason', 'cancelled_at'])
+
+    messages.success(request, "ยกเลิกการจองเรียบร้อยแล้ว")
+    return redirect('user_dashboard')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 # =====================================================================
@@ -789,77 +1023,105 @@ def booking_detail_view(request, booking_id):
     })
 
 
+
 @login_required
 def booking_questionnaire_view(request, booking_id):
-    """แสดงแบบประเมินหลังการเข้าชมสำหรับการจองนั้นๆ และบันทึกคำตอบ"""
+    """แสดง/บันทึกแบบประเมินหลังการเข้าชมสำหรับการจองนั้นๆ"""
     booking = get_object_or_404(Booking, pk=booking_id)
 
-    # ตรวจสิทธิ์: เจ้าของการจองหรือ staff/admin เท่านั้น (วิทยากรไม่จำเป็นต้องทำแบบประเมิน)
+    # ✅ ตรวจสิทธิ์: เจ้าของการจองหรือ staff/admin เท่านั้น
     if booking.Us_ID != request.user and not is_staff_or_admin(request.user):
         messages.error(request, "คุณไม่มีสิทธิ์เข้าถึงแบบประเมินนี้")
         return redirect('home')
 
-    # ดึงคำถามที่เปิดใช้งาน
-    questions = QuestionModel.objects.filter(is_active=True).order_by('id')
+    # ✅ (ตัวเลือก) บังคับว่าต้องปิดงานก่อนถึงทำแบบประเมินได้
+    # if getattr(booking, "Re_status", None) != "completed" and not is_staff_or_admin(request.user):
+    #     messages.error(request, "ยังไม่สามารถทำแบบประเมินได้ (รอปิดงานก่อน)")
+    #     return redirect('booking_detail', booking_id=booking.id)
 
-    if request.method == 'POST':
-        # ล้างคำตอบเดิมของผู้ใช้สำหรับ booking นี้ (ถ้าต้องการเก็บซ้ำ ให้เปลี่ยนเป็น append)
-        BookingQuestionResponse.objects.filter(booking=booking, user=request.user).delete()
+    # ✅ ดึงคำถามที่เปิดใช้งาน
+    questions = QuestionModel.objects.filter(is_active=True).order_by('id')
+    if not questions.exists():
+        messages.error(request, "แบบประเมินยังไม่ถูกเปิดใช้งาน")
+        return redirect('booking_detail', booking_id=booking.id)
+
+    # -----------------------------
+    # POST: validate + save answers
+    # -----------------------------
+    if request.method == "POST":
+        # ✅ 1) ตรวจว่าตอบครบทุกข้อก่อน
+        missing = []
+        answers = {}
 
         for q in questions:
-            key = f'question_{q.id}'
+            key = f"question_{q.id}"
             val = request.POST.get(key)
-            if val:
-                BookingQuestionResponse.objects.create(
+            if not val:
+                missing.append(q.id)
+            else:
+                answers[q.id] = val
+
+        if missing:
+            messages.error(request, "กรุณาตอบให้ครบทุกข้อก่อนส่งแบบประเมิน")
+            # ส่งกลับหน้าเดิม (จะไม่บันทึกอะไรลง DB)
+            qr_data = _ensure_booking_qr(request, booking)
+            return render(request, "booking/questionnaire.html", {
+                "booking": booking,
+                "questions": questions,
+                "qr_data": qr_data,
+                "missing": missing,  # (ถ้าจะเอาไปไฮไลท์ใน template)
+            })
+
+        # ✅ 2) บันทึกแบบไม่ลบของเก่าทิ้ง (ถ้าทำซ้ำจะ update)
+        with transaction.atomic():
+            for q in questions:
+                BookingQuestionResponse.objects.update_or_create(
                     booking=booking,
+                    user=request.user,
                     question=q,
-                    answer=val,
-                    user=request.user
+                    defaults={"answer": answers[q.id]},
                 )
 
-        messages.success(request, 'ขอบคุณที่ทำแบบประเมินค่ะ')
-        # Ensure a persistent QR image exists for this booking (one booking -> one QR)
-        try:
-            full_q_url = request.build_absolute_uri(request.path)
-            if not getattr(booking, 'qr_code', None):
-                import qrcode
-                import io as _io
-                img = qrcode.make(full_q_url)
-                buf = _io.BytesIO()
-                img.save(buf, format='PNG')
-                buf.seek(0)
-                filename = f'booking_{booking.id}_questionnaire.png'
-                booking.qr_code.save(filename, ContentFile(buf.read()), save=True)
-            qr_data = booking.qr_code.url if booking.qr_code else _generate_qr_data_uri(full_q_url)
-        except Exception:
-            qr_data = _generate_qr_data_uri(request.build_absolute_uri(request.path))
+        messages.success(request, "ขอบคุณที่ทำแบบประเมินค่ะ")
+        qr_data = _ensure_booking_qr(request, booking)
 
-        return render(request, 'booking/questionnaire_thanks.html', {
-            'booking': booking,
-            'qr_data': qr_data,
+        return render(request, "booking/questionnaire_thanks.html", {
+            "booking": booking,
+            "qr_data": qr_data,
         })
 
-    # For GET, prefer an existing persistent booking.qr_code; generate/save if missing
+    # -----------------------------
+    # GET: show questionnaire
+    # -----------------------------
+    qr_data = _ensure_booking_qr(request, booking)
+    return render(request, "booking/questionnaire.html", {
+        "booking": booking,
+        "questions": questions,
+        "qr_data": qr_data,
+    })
+
+
+def _ensure_booking_qr(request, booking):
+    """สร้าง/ดึง QR ของ booking แบบ persistent"""
     try:
         full_q_url = request.build_absolute_uri(request.path)
-        if not getattr(booking, 'qr_code', None):
+
+        # ถ้ายังไม่มีไฟล์ qr_code ก็สร้างแล้ว save
+        if not getattr(booking, "qr_code", None):
             import qrcode
             import io as _io
+
             img = qrcode.make(full_q_url)
             buf = _io.BytesIO()
-            img.save(buf, format='PNG')
+            img.save(buf, format="PNG")
             buf.seek(0)
-            filename = f'booking_{booking.id}_questionnaire.png'
+            filename = f"booking_{booking.id}_questionnaire.png"
             booking.qr_code.save(filename, ContentFile(buf.read()), save=True)
-        qr_data = booking.qr_code.url if booking.qr_code else _generate_qr_data_uri(full_q_url)
-    except Exception:
-        qr_data = _generate_qr_data_uri(request.build_absolute_uri(request.path))
 
-    return render(request, 'booking/questionnaire.html', {
-        'booking': booking,
-        'questions': questions,
-        'qr_data': qr_data,
-    })
+        return booking.qr_code.url if booking.qr_code else _generate_qr_data_uri(full_q_url)
+
+    except Exception:
+        return _generate_qr_data_uri(request.build_absolute_uri(request.path))
 
 
 @login_required
@@ -1129,6 +1391,7 @@ def booking_responses_admin_view(request):
 def booking_responses_summary_view(request):
     """Show bookings with counts of questionnaire responses and links to view/export per booking."""
     from django.db.models import Count
+    from django.utils import timezone
 
     # อ่านรูปแบบการเรียงลำดับจาก query string
     # - newest: การจองล่าสุดก่อน (ค่าเริ่มต้น)
@@ -1140,9 +1403,9 @@ def booking_responses_summary_view(request):
     )
 
     if order == 'oldest':
-        bookings = base_qs.order_by('created_at')
+        bookings = list(base_qs.order_by('created_at'))
     else:  # 'newest'
-        bookings = base_qs.order_by('-created_at')
+        bookings = list(base_qs.order_by('-created_at'))
 
     # เตรียมสถิติแบบละเอียดจากคำตอบของแบบประเมิน
     # - respondent_count: จำนวนผู้ใช้ที่ทำแบบประเมิน (distinct user)
@@ -1161,6 +1424,7 @@ def booking_responses_summary_view(request):
         'respondents': set(),
         'scores': [],
     })
+    all_scores = []
 
     # ดึงคำตอบทั้งหมดของทุก booking มากลุ่มใน Python
     all_responses = BookingQuestionResponse.objects.values('booking_id', 'answer', 'user_id')
@@ -1174,6 +1438,7 @@ def booking_responses_summary_view(request):
         score = answer_score.get(r['answer'])
         if score is not None:
             stat['scores'].append(score)
+            all_scores.append(score)
 
     # คำนวณค่าเฉลี่ยและส่วนเบี่ยงเบนต่อ booking แล้วผูกใส่ object
     for b in bookings:
@@ -1200,9 +1465,32 @@ def booking_responses_summary_view(request):
             b.avg_score = None
             b.stddev_score = None
 
+    total_bookings = len(bookings)
+    total_respondents = sum(getattr(b, 'respondent_count', 0) or 0 for b in bookings)
+    if all_scores:
+        avg_all = round(sum(all_scores) / len(all_scores), 2)
+    else:
+        avg_all = None
+
+    selected_order_label = "ใหม่ล่าสุดก่อน" if order != "oldest" else "เก่าที่สุดก่อน"
+    today = timezone.localdate()
+    now = timezone.localtime()
+
     return render(request, 'admin_panel/booking/booking_responses_summary.html', {
+        'title': 'รายงานการประเมิน (สรุป)',
+        'today': today,
+        'now': now,
         'bookings': bookings,
         'order': order,
+        'filters': {
+            'order': order,
+        },
+        'selected_order_label': selected_order_label,
+        'summary': {
+            'total_bookings': total_bookings,
+            'total_respondents': total_respondents,
+            'avg_score': avg_all,
+        }
     })
 
 
@@ -1210,31 +1498,36 @@ def booking_responses_summary_view(request):
 # ส่วนที่ 3 หมวดหมู่ระบบการจอง
 # =====================================================================
 
-
-
-
-
-# =====================================================================
-# ส่วนที่ 4 หมวดหมู่จัดการหลังบ้านสำหรับ Admin
-# =====================================================================
-# =====================================================================
-# BOOKING MANAGEMENT (Admin)
-# =====================================================================
-
 @login_required
 @user_passes_test(is_staff_or_admin)
 def approve_bookings_view(request):
-    pending_bookings = Booking.objects.filter(
+    sort = request.GET.get('sort', 'oldest')
+    date = request.GET.get('date', '').strip()
+    session = request.GET.get('session', '').strip()
+
+    qs = Booking.objects.filter(
         Q(Re_status='pending') | Q(Re_status__isnull=True) | Q(Re_status='')
-    ).order_by('created_at')
-    
-    approved_bookings = Booking.objects.filter(
-        Re_status='approved'
-    ).order_by('-created_at')[:20]
+    )
+
+    if date:
+        qs = qs.filter(Re_date=date)
+
+    if session in ('morning', 'afternoon'):
+        qs = qs.filter(visit_session=session)
+
+    if sort == 'newest':
+        qs = qs.order_by('-created_at', '-id')
+    else:
+        qs = qs.order_by('created_at', 'id')
+
+    approved_bookings = Booking.objects.filter(Re_status='approved').order_by('-created_at')[:20]
 
     return render(request, 'admin_panel/booking/approve_bookings.html', {
-        'bookings': pending_bookings,
-        'approved_history': approved_bookings
+        'bookings': qs,
+        'approved_history': approved_bookings,
+        'sort': sort,
+        'filter_date': date,
+        'filter_session': session,
     })
 
 
@@ -1249,11 +1542,13 @@ def manage_speakers_view(request):
     รายการ Booking ที่อนุมัติแล้ว แต่ยังไม่ได้มอบหมายวิทยากร
     """
     pending_assignments = Booking.objects.filter(
-        Re_status='approved',
-        speaker_assignment__isnull=True
+        Re_status='approved'
+    ).filter(
+        Q(speaker_assignment__isnull=True) | Q(speaker_assignment__status='rejected')
     ).order_by('Re_date')
 
-    speakers = Speaker.objects.all()
+    # แสดงเฉพาะวิทยากรที่ยังมีบัญชีผู้ใช้และยังใช้งานได้
+    speakers = Speaker.objects.filter(user__isnull=False, user__is_active=True)
 
     if request.method == 'POST':
         booking_id = request.POST.get('booking_id')
@@ -1288,7 +1583,7 @@ def manage_speakers_view(request):
     return render(request, 'admin_panel/speakers/manage_speakers.html', {
         'pending_assignments': pending_assignments,
         'speakers': speakers,
-        'title': 'จัดการวิทยากร'
+        'title': 'จัดการวิทยากร',
     })
 
 @login_required
@@ -1298,12 +1593,13 @@ def speaker_assign_from_booking_view(request, booking_id):
     มอบหมายวิทยากรจากหน้า Booking โดยตรง
     """
     booking = get_object_or_404(Booking, id=booking_id)
-    speakers = Speaker.objects.all()
+    # แสดงเฉพาะวิทยากรที่ยังมีบัญชีผู้ใช้และยังใช้งานได้
+    speakers = Speaker.objects.filter(user__isnull=False, user__is_active=True)
 
     if request.method == 'POST':
         # --- จุดที่แก้ไข 1: เปลี่ยนจาก 'speaker_id' เป็น 'speaker' ให้ตรงกับ name ใน HTML ---
-        speaker_id = request.POST.get('speaker') 
-        
+        speaker_id = request.POST.get('speaker')
+
         # ดึง Object วิทยากร
         speaker = get_object_or_404(Speaker, id=speaker_id)
 
@@ -1340,15 +1636,21 @@ def speaker_assign_from_booking_view(request, booking_id):
                 )
 
                 # อัปเดตสถานะการจอง (ถ้าต้องการ)
-                booking.Re_status = 'approved' # หรือ 'confirmed' ตามที่คุณตั้งค่าไว้
-                booking.save()
+                booking.Re_status = 'confirmed'
+                # บันทึกผู้ดำเนินการและเวลา (เพื่อให้หน้า booking detail แสดงผู้อนุมัติ/วันที่อนุมัติ)
+                if not booking.decided_by_id:
+                    booking.decided_by = request.user
+                if not booking.decided_at:
+                    booking.decided_at = timezone.now()
+
+                booking.save(update_fields=['Re_status', 'decided_by', 'decided_at'])
 
                 messages.success(
-                    request, 
-                    f'มอบหมายงานให้คุณ {speaker.name} เรียบร้อยแล้ว (รหัส: {assignment.assignment_id})'
+                    request,
+                    f'มอบหมายงานให้คุณ {speaker.name} เรียบร้อยแล้ว'
                 )
                 # เช็คชื่อ URL ใน redirect ให้ตรงกับ urls.py ของคุณ (เช่น 'approve_bookings')
-                return redirect('approve_bookings')
+                return redirect('manage_speakers')
 
         except Exception as e:
             messages.error(request, f'เกิดข้อผิดพลาด: {e}')
@@ -1418,7 +1720,7 @@ def speaker_assign_confirm_view(request, assignment_id):
 def speaker_assignment_detail_view(request, assignment_id):
     # ดึงข้อมูลงาน ถ้าไม่เจอส่ง 404
     assignment = get_object_or_404(SpeakerAssignment, id=assignment_id)
-    
+
     # ตรวจสอบสิทธิ์ (ป้องกันวิทยากรแอบดูงานของคนอื่น)
     if not request.user.is_staff and assignment.speaker.user != request.user:
         messages.error(request, "คุณไม่มีสิทธิ์เข้าถึงข้อมูลงานนี้")
@@ -1533,9 +1835,16 @@ def admin_edit_museum_view(request):
 @user_passes_test(is_staff_or_admin)
 def manage_silk_patterns_view(request):
     """หน้ารายการลายผ้าไหม"""
-    patterns = SilkPattern.objects.all().order_by('target_index')
+    from collections import defaultdict
+    patterns = SilkPattern.objects.all().order_by('target_file', 'target_index')
+    grouped_patterns = defaultdict(list)
+    for p in patterns:
+        grouped_patterns[p.target_file or 'ไม่ระบุไฟล์ .mind'].append(p)
+    # ส่งเป็น list of tuples เพื่อให้วนใน template ได้ง่าย
+    grouped_patterns = list(grouped_patterns.items())
     return render(request, 'admin_panel/Silk/manage_silk.html', {
-        'patterns': patterns
+        'grouped_patterns': grouped_patterns,
+        'patterns': patterns,  # เผื่อ template ใช้ตัวเดิม
     })
 
 # =====================================================================
@@ -1559,21 +1868,21 @@ def ajax_workshops_by_date_view(request):
     date_str = request.GET.get('date')
     if not date_str:
         return JsonResponse({'workshops': []})
-    
+
     # หากิจกรรมที่มีการจัดในวันที่เลือก (เทียบกับ start_date)
     # และสถานะต้องเป็น active
     workshops = Workshop.objects.filter(
-        start_date=date_str, 
+        start_date=date_str,
         is_active=True
     )
-    
+
     data = []
     for ws in workshops:
         # คำนวณที่นั่งที่ถูกจองไปแล้ว
         # (นับจำนวน WorkshopBooking ที่จองเข้ามาในกิจกรรมนี้)
         booked_count = WorkshopBooking.objects.filter(workshop=ws).count()
         remaining = ws.max_participants - booked_count
-        
+
         # ส่งกลับเฉพาะกิจกรรมที่ยังมีที่นั่งว่าง
         if remaining > 0:
             data.append({
@@ -1581,7 +1890,7 @@ def ajax_workshops_by_date_view(request):
                 'title': ws.title,
                 'remaining': remaining
             })
-            
+
     return JsonResponse({'workshops': data})
 
 def booking_list_api(request):
@@ -1881,42 +2190,6 @@ def silkpattern_detail_api(request, target_index: int):
 # SILK PATTERN : AR SCAN (MindAR)
 # =====================================================================
 
-def silk_ar_scan_view(request):
-    """หน้า AR Scan (MindAR)"""
-    silk_list = []
-    for s in SilkPattern.objects.order_by('target_index'):
-        silk_list.append({
-            "pk": s.pk,
-            "target_index": s.target_index,
-            "Si_ID": s.Si_ID,
-            "name": s.Si_name,
-            "address": s.Si_address,
-            "type": s.Si_type,
-            "color": s.Si_color,
-            "history": s.Si_history,
-            "image_url": request.build_absolute_uri(s.reference.url) if s.reference else "",
-            "model_url": request.build_absolute_uri(s.model_3d.url) if s.model_3d else "",
-            "detail_url": request.build_absolute_uri(reverse('silk_detail', args=[s.pk]))
-        })
-
-    return render(request, "museum/silk/silk_ar_scan.html", {
-        "silk_json": json.dumps(silk_list, ensure_ascii=False)
-    })
-
-
-def silk_ar_view(request, pk):
-    """หน้า AR สำหรับผ้าไหมแต่ละรายการ (single item)
-    แสดงโมเดล 3D ผ่าน model-viewer และ overlay ข้อมูลที่มา
-    """
-    s = get_object_or_404(SilkPattern, pk=pk)
-    context = {
-        'silk': s,
-        'model_url': request.build_absolute_uri(s.model_3d.url) if s.model_3d else '',
-        'image_url': request.build_absolute_uri(s.reference.url) if s.reference else '',
-    }
-    return render(request, 'museum/silk/silk_ar_detail.html', context)
-
-
 def silk_qr_view(request, pk):
     """สร้าง QR code (PNG) ชี้ไปยังหน้า AR เฉพาะผ้า
     คืนค่าเป็น HttpResponse image/png (ไม่บันทึกลง DB)
@@ -1955,12 +2228,12 @@ def silk_qr_view(request, pk):
 @login_required
 def booking_rate_view(request, pk):
     booking = get_object_or_404(Booking, pk=pk)
-    
+
     if booking.Us_ID != request.user:
         return redirect('home')
-    
-    if booking.Re_status != 'approved':
-        messages.warning(request, "ต้องได้รับการอนุมัติก่อนจึงจะให้คะแนนได้")
+
+    if booking.Re_status != 'completed':
+        messages.warning(request, "ต้องปิดงานก่อนจึงจะทำแบบประเมินได้")
         return redirect('booking_history')
 
     if request.method == 'POST':
@@ -1988,138 +2261,479 @@ def booking_rate_view(request, pk):
 # =====================================================================
 # ส่วนที่ 8 หมวดหมู่ระบบวิทยากร
 # =====================================================================
+from django.db.models import Avg, Count
+# is_speaker ต้องมีอยู่แล้วในไฟล์คุณ
+
 def speaker_home(request):
     """หน้าหลักวิทยากร (Public)"""
-    return render(request, 'speaker/speaker_base.html')
+    return render(request, "speaker/speaker_base.html")
+
 
 def speaker_list_view(request):
     speakers = Speaker.objects.select_related("user").order_by("name")
     return render(request, "speaker/list.html", {"speakers": speakers})
 
+
 def speaker_detail_view(request, speaker_id):
     speaker = get_object_or_404(Speaker, id=speaker_id)
-    # ตารางงาน (เฉพาะที่ Complete แล้วหรือ Public)
-    assignments = SpeakerSchedule.objects.filter(speaker=speaker) 
+    assignments = SpeakerSchedule.objects.filter(speaker=speaker)
     return render(request, "speaker/detail.html", {
-        "speaker": speaker, "assignments": assignments
+        "speaker": speaker,
+        "assignments": assignments
     })
 
+
 def speaker_schedule_view(request):
-    qs = SpeakerAssignment.objects.select_related("speaker").filter(status='accepted').order_by("assigned_at")
+    qs = (
+        SpeakerAssignment.objects
+        .select_related("speaker")
+        .filter(status="accepted")
+        .order_by("assigned_at")
+    )
     return render(request, "speaker/speaker_schedule.html", {"assignments": qs})
 
 
-# --- Speaker Portal (สำหรับคนที่เป็นวิทยากร) ---
+# =========================
+# SPEAKER PORTAL (LOGIN)
+# =========================
+# เพิ่ม import ถ้ายังไม่มี
+
 @login_required
 @user_passes_test(is_speaker)
 def speaker_dashboard(request):
-    try:
-        speaker = Speaker.objects.get(user=request.user)
-    except Speaker.DoesNotExist:
-        # กรณีเป็น Staff แต่อาจไม่มี Record Speaker
+    speaker = Speaker.objects.filter(user=request.user).first()
+    if not speaker:
         messages.warning(request, "คุณไม่มีโปรไฟล์วิทยากร")
-        return redirect('home')
+        return redirect("home")
 
-    # แยกงานตามสถานะเพื่อแสดงแยกในแดชบอร์ด
-    assignments = SpeakerAssignment.objects.filter(speaker=speaker).order_by('-assigned_at')
-    # Treat 'assigned' (set by admin) as pending from speaker's perspective
-    pending_assignments = assignments.filter(status__in=['pending', 'assigned'])
-    accepted_assignments = assignments.filter(status__in=['accepted', 'confirmed'])
-    completed_assignments = assignments.filter(status='completed')
+    assignments = SpeakerAssignment.objects.filter(speaker=speaker).order_by("-assigned_at")
 
-    return render(request, 'speaker/dashboard.html', {
-        'speaker': speaker,
-        'assignments': assignments,
-        'pending_assignments': pending_assignments,
-        'accepted_assignments': accepted_assignments,
-        'completed_assignments': completed_assignments,
+    pending_assignments = assignments.filter(status__in=["pending", "assigned"])
+    accepted_assignments = assignments.filter(status__in=["accepted", "confirmed"])
+    completed_assignments = assignments.filter(status="completed")
+
+    # ✅ เพิ่มบรรทัดนี้
+    rejected_assignments = assignments.filter(status="rejected")
+
+    uploads = (
+        SpeakerWorkUpload.objects
+        .filter(speaker=speaker)
+        .prefetch_related("images")
+        .order_by("-created_at")[:3]
+    )
+
+    report_ctx = _get_speaker_report_context(speaker)
+
+    context = {
+        "speaker": speaker,
+        "assignments": assignments,
+        "pending_assignments": pending_assignments,
+        "accepted_assignments": accepted_assignments,
+        "completed_assignments": completed_assignments,
+
+        # ✅ เพิ่มบรรทัดนี้
+        "rejected_assignments": rejected_assignments,
+
+        "uploads": uploads,
+    }
+    context.update(report_ctx)
+
+    return render(request, "speaker/dashboard.html", context)
+
+@login_required
+@user_passes_test(is_speaker)
+def speaker_pending_view(request):
+    """งานที่ยังไม่ได้รับ (หน้าแยก)"""
+    speaker = get_object_or_404(Speaker, user=request.user)
+
+    assignments = (
+        SpeakerAssignment.objects
+        .filter(speaker=speaker, status__in=["pending", "assigned"])
+        .select_related("booking", "speaker")
+        .order_by("-assigned_at")
+    )
+
+    return render(request, "speaker/pending.html", {
+        "speaker": speaker,
+        "assignments": assignments,
+        "title": "งานที่ยังไม่ได้รับ",
     })
 
+
+@login_required
+@user_passes_test(is_speaker)
+def speaker_in_progress_view(request):
+    """งานที่กำลังทำ (หน้าแยก)"""
+    speaker = Speaker.objects.filter(user=request.user).first()
+    if not speaker:
+        messages.warning(request, "คุณไม่มีโปรไฟล์วิทยากร")
+        return redirect("home")
+
+    assignments = (
+        SpeakerAssignment.objects
+        .filter(speaker=speaker, status__in=["accepted", "confirmed"])
+        .select_related("booking")
+        .order_by("-assigned_at")
+    )
+
+    return render(request, "speaker/in_progress.html", {
+        "speaker": speaker,
+        "assignments": assignments,
+        "title": "งานที่กำลังทำ",
+    })
+
+
+@login_required
+@user_passes_test(is_speaker)
+def speaker_completed_view(request):
+    """งานที่เสร็จสิ้น (หน้าแยก)"""
+    speaker = get_object_or_404(Speaker, user=request.user)
+
+    assignments = (
+        SpeakerAssignment.objects
+        .filter(speaker=speaker, status="completed")
+        .select_related("booking")
+        .order_by("-assigned_at")
+    )
+
+    return render(request, "speaker/completed.html", {
+        "speaker": speaker,
+        "assignments": assignments,
+        "title": "งานที่เสร็จสิ้น",
+    })
+
+
+# =========================
+# REPORT HELPERS
+# =========================
+def _get_speaker_report_context(speaker):
+    """คืนค่า context สำหรับรายงาน โดยล็อกเฉพาะข้อมูลของ speaker คนนี้เท่านั้น"""
+
+    # งานที่ผูก booking จริง (ของวิทยากรคนนี้เท่านั้น)
+    assignments = (
+        SpeakerAssignment.objects
+        .select_related("booking", "booking__Us_ID")
+        .filter(speaker=speaker, booking__isnull=False)
+        .order_by("-assigned_at")
+    )
+
+    # --------- 1) SilkPatternRating ----------
+    ratings_qs = (
+        SilkPatternRating.objects
+        .select_related("booking", "silk")
+        .filter(booking__speaker_assignment__speaker=speaker)
+        .order_by("-created_at")
+    )
+
+    rating_summary = ratings_qs.aggregate(
+        avg_q1=Avg("q1_display"),
+        avg_q2=Avg("q2_knowledge"),
+        avg_q3=Avg("q3_quality"),
+        avg_q4=Avg("q4_variety"),
+        avg_q5=Avg("q5_colors"),
+        avg_q6=Avg("q6_ar_experience"),
+        avg_q7=Avg("q7_guide"),
+        avg_q8=Avg("q8_facility"),
+        avg_q9=Avg("q9_price"),
+        avg_q10=Avg("q10_recommend"),
+        total=Count("id"),
+    )
+
+    # ✅ avg_all (กัน None)
+    avgs = [rating_summary.get(f"avg_q{i}") for i in range(1, 11)]
+    avgs_clean = [a for a in avgs if a is not None]
+    avg_all = (sum(avgs_clean) / len(avgs_clean)) if avgs_clean else 0
+
+    rating_list = list(
+        ratings_qs.values(
+            "id", "booking_id", "group_type", "comment", "created_at",
+            "q1_display", "q2_knowledge", "q3_quality", "q4_variety", "q5_colors",
+            "q6_ar_experience", "q7_guide", "q8_facility", "q9_price", "q10_recommend",
+            "booking__Re_date", "booking__visit_session", "booking__Re_quantity",
+            "booking__Us_ID__username",
+        )
+    )
+
+    # เฉลี่ยต่อใบประเมิน (กัน None)
+    score_fields = [
+        "q1_display", "q2_knowledge", "q3_quality", "q4_variety", "q5_colors",
+        "q6_ar_experience", "q7_guide", "q8_facility", "q9_price", "q10_recommend",
+    ]
+    for r in rating_list:
+        scores = [r[f] for f in score_fields if r.get(f) is not None]
+        r["avg_total"] = (sum(scores) / len(scores)) if scores else 0
+
+    # --------- 2) BookingQuestionResponse ----------
+    responses_qs = (
+        BookingQuestionResponse.objects
+        .select_related("booking", "question", "booking__speaker_assignment")
+        .filter(booking__speaker_assignment__speaker=speaker)
+    )
+
+    # ✅ ทำเป็น list เพื่อแก้/เติม field ได้
+    response_summary = list(
+        responses_qs.values("question_id", "question__question", "answer")
+        .annotate(cnt=Count("id"))
+        .order_by("question_id", "answer")
+    )
+
+    # ✅ map answer (a/b/c/d/e) -> ข้อความตัวเลือก
+    from .models import Question  # กันลืม import
+
+    question_ids = {row["question_id"] for row in response_summary}
+    q_map = {q.id: q for q in Question.objects.filter(id__in=question_ids)}
+
+    choice_field = {
+        "a": "option_a",
+        "b": "option_b",
+        "c": "option_c",
+        "d": "option_d",
+        "e": "option_e",
+    }
+
+    for row in response_summary:
+        q = q_map.get(row["question_id"])
+        ans = (row.get("answer") or "").strip().lower()
+
+        if q and ans in choice_field:
+            row["answer_display"] = getattr(q, choice_field[ans], None) or ans.upper()
+        else:
+            # เผื่อกรณี answer เป็นเลข/ข้อความอื่น
+            row["answer_display"] = row.get("answer") or "-"
+
+    return {
+        "assignments": assignments,
+        "rating_summary": rating_summary,
+        "avg_all": avg_all,
+        "rating_list": rating_list,
+        "response_summary": response_summary,
+    }
+
+
+@login_required
+@user_passes_test(is_speaker)
+def speaker_report_booking_detail(request, booking_id):
+    speaker = Speaker.objects.filter(user=request.user).first()
+    if not speaker:
+        raise Http404()
+
+    # ต้องเป็น booking ที่มอบหมายให้ speaker คนนี้เท่านั้น
+    assignment = get_object_or_404(
+        SpeakerAssignment,
+        speaker=speaker,
+        booking_id=booking_id,
+    )
+
+    booking = assignment.booking
+
+    # 1) แบบ 10 ข้อ (SilkPatternRating)
+    ratings = (
+        SilkPatternRating.objects
+        .filter(booking=booking)
+        .order_by("-created_at")
+    )
+
+    # 2) แบบหลังเข้าชม (BookingQuestionResponse)
+    responses = (
+        BookingQuestionResponse.objects
+        .select_related("question")
+        .filter(booking=booking)
+        .order_by("question_id", "created_at")
+    )
+
+    # map a/b/c/d -> ข้อความตัวเลือก
+    choice_field = {"a": "option_a", "b": "option_b", "c": "option_c", "d": "option_d", "e": "option_e"}
+    for r in responses:
+        ans = (r.answer or "").strip().lower()
+        if ans in choice_field:
+            r.answer_display = getattr(r.question, choice_field[ans], None) or ans.upper()
+        else:
+            r.answer_display = r.answer or "-"
+
+    return render(request, "speaker/report_booking_detail.html", {
+        "speaker": speaker,
+        "booking": booking,
+        "ratings": ratings,
+        "responses": responses,
+    })
+
+# =========================
+# REPORT VIEW
+# =========================
+@login_required
+@user_passes_test(is_speaker)
+def speaker_report_view(request):
+    """หน้ารายงานของวิทยากร (ล็อกเฉพาะคนที่ login เท่านั้น)"""
+    speaker = get_object_or_404(Speaker, user=request.user)
+    ctx = _get_speaker_report_context(speaker)
+    ctx["speaker"] = speaker
+    return render(request, "speaker/report.html", ctx)
+
+
+ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
+MAX_UPLOAD_SIZE = 2 * 1024 * 1024  # 2MB
+
+@login_required
+@user_passes_test(is_speaker)
+def speaker_upload_work_view(request):
+    speaker = Speaker.objects.filter(user=request.user).first()
+    if not speaker:
+        messages.error(request, "ไม่พบโปรไฟล์วิทยากร")
+        return redirect("home")
+
+    # งานที่รับผิดชอบ (ไว้ให้เลือกผูกกับชุดรูป)
+    assignments = (
+        SpeakerAssignment.objects
+        .select_related("booking", "booking__Us_ID")
+        .filter(speaker=speaker, booking__isnull=False)
+        .order_by("-assigned_at")
+    )
+
+    if request.method == "POST":
+        assignment_id = (request.POST.get("assignment_id") or "").strip()
+        title = (request.POST.get("title") or "").strip()
+        note = (request.POST.get("note") or "").strip()
+
+        files = request.FILES.getlist("images")
+        if not files:
+            messages.error(request, "กรุณาเลือกรูปอย่างน้อย 1 รูป")
+            return redirect("speaker_upload_work")
+
+        # ตรวจ assignment (ถ้ามี)
+        assignment_obj = None
+        if assignment_id:
+            assignment_obj = assignments.filter(assignment_id=assignment_id).first()
+            if not assignment_obj:
+                messages.error(request, "ไม่พบงานที่เลือก หรือคุณไม่มีสิทธิ์ใช้งานงานนี้")
+                return redirect("speaker_upload_work")
+
+        # validate files
+        for f in files:
+            ctype = getattr(f, "content_type", "") or ""
+            if ctype not in ALLOWED_CONTENT_TYPES:
+                messages.error(request, "รองรับเฉพาะไฟล์รูป JPG/PNG/WEBP เท่านั้น")
+                return redirect("speaker_upload_work")
+            if f.size and f.size > MAX_UPLOAD_SIZE:
+                messages.error(request, "ไฟล์รูปต้องมีขนาดไม่เกิน 2MB ต่อรูป")
+                return redirect("speaker_upload_work")
+
+        # save
+        with transaction.atomic():
+            upload = SpeakerWorkUpload.objects.create(
+                speaker=speaker,
+                assignment=assignment_obj,
+                title=title,
+                note=note,
+            )
+            SpeakerWorkImage.objects.bulk_create([
+                SpeakerWorkImage(upload=upload, image=f) for f in files
+            ])
+
+        messages.success(request, "อัปโหลดรูปผลงานเรียบร้อยแล้ว")
+        return redirect("speaker_upload_work")
+
+    # โชว์รายการล่าสุด
+    uploads = (
+        SpeakerWorkUpload.objects
+        .filter(speaker=speaker)
+        .prefetch_related("images")
+        .order_by("-created_at")[:12]
+    )
+
+    return render(request, "speaker/upload_work.html", {
+        "speaker": speaker,
+        "assignments": assignments,
+        "uploads": uploads,
+    })
+
+
+# =========================
+# ASSIGNMENT LIST / DETAIL
+# =========================
 @login_required
 @user_passes_test(is_speaker)
 def speaker_assignment_list(request):
     speaker = get_object_or_404(Speaker, user=request.user)
-    status = request.GET.get('status')
+
+    status = request.GET.get("status")
     assignments = SpeakerAssignment.objects.filter(speaker=speaker)
     if status:
         assignments = assignments.filter(status=status)
-    return render(request, 'speaker/speaker_assign.html', {
-        'assignments': assignments, 'current_status': status, 'speaker': speaker,
+
+    return render(request, "speaker/speaker_assign.html", {
+        "assignments": assignments,
+        "current_status": status,
+        "speaker": speaker,
     })
 
 
 @login_required
 @user_passes_test(is_speaker)
 def speaker_assignment_detail(request, assignment_id):
-    # ลองหาแบบไม่เช็ค user ดูก่อน
     assignment = get_object_or_404(SpeakerAssignment, assignment_id=assignment_id)
-    
-    # ตรวจสอบว่าใครเป็นเจ้าของงานนี้ (พิมพ์ออกมาดูที่ Terminal)
-    if assignment.speaker and assignment.speaker.user:
-        print(f"Owner is: {assignment.speaker.user.username}")
-        print(f"Current User is: {request.user.username}")
-    else:
-        print("This assignment has no user linked to the speaker!")
 
-    # ถ้าเจ้าของไม่ตรงกัน แต่อยากให้เข้าดูได้แค่เจ้าของ ให้เช็คแบบนี้แทน
-    if assignment.speaker.user != request.user:
+    # ✅ ล็อกสิทธิ์: ดูได้เฉพาะงานของตัวเอง
+    if not assignment.speaker or not assignment.speaker.user or assignment.speaker.user != request.user:
         raise Http404("You do not have permission to view this assignment.")
 
-    booking = getattr(assignment, 'booking', None)
-    return render(request, 'speaker/assignment_detail.html', {
-        'assignment': assignment,
-        'booking': booking,
+    booking = getattr(assignment, "booking", None)
+    return render(request, "speaker/assignment_detail.html", {
+        "assignment": assignment,
+        "booking": booking,
     })
 
+
+# =========================
+# ACTIONS (ACCEPT / COMPLETE)
+# =========================
 @login_required
 @user_passes_test(is_speaker)
 def accept_assignment(request, assignment_id):
-    """Allow the assigned speaker to accept a pending assignment.
-
-    Supports lookup by numeric PK or by string `assignment_id`.
-    Only the speaker who owns the assignment may accept it.
-    """
-    # Try numeric PK first, restricting to assignments belonging to this user
+    """Speaker รับงาน (รองรับทั้ง pk หรือ assignment_id)"""
     try:
         assignment = SpeakerAssignment.objects.get(pk=assignment_id, speaker__user=request.user)
     except (SpeakerAssignment.DoesNotExist, ValueError):
         assignment = get_object_or_404(SpeakerAssignment, assignment_id=assignment_id, speaker__user=request.user)
 
-    # Only allow accepting when currently pending/assigned
-    if assignment.status not in ('pending', 'assigned'):
-        messages.warning(request, 'ไม่สามารถรับงานได้ เนื่องจากสถานะไม่ใช่รอดำเนินการ')
-        redirect_id = getattr(assignment, 'assignment_id', None) or assignment.id
-        return redirect('speaker_assignment_detail', assignment_id=redirect_id)
+    if assignment.status not in ("pending", "assigned"):
+        messages.warning(request, "ไม่สามารถรับงานได้ เนื่องจากสถานะไม่ใช่รอดำเนินการ")
+        redirect_id = getattr(assignment, "assignment_id", None) or assignment.id
+        return redirect("speaker_assignment_detail", assignment_id=redirect_id)
 
-    assignment.status = 'accepted'
-    assignment.save()
+    assignment.status = "accepted"
+    assignment.save(update_fields=["status"])
     messages.success(request, "รับงานเรียบร้อยแล้ว")
 
-    redirect_id = getattr(assignment, 'assignment_id', None) or assignment.id
-    return redirect('speaker_assignment_detail', assignment_id=redirect_id)
+    redirect_id = getattr(assignment, "assignment_id", None) or assignment.id
+    return redirect("speaker_assignment_detail", assignment_id=redirect_id)
+
 
 @login_required
 @user_passes_test(is_speaker)
 def complete_assignment(request, assignment_id):
-    """Mark an assignment complete — only by its assigned speaker and only
-    when it has previously been accepted.
-    """
+    """Speaker ปิดงาน (ต้อง accepted/confirmed ก่อน)"""
     try:
         assignment = SpeakerAssignment.objects.get(pk=assignment_id, speaker__user=request.user)
     except (SpeakerAssignment.DoesNotExist, ValueError):
         assignment = get_object_or_404(SpeakerAssignment, assignment_id=assignment_id, speaker__user=request.user)
 
-    # Only allow completion if assignment was accepted/confirmed already
-    if assignment.status not in ('accepted', 'confirmed'):
-        messages.warning(request, 'ไม่สามารถปิดงานได้ ต้องรับงานก่อนจึงจะปิดงานได้')
-        redirect_id = getattr(assignment, 'assignment_id', None) or assignment.id
-        return redirect('speaker_assignment_detail', assignment_id=redirect_id)
+    if assignment.status not in ("accepted", "confirmed"):
+        messages.warning(request, "ไม่สามารถปิดงานได้ ต้องรับงานก่อนจึงจะปิดงานได้")
+        redirect_id = getattr(assignment, "assignment_id", None) or assignment.id
+        return redirect("speaker_assignment_detail", assignment_id=redirect_id)
 
-    assignment.status = 'completed'
-    assignment.save()
-    messages.success(request, 'ปิดงานเรียบร้อย')
-    return redirect('speaker_dashboard')
+    assignment.status = "completed"
+    assignment.save(update_fields=["status"])
 
+    # อัปเดต booking ที่ผูกกับ assignment (OneToOne) ให้เสร็จสิ้นด้วย
+    if assignment.booking:
+        assignment.booking.Re_status = "completed"
+        assignment.booking.save(update_fields=["Re_status"])
+        messages.success(request, "ปิดงานเรียบร้อย")
+    else:
+        messages.warning(request, "ไม่พบ booking ที่เกี่ยวข้องกับ assignment นี้")
+
+    return redirect("speaker_dashboard")
 # =====================================================================
 # ส่วนที่ 8 หมวดหมู่ระบบวิทยากร
 # =====================================================================
@@ -2171,109 +2785,10 @@ def admin_dashboard_view(request):
 @login_required
 @user_passes_test(is_staff_or_admin)
 def admin_report_view(request):
-    """หน้ารายงานสรุปข้อมูลผ้า กิจกรรม การจอง และผลการประเมิน"""
-
-    # -------------------------
-    # 1) สรุปข้อมูลลายผ้าไหม
-    # -------------------------
-    silk_stats = {
-        'total_patterns': SilkPattern.objects.count(),
-        'total_silk_ratings': SilkPatternRating.objects.count(),
-    }
-
-    top_silk_patterns = (
-        SilkPattern.objects
-        .annotate(rating_count=Count('ratings'))
-        .order_by('-rating_count', 'Si_name')[:5]
-    )
-
-    # -------------------------
-    # 2) สรุปข้อมูลกิจกรรม/เวิร์กช็อป
-    # -------------------------
-    workshop_stats = {
-        'total_workshops': Workshop.objects.count(),
-        'active_workshops': Workshop.objects.filter(is_active=True).count(),
-        'total_workshop_bookings': WorkshopBooking.objects.count(),
-    }
-
-    top_workshops = (
-        Workshop.objects
-        .annotate(booking_count=Count('workshopbooking'))
-        .order_by('-booking_count', 'title')[:5]
-    )
-
-    # -------------------------
-    # 3) สรุปจำนวนการจองเข้าชม
-    # -------------------------
-    booking_stats = {
-        'total_bookings': Booking.objects.count(),
-        'pending': Booking.objects.filter(Re_status='pending').count(),
-        'approved': Booking.objects.filter(Re_status='approved').count(),
-        'rejected': Booking.objects.filter(Re_status='rejected').count(),
-    }
-
-    # จำนวนการจองรายเดือนย้อนหลังประมาณ 6 เดือน
-    today = timezone.now().date()
-    six_months_ago = today - timedelta(days=180)
-    bookings_by_month_qs = (
-        Booking.objects.filter(Re_date__gte=six_months_ago)
-        .annotate(month=TruncMonth('Re_date'))
-        .values('month')
-        .annotate(count=Count('id'))
-        .order_by('month')
-    )
-    bookings_by_month = list(bookings_by_month_qs)
-
-    # -------------------------
-    # 4) สรุปผลการประเมินแบบสอบถาม
-    # -------------------------
-    # 4.1 SurveyRating (คะแนน 1-5)
-    survey_stats = (
-        SurveyRating.objects
-        .values('question_id', 'question__question')
-        .annotate(
-            avg_rating=Avg('rating'),
-            responses=Count('id'),
-        )
-        .order_by('question_id')
-    )
-
-    # 4.2 BookingQuestionResponse (คำตอบตัวเลือก)
-    from collections import defaultdict
-
-    answer_rows = (
-        BookingQuestionResponse.objects
-        .values('question_id', 'question__question', 'answer')
-        .annotate(count=Count('id'))
-        .order_by('question_id', 'answer')
-    )
-
-    question_answer_stats = defaultdict(lambda: {
-        'question_id': None,
-        'question_text': '',
-        'answers': [],
-    })
-
-    for row in answer_rows:
-        qid = row['question_id']
-        qa = question_answer_stats[qid]
-        qa['question_id'] = qid
-        qa['question_text'] = row['question__question']
-        qa['answers'].append({
-            'answer': row['answer'],
-            'count': row['count'],
-        })
+    """ศูนย์รวมรายงาน (ไว้คลิกเข้าไปดูรายงานแต่ละประเภท)"""
 
     context = {
-        'silk_stats': silk_stats,
-        'top_silk_patterns': top_silk_patterns,
-        'workshop_stats': workshop_stats,
-        'top_workshops': top_workshops,
-        'booking_stats': booking_stats,
-        'bookings_by_month': bookings_by_month,
-        'survey_stats': survey_stats,
-        'question_answer_stats': list(question_answer_stats.values()),
-        'today': timezone.now(),
+        'today': timezone.localtime(),
     }
 
     return render(request, 'admin_panel/report/report.html', context)
@@ -2389,7 +2904,7 @@ def admin_report_pdf_view(request):
         ("THSarabunNew", "C:/Windows/Fonts/THSarabunNew.ttf"),
         ("THSarabun", "C:/Windows/Fonts/THSarabun.ttf"),
         ("THSarabunPSK", "C:/Windows/Fonts/THSarabunPSK.ttf"),
-        ("Tahoma", "C:/Windows/Fonts/tahoma.ttf"),
+        ("Tahoma", "C:/Windows/Fonts/tahoma.ttf"),  # มีเกือบทุกเครื่อง และรองรับภาษาไทย
     ]
 
     for font_name, font_path in font_candidates:
@@ -2620,22 +3135,34 @@ def admin_report_pdf_view(request):
 # ---------------------------------------------------------------------
 @login_required
 @user_passes_test(is_staff_or_admin)
+@require_POST
 def update_booking_status(request, booking_id, status):
     booking = get_object_or_404(Booking, pk=booking_id)
 
+    status = (status or "").lower().strip()
+
     if status == 'approved':
         booking.Re_status = 'approved'
-        SpeakerAssignment.objects.filter(
-            booking=booking
-        ).update(status='confirmed')
+        booking.decision_note = None  # (เลือกได้) ล้างเหตุผลเดิมถ้าเคยปฏิเสธมาก่อน
+
+        SpeakerAssignment.objects.filter(booking=booking).update(status='confirmed')
         messages.success(request, f'อนุมัติ #{booking.id} และยืนยันวิทยากรแล้ว')
 
     elif status == 'rejected':
+        reason = (request.POST.get('decision_note') or '').strip()
+
+        if not reason:
+            messages.error(request, 'กรุณากรอกเหตุผลการปฏิเสธก่อน')
+            return redirect('approve_bookings')
+
         booking.Re_status = 'rejected'
-        SpeakerAssignment.objects.filter(
-            booking=booking
-        ).update(status='cancelled')
+        booking.decision_note = reason  # ✅ เก็บเหตุผลไว้ที่นี่
+
+        SpeakerAssignment.objects.filter(booking=booking).update(status='cancelled')
         messages.warning(request, f'ปฏิเสธ #{booking.id} แล้ว')
+
+    else:
+        raise Http404("Invalid status")
 
     booking.decided_by = request.user
     booking.decided_at = timezone.now()
@@ -2657,6 +3184,15 @@ def manage_users_view(request):
             uid = request.POST.get('user_id')
             user = User.objects.filter(id=uid).first()
             if user and user != request.user:
+                # ถ้าเป็นวิทยากร ให้เช็คก่อนว่ามีงานที่รับอยู่หรือไม่
+                speaker = Speaker.objects.filter(user=user).first()
+                if speaker:
+                    active_statuses = ['pending', 'assigned', 'accepted', 'confirmed']
+                    has_active_assignments = speaker.assignments.filter(status__in=active_statuses).exists()
+                    if has_active_assignments:
+                        messages.error(request, 'ไม่สามารถลบวิทยากรคนนี้ได้ เนื่องจากยังมีงานที่ได้รับมอบหมายอยู่')
+                        return redirect('manage_users')
+
                 user.delete()
                 messages.success(request, 'ลบผู้ใช้เรียบร้อยแล้ว')
             else:
@@ -2670,7 +3206,11 @@ def manage_users_view(request):
         last_name = request.POST.get('last_name', '').strip()
         role = request.POST.get('role', 'member')
 
-        if User.objects.filter(username=username).exists():
+        admin_exists = User.objects.filter(is_superuser=True).exists()
+
+        if role == 'admin' and admin_exists:
+            messages.error(request, 'ไม่สามารถเพิ่มแอดมินเพิ่มได้ เนื่องจากมีแอดมินอยู่แล้ว')
+        elif User.objects.filter(username=username).exists():
             messages.error(request, 'ชื่อผู้ใช้นี้มีอยู่แล้ว')
         else:
             with transaction.atomic():
@@ -2694,11 +3234,13 @@ def manage_users_view(request):
         return redirect('manage_users')
 
     users = User.objects.select_related('profile').order_by('-date_joined')
+    admin_exists = users.filter(is_superuser=True).exists()
     return render(request, 'admin_panel/Users/admin_users.html', {
         'users': users,
         'member_count': users.count(),
         'staff_count': users.filter(is_staff=True).count(),
-        'speaker_count': Speaker.objects.count()
+        'speaker_count': Speaker.objects.count(),
+        'can_add_admin': not admin_exists
     })
 
 
@@ -2715,6 +3257,12 @@ def manage_users_edit_view(request, user_id):
         user.is_active = request.POST.get('is_active') == 'on'
 
         role = request.POST.get('role', 'member')
+
+        if role == 'admin':
+            existing_admins = User.objects.filter(is_superuser=True).exclude(id=user.id)
+            if existing_admins.exists():
+                messages.error(request, 'ไม่สามารถกำหนดแอดมินให้ผู้ใช้นี้ได้ เนื่องจากมีแอดมินอยู่แล้ว')
+                return redirect('manage_users')
         user.is_staff = (role == 'admin')
         user.is_superuser = (role == 'admin')
         user.save()
@@ -2744,6 +3292,15 @@ def manage_users_delete_view(request, user_id):
     if user == request.user:
         messages.error(request, 'ไม่สามารถลบบัญชีของตัวเองได้')
     else:
+        # ถ้าเป็นวิทยากร ให้เช็คก่อนว่ามีงานที่รับอยู่หรือไม่
+        speaker = Speaker.objects.filter(user=user).first()
+        if speaker:
+            active_statuses = ['pending', 'assigned', 'accepted', 'confirmed']
+            has_active_assignments = speaker.assignments.filter(status__in=active_statuses).exists()
+            if has_active_assignments:
+                messages.error(request, 'ไม่สามารถลบวิทยากรคนนี้ได้ เนื่องจากยังมีงานที่ได้รับมอบหมายอยู่')
+                return redirect('manage_users')
+
         user.delete()
         messages.success(request, 'ลบผู้ใช้งานเรียบร้อยแล้ว')
     return redirect('manage_users')
@@ -2756,10 +3313,58 @@ def manage_users_delete_view(request, user_id):
 @user_passes_test(is_staff_or_admin)
 def manage_silk_patterns_add_view(request):
     form = SilkPatternForm(request.POST or None, request.FILES or None)
+
     if request.method == 'POST' and form.is_valid():
-        form.save()
-        messages.success(request, 'เพิ่มลายผ้าไหมเรียบร้อยแล้ว')
-        return redirect('manage_silk_patterns')
+        mind_file = request.FILES.get('mind_file')
+
+        # ตรวจสอบนามสกุลไฟล์ .mind ถ้ามีการอัปโหลด
+        if mind_file and not mind_file.name.lower().endswith('.mind'):
+            form.add_error('mind_file', 'กรุณาอัปโหลดเฉพาะไฟล์นามสกุล .mind เท่านั้น')
+        else:
+            # ถ้ามีไฟล์ .mind ใหม่ ให้เซต target_file ใน instance ก่อน save
+            if mind_file:
+                form.instance.target_file = mind_file.name[:100]
+                from .models import SilkPattern
+                mind_name = mind_file.name
+                exists = SilkPattern.objects.filter(target_file=mind_name).exists()
+                if not exists:
+                    form.instance.target_index = 0
+            pattern = form.save()
+
+            # ถ้ามีไฟล์ .mind ให้บันทึกลง static/main/targets
+            if mind_file:
+                import os
+                targets_dir = os.path.join(settings.BASE_DIR, 'main', 'static', 'main', 'targets')
+                os.makedirs(targets_dir, exist_ok=True)
+                dest_path = os.path.join(targets_dir, mind_file.name)
+                with open(dest_path, 'wb+') as destination:
+                    for chunk in mind_file.chunks():
+                        destination.write(chunk)
+
+            # คัดลอกไฟล์ image / model ไปเก็บซ้ำใน static/main/images และ static/main/models
+            try:
+                import os, shutil
+                static_main_dir = os.path.join(settings.BASE_DIR, 'main', 'static', 'main')
+                images_dir = os.path.join(static_main_dir, 'images')
+                models_dir = os.path.join(static_main_dir, 'models')
+                os.makedirs(images_dir, exist_ok=True)
+                os.makedirs(models_dir, exist_ok=True)
+
+                if pattern.image:
+                    src = getattr(pattern.image, 'path', None)
+                    if src and os.path.exists(src):
+                        shutil.copy2(src, os.path.join(images_dir, os.path.basename(src)))
+
+                for field_name in ['model_3d']:
+                    f = getattr(pattern, field_name, None)
+                    src = getattr(f, 'path', None) if f else None
+                    if src and os.path.exists(src):
+                        shutil.copy2(src, os.path.join(models_dir, os.path.basename(src)))
+            except Exception:
+                pass
+
+            messages.success(request, 'เพิ่มลายผ้าไหมเรียบร้อยแล้ว')
+            return redirect('manage_silk_patterns')
 
     return render(request, 'admin_panel/Silk/admin_editsilk.html', {
         'form': form,
@@ -2767,20 +3372,75 @@ def manage_silk_patterns_add_view(request):
     })
 
 
+
 @login_required
 @user_passes_test(is_staff_or_admin)
 def manage_silk_edit_view(request, pattern_id):
+    from .models import SilkPatternGalleryImage
     pattern = get_object_or_404(SilkPattern, id=pattern_id)
     form = SilkPatternForm(request.POST or None, request.FILES or None, instance=pattern)
 
     if request.method == 'POST' and form.is_valid():
-        form.save()
-        messages.success(request, 'แก้ไขข้อมูลเรียบร้อยแล้ว')
-        return redirect('manage_silk_patterns')
+        mind_file = request.FILES.get('mind_file')
+
+        if mind_file and not mind_file.name.lower().endswith('.mind'):
+            form.add_error('mind_file', 'กรุณาอัปโหลดเฉพาะไฟล์นามสกุล .mind เท่านั้น')
+        else:
+            # ถ้ามีไฟล์ .mind ใหม่ ให้เซต target_file ใน instance ก่อน save
+            if mind_file:
+                form.instance.target_file = mind_file.name[:100]
+                mind_name = mind_file.name
+                exists = SilkPattern.objects.filter(target_file=mind_name).exists()
+                if not exists:
+                    form.instance.target_index = 0
+            pattern = form.save()
+
+            # อัปโหลดรูป gallery images (หลายรูป)
+            gallery_files = request.FILES.getlist('gallery_images')
+            for f in gallery_files:
+                SilkPatternGalleryImage.objects.create(silkpattern=pattern, image=f)
+
+            if mind_file:
+                import os
+                targets_dir = os.path.join(settings.BASE_DIR, 'main', 'static', 'main', 'targets')
+                os.makedirs(targets_dir, exist_ok=True)
+                dest_path = os.path.join(targets_dir, mind_file.name)
+                with open(dest_path, 'wb+') as destination:
+                    for chunk in mind_file.chunks():
+                        destination.write(chunk)
+
+            # คัดลอกไฟล์ image / model ไปเก็บซ้ำใน static/main/images และ static/main/models
+            try:
+                import os, shutil
+                static_main_dir = os.path.join(settings.BASE_DIR, 'main', 'static', 'main')
+                images_dir = os.path.join(static_main_dir, 'images')
+                models_dir = os.path.join(static_main_dir, 'models')
+                os.makedirs(images_dir, exist_ok=True)
+                os.makedirs(models_dir, exist_ok=True)
+
+                if pattern.image:
+                    src = getattr(pattern.image, 'path', None)
+                    if src and os.path.exists(src):
+                        shutil.copy2(src, os.path.join(images_dir, os.path.basename(src)))
+
+                for field_name in ['model_3d']:
+                    f = getattr(pattern, field_name, None)
+                    src = getattr(f, 'path', None) if f else None
+                    if src and os.path.exists(src):
+                        shutil.copy2(src, os.path.join(models_dir, os.path.basename(src)))
+            except Exception:
+                pass
+
+            messages.success(request, 'แก้ไขข้อมูลเรียบร้อยแล้ว')
+            return redirect('manage_silk_patterns')
+
+    # ดึงรูป gallery images ทั้งหมดของลายผ้านี้
+    gallery_images = pattern.gallery_images.all() if hasattr(pattern, 'gallery_images') else []
 
     return render(request, 'admin_panel/Silk/admin_editsilk.html', {
         'form': form,
-        'title': f'แก้ไขลายผ้า: {pattern.Si_name}'
+        'title': f'แก้ไขลายผ้า: {pattern.Si_name}',
+        'gallery_images': gallery_images,
     })
 
 
@@ -2837,7 +3497,7 @@ def manage_questions_add_view(request):
             return redirect('manage_questions')
     else:
         form = QuestionForm()
-    
+
     return render(request, 'admin_panel/Question/form_questions.html', {
         'form': form,
         'title': 'เพิ่มคำถามใหม่'
@@ -2857,7 +3517,7 @@ def manage_questions_edit_view(request, question_id):
             return redirect('manage_questions')
     else:
         form = QuestionForm(instance=question)
-    
+
     return render(request, 'admin_panel/Question/form_questions.html', {
         'form': form,
         'title': f'แก้ไขคำถาม: {question.id}'
@@ -2875,7 +3535,7 @@ def manage_questions_delete_view(request, question_id):
 def speaker_edit_view(request, speaker_id):
     # ดึงข้อมูลวิทยากร หรือส่งกลับหน้า 404 ถ้าไม่พบ
     speaker = get_object_or_404(Speaker, id=speaker_id)
-    
+
     # ตรวจสอบสิทธิ์ (ป้องกันไม่ให้วิทยากรคนอื่นมาแก้ข้อมูลกันเอง)
     if request.user.speaker.id != speaker.id:
         return redirect('speaker_dashboard')
@@ -2932,7 +3592,7 @@ def admin_events_add_view(request):
 def workshop_list_view(request):
     # รับวันที่ที่ต้องการดูจาก URL หรือ Default เป็นวันนี้
     target_date = request.GET.get('date', timezone.now().date())
-    
+
     # แก้จาก Workshop.objects.filter(start_date=target_date) เป็นด้านล่างนี้:
     workshops = Workshop.objects.filter(
         start_date__lte=target_date, # เริ่มก่อนหรือตรงกับวันที่เลือก
@@ -2967,7 +3627,7 @@ def admin_events_edit_view(request, workshop_id):
             return redirect("admin_events_list") # กลับหน้า List
     else:
         form = WorkshopForm(instance=workshop)
-    
+
     return render(request, "admin_panel/Evens/admin_events_form.html", {
         "form": form,
         "workshop": workshop,
@@ -2992,13 +3652,13 @@ def manage_speakers_add_view(request):
         user_id = request.POST.get('user_id')
         name = request.POST.get('name')
         bio = request.POST.get('bio')
-        
+
         user = get_object_or_404(User, id=user_id)
         Speaker.objects.create(user=user, name=name, bio=bio)
-        
+
         messages.success(request, 'เพิ่มวิทยากรเรียบร้อยแล้ว')
         return redirect('manage_speakers')
-    
+
     # ดึง User ที่ยังไม่เป็น Speaker มาให้เลือก
     available_users = User.objects.exclude(speaker__isnull=False)
     return render(request, 'admin_panel/speakers/admin_speaker_form.html', {
@@ -3014,11 +3674,12 @@ def manage_speakers_edit_view(request, speaker_id):
     if request.method == 'POST':
         speaker.name = request.POST.get('name')
         speaker.bio = request.POST.get('bio')
-        if 'image' in request.FILES:
-            speaker.image = request.FILES['image']
+        if 'profile_picture' in request.FILES:
+            speaker.profile_picture = request.FILES['profile_picture']
         speaker.save()
-        messages.success(request, 'แก้ไขข้อมูลวิทยากรเรียบรšíอยแล้ว')
-        return redirect('manage_speakers')
+        messages.success(request, 'แก้ไขข้อมูลวิทยากรเรียบร้อยแล้ว')
+        # redirect กลับมาที่หน้า edit เพื่อให้รูปใหม่แสดงทันที
+        return redirect('manage_speakers_edit', speaker_id=speaker.id)
 
     return render(request, 'admin_panel/speakers/admin_speaker_form.html', {
         'speaker': speaker,
@@ -3030,8 +3691,15 @@ def manage_speakers_edit_view(request, speaker_id):
 def manage_speakers_delete_view(request, speaker_id):
     """แอดมินลบวิทยากร"""
     speaker = get_object_or_404(Speaker, id=speaker_id)
-    speaker.delete()
-    messages.success(request, 'ลบวิทยากรเรียบร้อยแล้ว')
+    # เช็คว่าวิทยากรคนนี้ยังมีงานที่ถูกมอบหมายอยู่หรือไม่
+    active_statuses = ['pending', 'assigned', 'accepted', 'confirmed']
+    has_active_assignments = speaker.assignments.filter(status__in=active_statuses).exists()
+
+    if has_active_assignments:
+        messages.error(request, 'ไม่สามารถลบวิทยากรคนนี้ได้ เนื่องจากยังมีงานที่ได้รับมอบหมายอยู่')
+    else:
+        speaker.delete()
+        messages.success(request, 'ลบวิทยากรเรียบร้อยแล้ว')
     return redirect('manage_speakers')
 
 @login_required
@@ -3046,9 +3714,7 @@ def admin_delete_booking_view(request, booking_id):
 def ar_test_view(request):
     # ดึงเฉพาะรายการที่มีไฟล์โมเดล (เก่า หรือ silk/mannequin) และมีการตั้งค่า target_index ไว้
     patterns = SilkPattern.objects.exclude(target_index__isnull=True).filter(
-        Q(model_3d__isnull=False) |
-        Q(silk_model_3d__isnull=False) |
-        Q(mannequin_model_3d__isnull=False)
+        Q(model_3d__isnull=False)
     ).order_by('target_index')
 
     # กำหนด transform เริ่มต้น (หมุน X 90 องศา, scale 1.2, ขยับขึ้น 0.1)
@@ -3066,6 +3732,16 @@ def ar_test_view(request):
     target_file_url = None
     chosen_target = None
     static_targets_dir = os.path.join(settings.BASE_DIR, 'main', 'static', 'main', 'targets')
+
+    # list all .mind files for UI switching
+    mind_files = []
+    try:
+        mind_paths = glob.glob(os.path.join(static_targets_dir, '*.mind'))
+        mind_paths_sorted = sorted(mind_paths, key=os.path.getmtime, reverse=True)
+        mind_files = [os.path.basename(p) for p in mind_paths_sorted]
+    except Exception:
+        mind_files = []
+
     try:
         if mind_param:
             candidate = os.path.join(static_targets_dir, mind_param)
@@ -3074,22 +3750,12 @@ def ar_test_view(request):
                 target_file_url = request.build_absolute_uri(settings.STATIC_URL + f'main/targets/{chosen_target}')
 
         if not target_file_url:
-            # [UPDATED] Prioritize 'targets.mind' (combined file) first!
-            combined_path = os.path.join(static_targets_dir, 'targets.mind')
-            if os.path.exists(combined_path):
-                 chosen_target = 'targets.mind'
-                 target_file_url = request.build_absolute_uri(settings.STATIC_URL + 'main/targets/targets.mind')
-            else:
-                 # If no combined file, look for numbered files (targetsX.mind)
-                 files = glob.glob(os.path.join(static_targets_dir, 'targets*.mind'))
-                 if files:
-                    def extract_num(path):
-                        m = re.search(r'targets(\d+)\.mind$', path)
-                        return int(m.group(1)) if m else -1
-
-                    files_sorted = sorted(files, key=lambda p: (extract_num(p), os.path.getmtime(p)), reverse=True)
-                    chosen_target = os.path.basename(files_sorted[0])
-                    target_file_url = request.build_absolute_uri(settings.STATIC_URL + f'main/targets/{chosen_target}')
+            # Prefer the most recently modified .mind file (covers targets.mind and targetsX.mind)
+            files = glob.glob(os.path.join(static_targets_dir, '*.mind'))
+            if files:
+                newest_path = max(files, key=os.path.getmtime)
+                chosen_target = os.path.basename(newest_path)
+                target_file_url = request.build_absolute_uri(settings.STATIC_URL + f'main/targets/{chosen_target}')
     except Exception:
         target_file_url = None
 
@@ -3120,10 +3786,9 @@ def ar_test_view(request):
     ordered_patterns = list(patterns.order_by('target_index'))
     for p in ordered_patterns:
         # สร้าง URL ให้เป็น absolute เพื่อหลีกเลี่ยงปัญหา CORS/relative path
-        # model เดิม (ถ้ามี) ใช้เป็น fallback ของ silk_model
         base_model_url = request.build_absolute_uri(p.model_3d.url) if getattr(p, 'model_3d', None) else ''
-        silk_model_url = request.build_absolute_uri(p.silk_model_3d.url) if getattr(p, 'silk_model_3d', None) else base_model_url
-        mannequin_model_url = request.build_absolute_uri(p.mannequin_model_3d.url) if getattr(p, 'mannequin_model_3d', None) else ''
+        silk_model_url = base_model_url
+        mannequin_model_url = ''
         # ถ้าใน DB มีค่า transform เฉพาะ ให้ใช้ค่าเหล่านั้น (รองรับ JSON text หรือค่าตายตัว)
         transform_val = default_transform
         try:
@@ -3135,15 +3800,15 @@ def ar_test_view(request):
                     transform_val = p.transform
         except Exception:
             transform_val = default_transform
-        
+
         # [FIX] Logic การ map index
         p_idx = int(p.target_index) if p.target_index is not None else 0
         final_index = p_idx
-        
+
         # ข้าม Logic กรอง Single Target เพื่อให้โหลดครบทุกอัน
         # if single_target_id != -1:
         #     if p_idx != single_target_id:
-        #         continue 
+        #         continue
         #     final_index = 0
 
         patterns_list.append({
@@ -3173,8 +3838,292 @@ def ar_test_view(request):
     context = {
         'patterns_json': patterns_json,
         'target_file_url': target_file_url,
+        'chosen_target': chosen_target,
+        'mind_files': mind_files,
     }
     return render(request, 'main/ar_view.html', context)
+
+@login_required
+@user_passes_test(is_staff_or_admin)
+@require_POST
+def silk_gallery_image_delete(request, image_id):
+    img = get_object_or_404(SilkPatternGalleryImage, id=image_id)
+
+    try:
+        # ลบไฟล์จริงใน storage ก่อน
+        if img.image:
+            img.image.delete(save=False)
+
+        # ลบ record ใน DB
+        img.delete()
+
+        return JsonResponse({"ok": True})
+    except Exception as e:
+        return JsonResponse({"ok": False, "error": str(e)}, status=400)
 # =====================================================================
 # ส่วนที่ 9 หมวดหมู่ระบบแอดมินแดชบอร์ด (CLEAN VERSION)
 # =====================================================================
+# ==============================
+# Work Gallery (Admin)
+# ==============================
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.db.models import Q
+
+@login_required
+@user_passes_test(is_staff_or_admin)
+def work_gallery_view(request):
+    from .models import Speaker, SpeakerWorkUpload
+
+    q = (request.GET.get("q") or "").strip()
+    speaker_id = (request.GET.get("speaker") or "").strip()
+
+    uploads = (
+        SpeakerWorkUpload.objects
+        .select_related("speaker", "assignment")
+        .prefetch_related("images")
+        .all()
+    )
+
+    # ถ้า SpeakerAssignment ของคุณมี FK ไป Booking ชื่อ booking
+    # จะช่วยให้ template เรียก upload.assignment.booking ได้
+    try:
+        uploads = uploads.select_related("assignment__booking")
+    except Exception:
+        pass
+
+    if speaker_id.isdigit():
+        uploads = uploads.filter(speaker_id=int(speaker_id))
+
+    if q:
+        uploads = uploads.filter(
+            Q(title__icontains=q)
+            | Q(note__icontains=q)
+            | Q(speaker__name__icontains=q)
+        )
+
+    speakers = Speaker.objects.all().order_by("name")
+
+    return render(request, "main/work_gallery.html", {
+        "uploads": uploads,
+        "speakers": speakers,
+        "q": q,
+        "speaker_id": speaker_id,
+        "title": "แกลเลอรี่ผลงานวิทยากร",
+    })
+from django.utils import timezone
+from django.db.models import Count, Sum
+from django.shortcuts import render
+from django.contrib.auth.decorators import login_required, user_passes_test
+
+from .models import Booking
+
+
+def is_staff_or_admin(user):
+    return user.is_authenticated and (user.is_staff or user.is_superuser)
+
+
+@login_required
+@user_passes_test(is_staff_or_admin)
+def admin_booking_visit_report_view(request):
+    today = timezone.localdate()
+    now = timezone.localtime()
+
+    # รับค่ากรองจาก GET
+    start_date = (request.GET.get("start_date") or "").strip()
+    end_date = (request.GET.get("end_date") or "").strip()
+    status = (request.GET.get("status") or "").strip()
+
+    # ดึงข้อมูล
+    qs = Booking.objects.select_related("workshop").all()
+
+    # กรองช่วงวันที่
+    if start_date:
+        qs = qs.filter(Re_date__gte=start_date)
+    if end_date:
+        qs = qs.filter(Re_date__lte=end_date)
+
+    # กรองสถานะ
+    if status:
+        qs = qs.filter(Re_status=status)
+
+    qs = qs.order_by("-Re_date", "-id")
+
+    # choices สถานะ
+    try:
+        status_choices = list(Booking._meta.get_field("Re_status").choices)
+    except Exception:
+        status_choices = Booking.STATUS_CHOICES
+
+    selected_status_label = "ทั้งหมด"
+    if status:
+        for value, label in status_choices:
+            if value == status:
+                selected_status_label = label
+                break
+
+    # Summary หลัก
+    total_bookings = qs.count()
+    total_people = qs.aggregate(s=Sum("Re_quantity"))["s"] or 0
+
+    # นับแยกตามสถานะ
+    status_counts = qs.values("Re_status").annotate(c=Count("id"))
+    status_count_map = {row["Re_status"]: row["c"] for row in status_counts}
+
+    # ทำ list สำหรับแสดงผลใน template แบบชัวร์ ไม่ต้องใช้ get_item
+    status_summary = []
+    for value, label in status_choices:
+        status_summary.append(
+            {
+                "value": value,
+                "label": label,
+                "count": status_count_map.get(value, 0),
+            }
+        )
+
+    context = {
+        "title": "รายงานการจองเข้าชม",
+        "today": today,
+        "now": now,
+        "bookings": qs,
+        "status_choices": status_choices,
+        "selected_status_label": selected_status_label,
+        "filters": {
+            "start_date": start_date,
+            "end_date": end_date,
+            "status": status,
+        },
+        "total_bookings": total_bookings,
+        "total_people": total_people,
+        "summary": {
+            "total": total_bookings,
+            "total_people": total_people,
+            "approved": status_count_map.get("approved", 0),
+            "completed": status_count_map.get("completed", 0),
+        },
+        "status_summary": status_summary,
+    }
+
+    return render(request, "admin_panel/report/booking_visit_report.html", context)
+
+
+@login_required
+@user_passes_test(is_staff_or_admin)
+def admin_users_report_view(request):
+    from django.contrib.auth import get_user_model
+    from django.db.models import Count
+    from django.utils import timezone
+
+    from .models import Profile
+
+    UserModel = get_user_model()
+    today = timezone.localdate()
+    now = timezone.localtime()
+
+    total_users = UserModel.objects.count()
+
+    role_counts = (
+        Profile.objects.values("role")
+        .annotate(c=Count("user_id"))
+        .order_by("role")
+    )
+    role_map = {row["role"]: row["c"] for row in role_counts}
+
+    users = (
+        UserModel.objects.select_related("profile")
+        .order_by("-date_joined")
+    )[:50]
+
+    role_label_map = {
+        "member": "สมาชิก",
+        "speaker": "วิทยากร",
+        "admin": "แอดมิน",
+    }
+    for u in users:
+        profile = getattr(u, "profile", None)
+        role = getattr(profile, "role", None)
+        u.profile_role_label = role_label_map.get(role, role or "-")
+
+    context = {
+        "title": "รายงานผู้ใช้",
+        "today": today,
+        "now": now,
+        "users": users,
+        "summary": {
+            "total": total_users,
+            "member": role_map.get("member", 0),
+            "speaker": role_map.get("speaker", 0),
+            "admin": role_map.get("admin", 0),
+        },
+    }
+    return render(request, "admin_panel/report/users_report.html", context)
+
+
+@login_required
+@user_passes_test(is_staff_or_admin)
+def admin_silk_report_view(request):
+    from django.db.models import Count
+    from django.utils import timezone
+
+    from .models import SilkPattern, SilkPatternRating
+
+    today = timezone.localdate()
+    now = timezone.localtime()
+
+    total_patterns = SilkPattern.objects.count()
+    total_ratings = SilkPatternRating.objects.count()
+
+    top_patterns = (
+        SilkPattern.objects.annotate(rating_count=Count("ratings"))
+        .order_by("-rating_count", "Si_name")
+    )[:20]
+
+    top_pattern_ratings = 0
+    if top_patterns:
+        top_pattern_ratings = getattr(top_patterns[0], "rating_count", 0) or 0
+
+    context = {
+        "title": "รายงานผ้าไหม",
+        "today": today,
+        "now": now,
+        "top_patterns": top_patterns,
+        "summary": {
+            "total_patterns": total_patterns,
+            "total_ratings": total_ratings,
+            "top_pattern_ratings": top_pattern_ratings,
+        },
+    }
+    return render(request, "admin_panel/report/silk_report.html", context)
+
+
+@login_required
+@user_passes_test(is_staff_or_admin)
+def admin_events_report_view(request):
+    from django.db.models import Count
+    from django.utils import timezone
+
+    from .models import Workshop, WorkshopBooking
+
+    today = timezone.localdate()
+    now = timezone.localtime()
+
+    total_workshops = Workshop.objects.count()
+    active_workshops = Workshop.objects.filter(is_active=True).count()
+    total_bookings = WorkshopBooking.objects.count()
+
+    top_workshops = (
+        Workshop.objects.annotate(booking_count=Count("workshopbooking"))
+        .order_by("-booking_count", "title")
+    )[:20]
+
+    context = {
+        "title": "รายงานกิจกรรม",
+        "today": today,
+        "now": now,
+        "top_workshops": top_workshops,
+        "summary": {
+            "total_workshops": total_workshops,
+            "active_workshops": active_workshops,
+            "total_bookings": total_bookings,
+        },
+    }
+    return render(request, "admin_panel/report/events_report.html", context)

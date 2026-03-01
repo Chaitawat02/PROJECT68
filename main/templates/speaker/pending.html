@@ -1,0 +1,267 @@
+{% extends "main/base.html" %}
+{% load static %}
+
+{% block title %}งานที่ยังไม่ได้รับ{% endblock %}
+
+{% block content %}
+<div class="min-h-screen py-10 px-4 sm:px-6 lg:px-8 bg-[#FDFBF7]">
+  <div class="max-w-7xl mx-auto space-y-8">
+
+    <!-- Header -->
+    <div class="relative overflow-hidden bg-white/80 border border-white/60 rounded-3xl p-8 shadow-sm">
+      <div class="absolute inset-0 pointer-events-none">
+        <div class="absolute -top-24 -right-24 w-72 h-72 rounded-full bg-amber-100/40 blur-3xl"></div>
+        <div class="absolute -bottom-24 -left-24 w-72 h-72 rounded-full bg-blue-100/40 blur-3xl"></div>
+      </div>
+
+      <div class="relative flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+        <div>
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-extrabold bg-amber-50 text-amber-700 border border-amber-100">
+            <i class="fas fa-inbox"></i> Pending
+          </div>
+          <h2 class="mt-3 text-3xl font-extrabold text-gray-800 tracking-tight">งานที่ยังไม่ได้รับ</h2>
+          <p class="text-gray-500 mt-1">
+            แสดงเฉพาะงานที่ถูกมอบหมายให้คุณ และยังไม่ได้กด “รับงาน”
+          </p>
+        </div>
+
+        <!-- Counter -->
+        <div class="flex items-center gap-3">
+          <div class="px-4 py-2 rounded-2xl bg-amber-50 border border-amber-100 text-amber-800 font-extrabold shadow-sm">
+            <i class="fas fa-list-check mr-2"></i>
+            {{ pending_assignments|length }} งาน
+          </div>
+          <a href="{% url 'speaker_dashboard' %}"
+             class="px-4 py-2 rounded-2xl bg-gray-900 text-white font-extrabold hover:bg-gray-800 transition shadow-sm">
+            <i class="fas fa-house mr-2"></i> แดชบอร์ด
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="bg-white rounded-3xl border border-gray-100 p-4 md:p-5 shadow-sm">
+      <div class="flex flex-col md:flex-row gap-4 md:items-center md:justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-2xl bg-amber-800 text-white flex items-center justify-center shadow-sm">
+            <i class="fas fa-filter"></i>
+          </div>
+          <div>
+            <p class="font-extrabold text-gray-800">ตัวกรอง</p>
+            <p class="text-sm text-gray-500">ค้นหา/ดูงานที่ต้องทำก่อน</p>
+          </div>
+        </div>
+
+        <div class="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+          <div class="relative w-full sm:w-96">
+            <i class="fas fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+            <input id="q"
+                   type="text"
+                   placeholder="ค้นหาชื่องาน / รายละเอียด / หมายเหตุ..."
+                   class="w-full rounded-2xl border border-gray-200 bg-gray-50/60 pl-11 pr-4 py-3 text-gray-800
+                          focus:bg-white focus:border-amber-400 focus:ring-2 focus:ring-amber-100 outline-none transition" />
+          </div>
+
+          <button type="button"
+                  onclick="filterCards()"
+                  class="w-full sm:w-auto px-5 py-3 rounded-2xl bg-gray-900 text-white font-extrabold hover:bg-gray-800 transition shadow-sm">
+            <i class="fas fa-search mr-2"></i> ค้นหา
+          </button>
+
+          <button type="button"
+                  onclick="clearFilter()"
+                  class="w-full sm:w-auto px-5 py-3 rounded-2xl bg-white border border-gray-200 text-gray-700 font-extrabold hover:bg-gray-50 transition">
+            <i class="fas fa-rotate-left mr-2"></i> ล้าง
+          </button>
+        </div>
+      </div>
+
+      <!-- Hint -->
+      <div class="mt-4 flex items-center gap-2 text-xs text-gray-500">
+        <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gray-50 border border-gray-100">
+          <i class="fas fa-keyboard text-gray-400"></i> กด Enter เพื่อค้นหา
+        </span>
+        <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gray-50 border border-gray-100">
+          <i class="fas fa-wand-magic-sparkles text-gray-400"></i> พิมพ์แล้วกรองอัตโนมัติ
+        </span>
+      </div>
+    </div>
+
+    <!-- List -->
+    {% if pending_assignments %}
+      <div id="cards" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        {% for assignment in pending_assignments %}
+          <div class="card group bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden
+                      hover:shadow-md hover:-translate-y-0.5 transition-all"
+               data-title="{{ assignment.title|default:''|lower }}"
+               data-note="{{ assignment.note|default:''|lower }}"
+               data-desc="{{ assignment.description|default:''|lower }}">
+
+            <!-- Top -->
+            <div class="p-6 border-b border-gray-100">
+              <div class="flex items-start justify-between gap-4">
+                <div class="min-w-0">
+                  <p class="text-xs font-extrabold text-gray-400 uppercase tracking-wider">
+                    งานที่ได้รับมอบหมาย
+                  </p>
+
+                  <h3 class="mt-1 text-lg font-extrabold text-gray-900 leading-snug break-words">
+                    {{ assignment.title }}
+                  </h3>
+
+                  <div class="mt-3 flex flex-wrap items-center gap-2">
+                    <span class="px-3 py-1 rounded-full text-xs font-extrabold bg-blue-50 text-blue-700 border border-blue-100">
+                      <i class="fas fa-clock mr-1"></i> รอดำเนินการ
+                    </span>
+
+                    {% if assignment.due_date %}
+                      <span class="px-3 py-1 rounded-full text-xs font-extrabold bg-amber-50 text-amber-700 border border-amber-100">
+                        <i class="fas fa-calendar-day mr-1"></i>
+                        กำหนดส่ง: {{ assignment.due_date|date:"d M Y" }}
+                      </span>
+                    {% else %}
+                      <span class="px-3 py-1 rounded-full text-xs font-extrabold bg-gray-50 text-gray-600 border border-gray-100">
+                        <i class="fas fa-calendar mr-1"></i> ไม่มีกำหนดส่ง
+                      </span>
+                    {% endif %}
+                  </div>
+                </div>
+
+                <div class="shrink-0 w-12 h-12 rounded-2xl bg-amber-50 text-amber-800 flex items-center justify-center border border-amber-100 shadow-sm">
+                  <i class="fas fa-clipboard-check text-lg"></i>
+                </div>
+              </div>
+            </div>
+
+            <!-- Body -->
+            <div class="p-6 space-y-4">
+              {% if assignment.description %}
+                <div class="text-sm text-gray-600">
+                  <p class="font-extrabold text-gray-800 mb-1 flex items-center gap-2">
+                    <i class="fas fa-align-left text-gray-400"></i> รายละเอียด
+                  </p>
+                  <p class="line-clamp-3">{{ assignment.description }}</p>
+                </div>
+              {% endif %}
+
+              {% if assignment.note %}
+                <div class="text-sm text-gray-600">
+                  <p class="font-extrabold text-gray-800 mb-1 flex items-center gap-2">
+                    <i class="fas fa-note-sticky text-gray-400"></i> หมายเหตุ
+                  </p>
+                  <p class="bg-amber-50/70 p-3 rounded-2xl border border-amber-100 border-l-4 border-l-amber-400 italic text-gray-700">
+                    <i class="fas fa-quote-left text-amber-200 mr-2"></i>{{ assignment.note }}
+                  </p>
+                </div>
+              {% endif %}
+
+              <div class="grid grid-cols-2 gap-3">
+                <div class="bg-gray-50 rounded-2xl p-3 border border-gray-100">
+                  <p class="text-xs font-extrabold text-gray-400 uppercase tracking-wider">วันที่มอบหมาย</p>
+                  <p class="mt-1 font-semibold text-gray-700">
+                    <i class="far fa-calendar-alt mr-2 text-amber-600"></i>
+                    {{ assignment.assigned_at|date:"d M Y" }}
+                  </p>
+                </div>
+
+                <div class="bg-gray-50 rounded-2xl p-3 border border-gray-100">
+                  <p class="text-xs font-extrabold text-gray-400 uppercase tracking-wider">รหัสงาน</p>
+                  <p class="mt-1 font-semibold text-gray-700 break-words">
+                    <i class="fas fa-hashtag mr-2 text-amber-600"></i>
+                    {{ assignment.assignment_id|default:assignment.pk }}
+                  </p>
+                </div>
+              </div>
+
+              <!-- subtle divider -->
+              <div class="pt-1">
+                <div class="h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent"></div>
+              </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="p-6 pt-0">
+              <div class="flex flex-col sm:flex-row gap-3">
+                <a href="{% url 'speaker_assignment_detail' assignment.assignment_id %}"
+                   class="flex-1 text-center px-6 py-3 border border-gray-200 text-gray-800 hover:bg-gray-50 font-extrabold rounded-2xl transition">
+                  <i class="fas fa-eye mr-2"></i> ดูรายละเอียด
+                </a>
+
+                <a href="{% url 'accept_assignment' assignment.assignment_id %}"
+                   class="flex-1 text-center px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-extrabold rounded-2xl transition-all transform hover:-translate-y-0.5 shadow-sm hover:shadow-md">
+                  <i class="fas fa-check mr-2"></i> รับงานนี้
+                </a>
+              </div>
+
+              <div class="mt-3">
+                <a href="{% url 'reject_assignment' assignment.assignment_id %}"
+                   class="w-full inline-flex items-center justify-center px-6 py-3 rounded-2xl bg-red-50 hover:bg-red-100 border border-red-100 text-red-700 font-extrabold transition">
+                  <i class="fas fa-ban mr-2"></i> ปฏิเสธงาน
+                </a>
+              </div>
+            </div>
+
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <!-- Empty state -->
+      <div class="bg-white rounded-3xl border border-gray-100 p-10 shadow-sm text-center">
+        <div class="mx-auto w-16 h-16 rounded-3xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-700">
+          <i class="fas fa-check-double text-2xl"></i>
+        </div>
+        <h3 class="mt-4 text-xl font-extrabold text-gray-800">ไม่มีงานที่รอรับ</h3>
+        <p class="mt-1 text-gray-500">ตอนนี้คุณไม่มีงานที่อยู่ในสถานะรอดำเนินการ</p>
+
+        <div class="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
+          <a href="{% url 'speaker_dashboard' %}"
+             class="px-6 py-3 rounded-2xl bg-gray-900 text-white font-extrabold hover:bg-gray-800 transition">
+            <i class="fas fa-house mr-2"></i> กลับหน้าแดชบอร์ด
+          </a>
+        </div>
+      </div>
+    {% endif %}
+
+  </div>
+</div>
+
+<script>
+  function filterCards() {
+    const q = (document.getElementById('q').value || '').toLowerCase().trim();
+    const cards = document.querySelectorAll('#cards .card');
+    if (!cards.length) return;
+
+    cards.forEach(card => {
+      const t = card.getAttribute('data-title') || '';
+      const d = card.getAttribute('data-desc') || '';
+      const n = card.getAttribute('data-note') || '';
+      const hit = !q || t.includes(q) || d.includes(q) || n.includes(q);
+      card.style.display = hit ? '' : 'none';
+    });
+  }
+
+  function clearFilter() {
+    const qEl = document.getElementById('q');
+    if (qEl) qEl.value = '';
+    filterCards();
+    if (qEl) qEl.focus();
+  }
+
+  // พิมพ์แล้วกรองอัตโนมัติ
+  document.addEventListener('input', (e) => {
+    if (e.target && e.target.id === 'q') filterCards();
+  });
+
+  // กด Enter ค้นหาได้
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && document.activeElement && document.activeElement.id === 'q') {
+      e.preventDefault();
+      filterCards();
+    }
+    if (e.key === 'Escape' && document.activeElement && document.activeElement.id === 'q') {
+      e.preventDefault();
+      clearFilter();
+    }
+  });
+</script>
+{% endblock %}

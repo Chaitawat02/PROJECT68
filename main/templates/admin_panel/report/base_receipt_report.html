@@ -1,0 +1,112 @@
+{% extends "main/base.html" %}
+{% load static %}
+
+{% block title %}{{ title }} | Admin Panel{% endblock %}
+
+{% block content %}
+<style>
+  @media print {
+    body { background: #fff !important; }
+    .print\\:hidden { display: none !important; }
+    .print\\:block { display: block !important; }
+    .print\\:break-after { break-after: page; }
+  }
+
+  /* Preview (screen) — make the page look like print just before opening the print dialog */
+  @media screen {
+    body.report-preview { background: #fff !important; }
+    body.report-preview .print\\:hidden { display: none !important; }
+    body.report-preview .print\\:block { display: block !important; }
+    body.report-preview .print\\:break-after { break-after: page; }
+  }
+</style>
+
+<div class="flex flex-col lg:flex-row min-h-screen bg-gray-50/50">
+
+  <aside class="w-full lg:w-1/4 xl:w-1/5 shrink-0 px-4 lg:px-0 lg:min-h-screen print:hidden">
+    {% include "admin_panel/admin_dashboard.html" %}
+  </aside>
+
+  <main class="w-full lg:w-3/4 xl:w-4/5 pr-4 lg:pr-8 py-8">
+    <div class="max-w-5xl mx-auto space-y-6">
+
+      <!-- Receipt Header -->
+      <section class="bg-white border border-gray-100 rounded-3xl shadow-sm p-7 sm:p-8">
+        <div class="text-center">
+          <div class="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl bg-amber-50 border border-amber-100 mx-auto flex items-center justify-center overflow-hidden">
+            <img src="{% static 'images/logo.png' %}" alt="logo" class="w-14 h-14 sm:w-16 sm:h-16 object-contain"
+                 onerror="this.style.display='none'; this.parentElement.innerHTML='<i class=&quot;fas fa-file-invoice text-3xl text-amber-600&quot;></i>';" />
+          </div>
+
+          <p class="text-xs font-extrabold text-gray-500 uppercase tracking-wider mt-4">รายงานข้อมูล</p>
+          <h1 class="text-2xl sm:text-3xl font-extrabold text-gray-800 leading-tight mt-1">
+            {{ title }}
+          </h1>
+
+          <p class="text-sm text-gray-600 mt-2">
+            ณ วันที่ <span class="font-semibold text-gray-800">{{ today|date:"d F Y" }}</span>
+            {% if now %}<span class="text-gray-400">•</span> <span class="font-semibold text-gray-800">{{ now|date:"H:i" }}</span>{% endif %}
+          </p>
+        </div>
+
+        <div class="mt-6 flex items-center justify-center gap-2 print:hidden">
+          {% block report_actions %}{% endblock %}
+        </div>
+      </section>
+
+      {% block report_filters %}{% endblock %}
+      {% block report_data %}{% endblock %}
+      {% block report_summary %}{% endblock %}
+
+      <footer class="mt-6 text-center text-xs text-gray-500">
+        © {% now "Y" %} ศาลาไหมไทย ชนบท ขอนแก่น
+      </footer>
+
+    </div>
+  </main>
+</div>
+
+<script>
+  (function () {
+    try {
+      var isPrinting = false;
+
+      function doPrint() {
+        if (isPrinting) return;
+        isPrinting = true;
+
+        document.body.classList.add('report-preview');
+
+        // Let the browser apply styles before opening the dialog
+        window.setTimeout(function () {
+          window.print();
+        }, 50);
+
+        // Safety fallback: revert after a short delay in case afterprint doesn't fire
+        window.setTimeout(function () {
+          document.body.classList.remove('report-preview');
+          isPrinting = false;
+        }, 2000);
+      }
+
+      window.__reportPrint = doPrint;
+
+      // Intercept existing inline print buttons across all report pages
+      document.querySelectorAll('button[onclick*="window.print"]').forEach(function (btn) {
+        btn.addEventListener('click', function (e) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          doPrint();
+        }, true);
+      });
+
+      window.addEventListener('afterprint', function () {
+        document.body.classList.remove('report-preview');
+        isPrinting = false;
+      });
+    } catch (err) {
+      // no-op
+    }
+  })();
+</script>
+{% endblock %}

@@ -1,294 +1,179 @@
 {% extends 'main/base.html' %}
 {% load static %}
 
-{% block title %}รายงานสถิติระบบ{% endblock %}
+{% block title %}รายงาน | Admin Panel{% endblock %}
 
 {% block content %}
-<div class="flex flex-col lg:flex-row gap-8 py-6 fade-in">
+<div class="flex flex-col lg:flex-row min-h-screen bg-gray-50/50">
 
-	<aside class="w-full lg:w-1/4 xl:w-1/5 shrink-0">
-		{% include 'admin_panel/admin_dashboard.html' %}
-	</aside>
+  <!-- Sidebar -->
+  <aside class="w-full lg:w-1/4 xl:w-1/5 shrink-0 px-4 lg:px-0 lg:min-h-screen">
+    {% include 'admin_panel/admin_dashboard.html' %}
+  </aside>
 
-	<main class="w-full lg:w-3/4 xl:w-4/5 space-y-8">
+  <!-- Main -->
+  <main class="w-full lg:w-3/4 xl:w-4/5 pr-4 lg:pr-8 py-8">
 
-		<div class="flex flex-col md:flex-row justify-between items-end gap-4 border-b border-gray-200 pb-4">
-			<div>
-				<h6 class="text-xs font-bold text-amber-600 uppercase tracking-wider mb-1">Reports</h6>
-				<h2 class="text-3xl font-bold text-gray-800">รายงานภาพรวมระบบ</h2>
-				<p class="text-gray-500 mt-1">
-					สรุปข้อมูลลายผ้า กิจกรรม การจอง และผลการประเมิน
-				</p>
-			</div>
-			<div class="flex flex-col md:flex-row items-end gap-3">
-				<a href="{% url 'admin_report_pdf' %}" class="inline-flex items-center px-4 py-2 rounded-full bg-amber-600 text-white text-sm font-semibold shadow-sm hover:bg-amber-700 transition">
-					<i class="fas fa-file-pdf mr-2"></i>
-					ดาวน์โหลดรายงาน PDF
-				</a>
-				<div class="bg-white px-4 py-2 rounded-full shadow-sm border border-gray-100 flex items-center gap-2">
-					<div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-					<span class="text-sm text-gray-600 font-medium">อัปเดตล่าสุด {{ today|date:"d F Y H:i" }}</span>
-				</div>
-			</div>
-		</div>
+    <!-- Header -->
+    <section class="bg-white/80 border border-white/60 rounded-3xl p-7 sm:p-8 shadow-sm mb-6">
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div class="flex items-center gap-4">
+          <!-- Logo -->
+          <div class="w-14 h-14 rounded-2xl bg-amber-50 border border-amber-100 flex items-center justify-center">
+            <img src="{% static 'images/logo.png' %}" alt="logo" class="w-10 h-10 object-contain"
+                 onerror="this.style.display='none'; this.parentElement.innerHTML='<i class=&quot;fas fa-chart-line text-2xl text-amber-600&quot;></i>';">
+          </div>
 
-		<!-- แถวสรุปตัวเลขหลัก -->
-		<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-			<div class="bg-white rounded-xl p-6 shadow-sm border border-gray-100 border-l-4 border-l-rose-500">
-				<p class="text-xs font-bold text-gray-400 uppercase">ลายผ้าไหมทั้งหมด</p>
-				<h3 class="text-3xl font-bold text-gray-800 mt-2">{{ silk_stats.total_patterns|default:"0" }}</h3>
-				<p class="text-xs text-gray-500 mt-1">จำนวนข้อมูลลายผ้าไหมในระบบ</p>
-			</div>
+          <div>
+            <h2 class="text-2xl sm:text-3xl font-extrabold text-gray-800 leading-tight">
+              ศูนย์รวมรายงาน
+            </h2>
+            <p class="text-sm text-gray-500 mt-1">
+              เลือกประเภทรายงานที่ต้องการดู แล้วกดเพื่อเปิดรายงาน
+            </p>
+          </div>
+        </div>
 
-			<div class="bg-white rounded-xl p-6 shadow-sm border border-gray-100 border-l-4 border-l-blue-600">
-				<p class="text-xs font-bold text-gray-400 uppercase">กิจกรรม/เวิร์กช็อป</p>
-				<h3 class="text-3xl font-bold text-gray-800 mt-2">{{ workshop_stats.total_workshops|default:"0" }}</h3>
-				<p class="text-xs text-gray-500 mt-1">เปิดให้จอง {{ workshop_stats.active_workshops|default:"0" }} รายการ</p>
-			</div>
+        <div class="text-sm text-gray-600">
+          อัปเดตล่าสุด: <span class="font-semibold text-gray-800">{% now "d F Y, H:i" %}</span>
+        </div>
+      </div>
+    </section>
 
-			<div class="bg-white rounded-xl p-6 shadow-sm border border-gray-100 border-l-4 border-l-amber-500">
-				<p class="text-xs font-bold text-gray-400 uppercase">การจองทั้งหมด</p>
-				<h3 class="text-3xl font-bold text-gray-800 mt-2">{{ booking_stats.total_bookings|default:"0" }}</h3>
-				<p class="text-xs text-gray-500 mt-1">อนุมัติแล้ว {{ booking_stats.approved|default:"0" }} รายการ</p>
-			</div>
+    <!-- Quick Tips -->
+    <section class="bg-white rounded-3xl border border-gray-100 shadow-sm p-6 mb-6">
+      <div class="flex items-start gap-3">
+        <div class="mt-1 text-amber-600">
+          <i class="fas fa-circle-info"></i>
+        </div>
+        <div>
+          <p class="font-bold text-gray-800">วิธีใช้งาน</p>
+          <p class="text-sm text-gray-600 mt-1">
+            เลือกรายงานที่ต้องการจากด้านล่าง จากนั้นหน้ารายงานจะแสดงในรูปแบบเดียวกันและสามารถพิมพ์/บันทึกเป็น PDF ได้
+          </p>
+        </div>
+      </div>
+    </section>
 
-			<div class="bg-white rounded-xl p-6 shadow-sm border border-gray-100 border-l-4 border-l-green-500">
-				<p class="text-xs font-bold text-gray-400 uppercase">แบบประเมิน</p>
-				<h3 class="text-3xl font-bold text-gray-800 mt-2">{{ survey_stats|length }}</h3>
-				<p class="text-xs text-gray-500 mt-1">จำนวนหัวข้อที่มีการให้คะแนน</p>
-			</div>
-		</div>
+    <!-- Report Cards -->
+    <section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
 
-		<!-- สรุปข้อมูลลายผ้าไหม -->
-		<section class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-			<div class="p-6 border-b border-gray-100 bg-gray-50/60 flex items-center justify-between">
-				<div>
-					<h3 class="font-bold text-lg text-gray-800">สรุปข้อมูลลายผ้าไหม</h3>
-					<p class="text-sm text-gray-500">จำนวนลายผ้าและจำนวนการให้คะแนนลายผ้า</p>
-				</div>
-			</div>
-			<div class="p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
-				<div class="lg:col-span-1 space-y-2">
-					<p class="text-sm text-gray-600">
-						ลายผ้าไหมทั้งหมดในระบบจำนวน
-						<span class="font-semibold text-rose-600">{{ silk_stats.total_patterns|default:"0" }}</span> รายการ
-					</p>
-					<p class="text-sm text-gray-600">
-						การให้คะแนนลายผ้า (SilkPatternRating) ทั้งหมด
-						<span class="font-semibold text-rose-600">{{ silk_stats.total_silk_ratings|default:"0" }}</span> ครั้ง
-					</p>
-				</div>
-				<div class="lg:col-span-2 overflow-x-auto">
-					<table class="w-full text-left border-collapse text-sm">
-						<thead class="bg-gray-50 text-gray-500 uppercase text-xs font-semibold tracking-wider">
-							<tr>
-								<th class="px-4 py-3">รหัสผ้า</th>
-								<th class="px-4 py-3">ชื่อลายผ้า</th>
-								<th class="px-4 py-3 text-right">จำนวนการให้คะแนน</th>
-							</tr>
-						</thead>
-						<tbody class="divide-y divide-gray-100">
-							{% for silk in top_silk_patterns %}
-							<tr class="hover:bg-gray-50/60">
-								<td class="px-4 py-3 font-mono text-gray-500">{{ silk.Si_ID|default:"-" }}</td>
-								<td class="px-4 py-3 text-gray-800 font-medium">{{ silk.Si_name }}</td>
-								<td class="px-4 py-3 text-right">
-									<span class="px-2 py-1 rounded-full bg-rose-50 text-rose-700 text-xs font-semibold">
-										{{ silk.rating_count|default:"0" }} ครั้ง
-									</span>
-								</td>
-							</tr>
-							{% empty %}
-							<tr>
-								<td colspan="3" class="px-4 py-6 text-center text-gray-400 text-sm">
-									ยังไม่มีข้อมูลลายผ้าหรือการให้คะแนน
-								</td>
-							</tr>
-							{% endfor %}
-						</tbody>
-					</table>
-				</div>
-			</div>
-		</section>
+      <!-- Booking Visit Report -->
+      <a href="{% url 'admin_booking_visit_report' %}"
+         class="group bg-white rounded-3xl border border-gray-100 shadow-sm p-6 hover:shadow-md transition overflow-hidden relative">
+        <div class="absolute -top-10 -right-10 w-28 h-28 bg-amber-50 rounded-full"></div>
+        <div class="flex items-start gap-4 relative">
+          <div class="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-700">
+            <i class="fas fa-ticket-alt text-xl"></i>
+          </div>
+          <div class="min-w-0">
+            <h3 class="text-lg font-extrabold text-gray-800 group-hover:text-amber-800">
+              รายงานการจองเข้าชม
+            </h3>
+            <p class="text-sm text-gray-600 mt-1">
+              กรองวันที่เริ่ม–สิ้นสุด, สถานะ และดูตาราง + สรุปยอด
+            </p>
+            <div class="text-sm font-semibold text-amber-700 mt-3 inline-flex items-center gap-2">
+              เปิดรายงาน <i class="fas fa-arrow-right text-xs"></i>
+            </div>
+          </div>
+        </div>
+      </a>
 
-		<!-- สรุปข้อมูลกิจกรรม/เวิร์กช็อป -->
-		<section class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-			<div class="p-6 border-b border-gray-100 bg-gray-50/60 flex items-center justify-between">
-				<div>
-					<h3 class="font-bold text-lg text-gray-800">สรุปข้อมูลกิจกรรม / เวิร์กช็อป</h3>
-					<p class="text-sm text-gray-500">จำนวนกิจกรรมและการเข้าร่วมกิจกรรม</p>
-				</div>
-			</div>
-			<div class="p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
-				<div class="lg:col-span-1 space-y-2 text-sm text-gray-600">
-					<p>
-						กิจกรรมทั้งหมด: <span class="font-semibold text-blue-600">{{ workshop_stats.total_workshops|default:"0" }}</span> รายการ
-					</p>
-					<p>
-						กิจกรรมที่ยังเปิดให้จอง: <span class="font-semibold text-green-600">{{ workshop_stats.active_workshops|default:"0" }}</span> รายการ
-					</p>
-					<p>
-						จำนวนรายการ WorkshopBooking ทั้งหมด:
-						<span class="font-semibold text-blue-600">{{ workshop_stats.total_workshop_bookings|default:"0" }}</span> รายการ
-					</p>
-				</div>
-				<div class="lg:col-span-2 overflow-x-auto">
-					<table class="w-full text-left border-collapse text-sm">
-						<thead class="bg-gray-50 text-gray-500 uppercase text-xs font-semibold tracking-wider">
-							<tr>
-								<th class="px-4 py-3">ชื่อกิจกรรม</th>
-								<th class="px-4 py-3">ช่วงวันที่จัด</th>
-								<th class="px-4 py-3 text-right">จำนวนการจอง/เข้าร่วม</th>
-							</tr>
-						</thead>
-						<tbody class="divide-y divide-gray-100">
-							{% for ws in top_workshops %}
-							<tr class="hover:bg-gray-50/60">
-								<td class="px-4 py-3 text-gray-800 font-medium">{{ ws.title }}</td>
-								<td class="px-4 py-3 text-gray-600">
-									{% if ws.start_date %}
-										{{ ws.start_date|date:"d M Y" }}
-										{% if ws.end_date %}- {{ ws.end_date|date:"d M Y" }}{% endif %}
-									{% else %}
-										-
-									{% endif %}
-								</td>
-								<td class="px-4 py-3 text-right">
-									<span class="px-2 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-semibold">
-										{{ ws.booking_count|default:"0" }} ครั้ง
-									</span>
-								</td>
-							</tr>
-							{% empty %}
-							<tr>
-								<td colspan="3" class="px-4 py-6 text-center text-gray-400 text-sm">
-									ยังไม่มีข้อมูลกิจกรรมหรือการจองเวิร์กช็อป
-								</td>
-							</tr>
-							{% endfor %}
-						</tbody>
-					</table>
-				</div>
-			</div>
-		</section>
+      <!-- Booking Management (approve bookings) -->
+      <a href="{% url 'admin_events_report' %}"
+         class="group bg-white rounded-3xl border border-gray-100 shadow-sm p-6 hover:shadow-md transition">
+        <div class="flex items-start gap-4">
+          <div class="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-700">
+            <i class="fas fa-calendar-alt text-xl"></i>
+          </div>
+          <div class="min-w-0">
+            <h3 class="text-lg font-extrabold text-gray-800 group-hover:text-indigo-800">
+              รายงานกิจกรรม
+            </h3>
+            <p class="text-sm text-gray-600 mt-1">
+              สรุปกิจกรรม/เวิร์กช็อป และจำนวนการจองกิจกรรม
+            </p>
+            <div class="text-sm font-semibold text-indigo-700 mt-3 inline-flex items-center gap-2">
+              เปิดรายงาน <i class="fas fa-arrow-right text-xs"></i>
+            </div>
+          </div>
+        </div>
+      </a>
 
-		<!-- สรุปจำนวนการจองเข้าชม -->
-		<section class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-			<div class="p-6 border-b border-gray-100 bg-gray-50/60 flex items-center justify-between">
-				<div>
-					<h3 class="font-bold text-lg text-gray-800">สรุปจำนวนการจองเข้าชมพิพิธภัณฑ์</h3>
-					<p class="text-sm text-gray-500">จำนวนการจองทั้งหมด แยกตามสถานะ และรายเดือน</p>
-				</div>
-			</div>
-			<div class="p-6 grid grid-cols-1 lg:grid-cols-3 gap-6 text-sm text-gray-600">
-				<div class="space-y-2">
-					<p>การจองทั้งหมด: <span class="font-semibold text-amber-700">{{ booking_stats.total_bookings|default:"0" }}</span> รายการ</p>
-					<p>รอดำเนินการ: <span class="font-semibold text-yellow-600">{{ booking_stats.pending|default:"0" }}</span> รายการ</p>
-					<p>อนุมัติแล้ว: <span class="font-semibold text-green-600">{{ booking_stats.approved|default:"0" }}</span> รายการ</p>
-					<p>ถูกปฏิเสธ: <span class="font-semibold text-red-600">{{ booking_stats.rejected|default:"0" }}</span> รายการ</p>
-				</div>
-				<div class="lg:col-span-2 overflow-x-auto">
-					<table class="w-full text-left border-collapse text-sm">
-						<thead class="bg-gray-50 text-gray-500 uppercase text-xs font-semibold tracking-wider">
-							<tr>
-								<th class="px-4 py-3">เดือน</th>
-								<th class="px-4 py-3 text-right">จำนวนการจอง</th>
-							</tr>
-						</thead>
-						<tbody class="divide-y divide-gray-100">
-							{% for row in bookings_by_month %}
-							<tr class="hover:bg-gray-50/60">
-								<td class="px-4 py-3 text-gray-800">
-									{{ row.month|date:"F Y"|default:"ไม่ระบุ" }}
-								</td>
-								<td class="px-4 py-3 text-right text-gray-800 font-semibold">
-									{{ row.count }} รายการ
-								</td>
-							</tr>
-							{% empty %}
-							<tr>
-								<td colspan="2" class="px-4 py-6 text-center text-gray-400 text-sm">
-									ยังไม่มีข้อมูลการจองในช่วง 6 เดือนล่าสุด
-								</td>
-							</tr>
-							{% endfor %}
-						</tbody>
-					</table>
-				</div>
-			</div>
-		</section>
+      <!-- Evaluation Summary -->
+      <a href="{% url 'booking_responses_summary' %}"
+         class="group bg-white rounded-3xl border border-gray-100 shadow-sm p-6 hover:shadow-md transition">
+        <div class="flex items-start gap-4">
+          <div class="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-700">
+            <i class="fas fa-star text-xl"></i>
+          </div>
+          <div class="min-w-0">
+            <h3 class="text-lg font-extrabold text-gray-800 group-hover:text-emerald-800">
+              รายงานการประเมิน (สรุป)
+            </h3>
+            <p class="text-sm text-gray-600 mt-1">
+              ดูผลสรุปการตอบแบบประเมินหลังการเข้าชม
+            </p>
+            <div class="text-sm font-semibold text-emerald-700 mt-3 inline-flex items-center gap-2">
+              เปิดรายงาน <i class="fas fa-arrow-right text-xs"></i>
+            </div>
+          </div>
+        </div>
+      </a>
 
-		<!-- สรุปผลการประเมิน -->
-		<section class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-			<div class="p-6 border-b border-gray-100 bg-gray-50/60 flex items-center justify-between">
-				<div>
-					<h3 class="font-bold text-lg text-gray-800">สรุปผลการประเมิน</h3>
-					<p class="text-sm text-gray-500">ค่าคะแนนเฉลี่ยและจำนวนคำตอบของแบบประเมิน</p>
-				</div>
-				<a href="{% url 'booking_responses_summary' %}" class="text-sm font-semibold text-amber-700 hover:text-amber-800 hover:underline">
-					ดูรายละเอียดแบบประเมินการจอง <i class="fas fa-arrow-right ml-1"></i>
-				</a>
-			</div>
-			<div class="p-6 grid grid-cols-1 lg:grid-cols-2 gap-6 text-sm">
-				<div class="space-y-3">
-					<h4 class="font-semibold text-gray-800 mb-2">คะแนนแบบสอบถาม (SurveyRating)</h4>
-					<div class="border border-gray-100 rounded-lg divide-y divide-gray-100">
-						{% for item in survey_stats %}
-						<div class="p-3 flex justify-between items-center hover:bg-gray-50/70">
-							<div class="pr-3">
-								<p class="font-medium text-gray-800 text-sm">Q{{ item.question_id }}: {{ item.question__question }}</p>
-								<p class="text-xs text-gray-500">จำนวนคำตอบ {{ item.responses }} ครั้ง</p>
-							</div>
-							<div class="text-right">
-								{% if item.avg_rating %}
-								<p class="text-lg font-bold text-amber-700">{{ item.avg_rating|floatformat:2 }}</p>
-								<p class="text-[11px] uppercase text-gray-400">คะแนนเฉลี่ย / 5</p>
-								{% else %}
-								<p class="text-xs text-gray-400">ยังไม่มีข้อมูล</p>
-								{% endif %}
-							</div>
-						</div>
-						{% empty %}
-						<div class="p-4 text-center text-gray-400 text-sm">
-							ยังไม่มีข้อมูลคะแนน SurveyRating
-						</div>
-						{% endfor %}
-					</div>
-				</div>
-				<div class="space-y-3">
-					<h4 class="font-semibold text-gray-800 mb-2">สรุปคำตอบแบบประเมินหลังการจอง (BookingQuestionResponse)</h4>
-					<div class="border border-gray-100 rounded-lg divide-y divide-gray-100 max-h-[420px] overflow-y-auto">
-						{% for q in question_answer_stats %}
-						<div class="p-3">
-							<p class="font-medium text-gray-800 text-sm">Q{{ q.question_id }}: {{ q.question_text }}</p>
-							<div class="mt-2 grid grid-cols-2 gap-2 text-xs">
-								{% for ans in q.answers %}
-								<div class="flex items-center justify-between bg-gray-50 rounded px-2 py-1">
-									<span class="text-gray-600">คำตอบ: <span class="font-semibold">{{ ans.answer }}</span></span>
-									<span class="text-gray-700 font-semibold">{{ ans.count }} ครั้ง</span>
-								</div>
-								{% endfor %}
-							</div>
-						</div>
-						{% empty %}
-						<div class="p-4 text-center text-gray-400 text-sm">
-							ยังไม่มีข้อมูลคำตอบแบบประเมินการจอง
-						</div>
-						{% endfor %}
-					</div>
-				</div>
-			</div>
-		</section>
+      <!-- Users -->
+      <a href="{% url 'admin_users_report' %}"
+         class="group bg-white rounded-3xl border border-gray-100 shadow-sm p-6 hover:shadow-md transition">
+        <div class="flex items-start gap-4">
+          <div class="w-12 h-12 rounded-2xl bg-violet-50 border border-violet-100 flex items-center justify-center text-violet-700">
+            <i class="fas fa-users text-xl"></i>
+          </div>
+          <div class="min-w-0">
+            <h3 class="text-lg font-extrabold text-gray-800 group-hover:text-violet-800">
+              รายงานผู้ใช้
+            </h3>
+            <p class="text-sm text-gray-600 mt-1">
+              สรุปจำนวนผู้ใช้ และจำนวนผู้ใช้ตามบทบาท
+            </p>
+            <div class="text-sm font-semibold text-violet-700 mt-3 inline-flex items-center gap-2">
+              เปิดรายงาน <i class="fas fa-arrow-right text-xs"></i>
+            </div>
+          </div>
+        </div>
+      </a>
 
-	</main>
+      <!-- Silk -->
+      <a href="{% url 'admin_silk_report' %}"
+         class="group bg-white rounded-3xl border border-gray-100 shadow-sm p-6 hover:shadow-md transition">
+        <div class="flex items-start gap-4">
+          <div class="w-12 h-12 rounded-2xl bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-700">
+            <i class="fas fa-shirt text-xl"></i>
+          </div>
+          <div class="min-w-0">
+            <h3 class="text-lg font-extrabold text-gray-800 group-hover:text-rose-800">
+              รายงานผ้าไหม
+            </h3>
+            <p class="text-sm text-gray-600 mt-1">
+              สรุปลายผ้าไหม จำนวนการให้คะแนน และรายการยอดนิยม
+            </p>
+            <div class="text-sm font-semibold text-rose-700 mt-3 inline-flex items-center gap-2">
+              เปิดรายงาน <i class="fas fa-arrow-right text-xs"></i>
+            </div>
+          </div>
+        </div>
+      </a>
+
+      <!-- Events -->
+      <!-- (Removed management link; use report cards above) -->
+
+    </section>
+
+    <!-- Footer -->
+    <footer class="mt-8 text-center text-xs text-gray-500">
+      © {% now "Y" %} ศาลาไหมไทย ชนบท ขอนแก่น • ระบบรายงานผู้ดูแล
+    </footer>
+
+  </main>
 </div>
-
-<style>
-	.fade-in { animation: fadeIn 0.5s ease-out forwards; }
-	@keyframes fadeIn {
-		from { opacity: 0; transform: translateY(10px); }
-		to { opacity: 1; transform: translateY(0); }
-	}
-</style>
 {% endblock %}
-

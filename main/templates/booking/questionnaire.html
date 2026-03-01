@@ -1,57 +1,205 @@
 {% extends 'main/base.html' %}
 {% block content %}
-<div class="max-w-3xl mx-auto py-8 px-4">
-    <div class="bg-white rounded-2xl p-6 shadow">
-        <h2 class="text-2xl font-bold mb-4">แบบประเมินหลังการเข้าชม — การจอง #{{ booking.id }}</h2>
-        <p class="text-sm text-gray-500 mb-2">กรุณาทำแบบประเมินนี้หลังจากเสร็จสิ้นกิจกรรมเพื่อช่วยพัฒนาการให้บริการ</p>
+<div class="min-h-screen bg-[#FDFBF7] py-10 px-4 sm:px-6">
+  <div class="max-w-6xl mx-auto space-y-6">  {# <- ขยายจาก max-w-4xl #}
 
-        <div class="mb-4 text-sm text-gray-600 bg-amber-50 border border-amber-100 rounded-lg p-3">
-            <p class="font-semibold mb-1">คำอธิบายระดับคะแนน</p>
-            <p>5 = พอใจมาก / ดีมากที่สุด</p>
-            <p>4 = พอใจ</p>
-            <p>3 = ปานกลาง</p>
-            <p>2 = น้อย / ไม่ค่อยพอใจ</p>
-            <p>1 = น้อยมาก / ไม่พอใจเลย</p>
+    <!-- Header -->
+    <div class="bg-white/80 border border-white/60 rounded-3xl p-7 sm:p-8 shadow-sm">
+      <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+        <div>
+          <h2 class="text-2xl sm:text-3xl font-extrabold text-gray-800">
+            แบบประเมินหลังการเข้าชม
+          </h2>
+          <p class="text-gray-500 mt-1">
+            การจอง <span class="font-semibold text-gray-700">#{{ booking.id }}</span>
+            — กรุณาทำแบบประเมินนี้หลังจากเสร็จสิ้นกิจกรรมเพื่อช่วยพัฒนาการให้บริการ
+          </p>
         </div>
 
-        <form method="post">
-            {% csrf_token %}
-            <div class="space-y-4">
-                {% for q in questions %}
-                <div class="p-4 border rounded">
-                    <p class="font-medium">{{ forloop.counter }}. {{ q.question }}</p>
-                    <div class="mt-2 space-y-2">
-                        {# เรียงจากคะแนนมากไปน้อย: 5 → 1 พร้อมข้อความมาตรฐาน #}
-                        <label class="inline-flex items-center">
-                            <input type="radio" name="question_{{ q.id }}" value="5" class="mr-2">
-                            <span>5 - พอใจมาก</span>
-                        </label><br>
-                        <label class="inline-flex items-center">
-                            <input type="radio" name="question_{{ q.id }}" value="4" class="mr-2">
-                            <span>4 - พอใจ</span>
-                        </label><br>
-                        <label class="inline-flex items-center">
-                            <input type="radio" name="question_{{ q.id }}" value="3" class="mr-2">
-                            <span>3 - ปานกลาง</span>
-                        </label><br>
-                        <label class="inline-flex items-center">
-                            <input type="radio" name="question_{{ q.id }}" value="2" class="mr-2">
-                            <span>2 - น้อย</span>
-                        </label><br>
-                        <label class="inline-flex items-center">
-                            <input type="radio" name="question_{{ q.id }}" value="1" class="mr-2">
-                            <span>1 - น้อยมาก</span>
-                        </label>
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-
-            <div class="mt-6 flex gap-3">
-                <button type="submit" class="bg-amber-600 text-white px-4 py-2 rounded">ส่งคำตอบ</button>
-                <a href="{% url 'booking_detail' booking.id %}" class="px-4 py-2 border rounded">กลับไป</a>
-            </div>
-        </form>
+        <div class="inline-flex items-center gap-2 rounded-2xl bg-amber-50 text-amber-700 border border-amber-100 px-4 py-2">
+          <span class="text-sm font-semibold">คะแนน 1–5</span>
+          <span class="text-xs text-amber-700/80">ยิ่งมากยิ่งพอใจ</span>
+        </div>
+      </div>
     </div>
+
+    <!-- QR + Score Guide -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+      <!-- Score Guide -->
+      <div class="lg:col-span-2 bg-white rounded-3xl border border-gray-100 shadow-sm p-5 sm:p-6">
+        <div class="flex items-center justify-between gap-3">
+          <h3 class="text-base sm:text-lg font-extrabold text-gray-800">
+            คำอธิบายระดับคะแนน
+          </h3>
+
+          <button
+            id="toggleScoreGuideBtn"
+            type="button"
+            class="text-sm font-semibold text-amber-700 hover:text-amber-800 underline-offset-4 hover:underline"
+            aria-expanded="false"
+            onclick="
+              const d = document.getElementById('scoreGuideDetail');
+              const b = document.getElementById('toggleScoreGuideBtn');
+              d.classList.toggle('hidden');
+              const expanded = !d.classList.contains('hidden');
+              b.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+              b.textContent = expanded ? 'ซ่อนรายละเอียด' : 'ดูรายละเอียด';
+            "
+          >
+            ดูรายละเอียด
+          </button>
+        </div>
+
+        <div class="mt-3 flex flex-wrap items-center gap-2 text-xs sm:text-sm text-gray-700">
+          <span class="px-3 py-1 rounded-full bg-amber-50 border border-amber-100"><b>5</b> ดีมาก</span>
+          <span class="px-3 py-1 rounded-full bg-gray-50 border border-gray-100"><b>4</b> พอใจ</span>
+          <span class="px-3 py-1 rounded-full bg-gray-50 border border-gray-100"><b>3</b> ปานกลาง</span>
+          <span class="px-3 py-1 rounded-full bg-gray-50 border border-gray-100"><b>2</b> น้อย</span>
+          <span class="px-3 py-1 rounded-full bg-gray-50 border border-gray-100"><b>1</b> น้อยมาก</span>
+        </div>
+
+        <div id="scoreGuideDetail" class="hidden mt-4 text-sm text-gray-600">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div class="flex items-center justify-between bg-gray-50 rounded-2xl px-4 py-3 border border-gray-100">
+              <span class="font-semibold text-gray-700">5</span><span>พอใจมาก / ดีมากที่สุด</span>
+            </div>
+            <div class="flex items-center justify-between bg-gray-50 rounded-2xl px-4 py-3 border border-gray-100">
+              <span class="font-semibold text-gray-700">4</span><span>พอใจ</span>
+            </div>
+            <div class="flex items-center justify-between bg-gray-50 rounded-2xl px-4 py-3 border border-gray-100">
+              <span class="font-semibold text-gray-700">3</span><span>ปานกลาง</span>
+            </div>
+            <div class="flex items-center justify-between bg-gray-50 rounded-2xl px-4 py-3 border border-gray-100">
+              <span class="font-semibold text-gray-700">2</span><span>น้อย / ไม่ค่อยพอใจ</span>
+            </div>
+            <div class="sm:col-span-2 flex items-center justify-between bg-gray-50 rounded-2xl px-4 py-3 border border-gray-100">
+              <span class="font-semibold text-gray-700">1</span><span>น้อยมาก / ไม่พอใจเลย</span>
+            </div>
+          </div>
+        </div>
+      </div>  {# ✅ ปิด Score Guide ให้ถูกต้องก่อนเริ่ม QR #}
+
+      <!-- QR Code -->
+      {% if qr_data %}
+      <div class="bg-white rounded-3xl border border-gray-100 shadow-sm p-6 text-center">
+        <h3 class="text-base sm:text-lg font-extrabold text-gray-800">QR Code</h3>
+        <p class="text-sm text-gray-500 mt-1">สำหรับการจองนี้</p>
+
+        <div class="mt-4 flex justify-center">
+          <div class="bg-gray-50 border border-gray-100 rounded-3xl p-4">
+            <img src="{{ qr_data }}" alt="QR Code"
+                 class="block rounded-2xl shadow-sm w-56 h-56 object-contain">
+          </div>
+        </div>
+
+        <p class="text-xs text-gray-500 mt-3">
+          แสดง QR นี้เพื่อยืนยัน/อ้างอิงการจอง (หากจำเป็น)
+        </p>
+      </div>
+      {% endif %}
+
+    </div>
+
+    <!-- Form -->
+    <div class="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+      <div class="p-6 sm:p-7 border-b border-gray-100">
+        <div class="flex items-center justify-between gap-3">
+          <h3 class="text-xl font-extrabold text-gray-800">ตอบแบบประเมิน</h3>
+          <div class="text-xs text-gray-500">
+            ทั้งหมด <span class="font-semibold text-gray-700">{{ questions|length }}</span> ข้อ
+          </div>
+        </div>
+
+        <div class="mt-4">
+          <div class="h-2 bg-gray-100 rounded-full overflow-hidden">
+            <div class="h-2 bg-amber-500/90 w-1/3 rounded-full"></div>
+          </div>
+          <p class="text-xs text-gray-500 mt-2">แนะนำ: ตอบให้ครบทุกข้อเพื่อความสมบูรณ์ของข้อมูล</p>
+        </div>
+      </div>
+
+      <form method="post" class="p-6 sm:p-7">
+        {% csrf_token %}
+
+        <div class="space-y-4">
+          {% for q in questions %}
+          <div class="rounded-3xl border border-gray-100 bg-white shadow-sm hover:shadow transition-shadow">
+            <div class="p-5 sm:p-6">
+              <div class="flex items-start justify-between gap-3">
+                <p class="font-bold text-gray-800">
+                  <span class="text-amber-700">{{ forloop.counter }}.</span>
+                  {{ q.question }}
+                </p>
+                <span class="shrink-0 text-xs bg-gray-50 border border-gray-100 text-gray-600 rounded-full px-3 py-1">
+                  เลือก 1 คำตอบ
+                </span>
+              </div>
+
+              <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <label class="group flex items-center gap-3 rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3 cursor-pointer hover:border-amber-200 hover:bg-amber-50 transition">
+                  <input type="radio" name="question_{{ q.id }}" value="5" class="h-4 w-4 text-amber-600 focus:ring-amber-500">
+                  <div class="flex items-center justify-between w-full">
+                    <span class="font-semibold text-gray-800">5 - พอใจมาก</span>
+                    <span class="text-xs text-gray-500 group-hover:text-amber-700">ดีที่สุด</span>
+                  </div>
+                </label>
+
+                <label class="group flex items-center gap-3 rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3 cursor-pointer hover:border-amber-200 hover:bg-amber-50 transition">
+                  <input type="radio" name="question_{{ q.id }}" value="4" class="h-4 w-4 text-amber-600 focus:ring-amber-500">
+                  <div class="flex items-center justify-between w-full">
+                    <span class="font-semibold text-gray-800">4 - พอใจ</span>
+                    <span class="text-xs text-gray-500 group-hover:text-amber-700">ดี</span>
+                  </div>
+                </label>
+
+                <label class="group flex items-center gap-3 rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3 cursor-pointer hover:border-amber-200 hover:bg-amber-50 transition">
+                  <input type="radio" name="question_{{ q.id }}" value="3" class="h-4 w-4 text-amber-600 focus:ring-amber-500">
+                  <div class="flex items-center justify-between w-full">
+                    <span class="font-semibold text-gray-800">3 - ปานกลาง</span>
+                    <span class="text-xs text-gray-500 group-hover:text-amber-700">พอใช้</span>
+                  </div>
+                </label>
+
+                <label class="group flex items-center gap-3 rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3 cursor-pointer hover:border-amber-200 hover:bg-amber-50 transition">
+                  <input type="radio" name="question_{{ q.id }}" value="2" class="h-4 w-4 text-amber-600 focus:ring-amber-500">
+                  <div class="flex items-center justify-between w-full">
+                    <span class="font-semibold text-gray-800">2 - น้อย</span>
+                    <span class="text-xs text-gray-500 group-hover:text-amber-700">ควรปรับปรุง</span>
+                  </div>
+                </label>
+
+                <label class="group sm:col-span-2 flex items-center gap-3 rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3 cursor-pointer hover:border-amber-200 hover:bg-amber-50 transition">
+                  <input type="radio" name="question_{{ q.id }}" value="1" class="h-4 w-4 text-amber-600 focus:ring-amber-500">
+                  <div class="flex items-center justify-between w-full">
+                    <span class="font-semibold text-gray-800">1 - น้อยมาก</span>
+                    <span class="text-xs text-gray-500 group-hover:text-amber-700">แย่มาก</span>
+                  </div>
+                </label>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+
+        <div class="mt-7 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+          <a href="{% url 'booking_detail' booking.id %}"
+             class="inline-flex items-center justify-center px-5 py-3 rounded-2xl border border-gray-200 bg-white text-gray-700 font-semibold hover:bg-gray-50 transition">
+            ← กลับไป
+          </a>
+
+          <button type="submit"
+                  class="inline-flex items-center justify-center px-6 py-3 rounded-2xl bg-amber-600 text-white font-extrabold shadow-sm hover:bg-amber-700 transition">
+            ส่งคำตอบแบบประเมิน
+          </button>
+        </div>
+
+        <p class="text-xs text-gray-500 mt-4">
+          หมายเหตุ: ข้อมูลจะถูกนำไปใช้เพื่อปรับปรุงคุณภาพการให้บริการเท่านั้น
+        </p>
+      </form>
+    </div>
+
+  </div>
 </div>
 {% endblock %}

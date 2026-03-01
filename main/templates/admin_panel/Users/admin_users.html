@@ -32,6 +32,13 @@
                     <span class="text-blue-700 bg-blue-50 px-3 py-1 rounded-lg border border-blue-100">วิทยากร: {{ speaker_count }}</span>
                 </div>
             </div>
+
+            <button type="button"
+                    onclick="openAddUserModal()"
+                    class="inline-flex items-center justify-center bg-gradient-to-r from-[#8B0000] to-[#5e0000] text-white px-6 py-3.5 rounded-2xl shadow-lg shadow-red-900/20 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 font-bold group">
+                <i class="fas fa-plus-circle mr-2 group-hover:rotate-90 transition-transform"></i>
+                เพิ่มผู้ใช้งาน
+            </button>
         </div>
 
         {% if messages %}
@@ -194,7 +201,11 @@
                     <select name="role" class="w-full px-5 py-3.5 rounded-2xl bg-gray-50 border border-gray-100 focus:bg-white focus:border-amber-500 transition-all outline-none font-bold text-sm">
                         <option value="member">สมาชิกทั่วไป</option>
                         <option value="speaker">วิทยากร</option>
+                        {% if can_add_admin %}
                         <option value="admin">แอดมิน</option>
+                        {% else %}
+                        <option value="admin" disabled>แอดมิน (มีอยู่แล้ว)</option>
+                        {% endif %}
                     </select>
                 </div>
                 <div class="flex gap-3 mt-6">

@@ -19,6 +19,24 @@ document.addEventListener("DOMContentLoaded", async () => {
     const statusText = document.getElementById("status-text");
     const loaderScreen = document.getElementById("app-loader");
 
+    // Reset global flags used by the outer page auto-cycling
+    try {
+        window.__arDetected = false;
+        window.__arDetectedAt = 0;
+        window.__arLostAt = 0;
+        window.__arStartFailed = false;
+    } catch (e) {
+        // ignore
+    }
+
+    // If there are multiple target files, we will auto-cycle in the outer page.
+    // Keep the status message friendly while scanning.
+    const mindSelectForStatus = document.getElementById("mindSelect");
+    const hasMultipleMindFiles = !!(mindSelectForStatus && mindSelectForStatus.options && mindSelectForStatus.options.length > 1);
+    if (statusText && hasMultipleMindFiles) {
+        statusText.innerText = "กำลังค้นหาลายผ้า... รอหน่อยนะ";
+    }
+
     // 2. Load Data from DOM (Django Template Injection)
     let patternsData = [];
     const patternsEl = document.getElementById("patterns-data");
@@ -94,16 +112,25 @@ document.addEventListener("DOMContentLoaded", async () => {
     scene.add(backLight);
 
     // 6. Setup Anchors & Models
-    // Loop through data and set up anchors immediately
-    patternsData.forEach((pattern, index) => {
-        const anchor = mindarThree.addAnchor(index);
+    // IMPORTANT: Must use the SAME index as the .mind file (target order)
+    // The backend provides `pattern.index` (mapped from DB target_index).
+    patternsData.forEach((pattern, arrayIndex) => {
+        const targetIndexRaw = (pattern && (pattern.index ?? pattern.target_index ?? pattern.source_index));
+        const targetIndex = Number.isFinite(Number(targetIndexRaw)) ? Number(targetIndexRaw) : arrayIndex;
+
+        if (!Number.isFinite(targetIndex) || targetIndex < 0) {
+            console.warn("Invalid target index; skipping pattern", { pattern, arrayIndex });
+            return;
+        }
+
+        const anchor = mindarThree.addAnchor(targetIndex);
 
         // --- Logic A: Model Loading (Async) ---
         // Construct URL: Use field from DB or fallback to pattern_X.glb
         let modelUrl = pattern.silk_model_url || pattern.model_url;
         if (!modelUrl) {
             // Fallback convention
-            modelUrl = `${modelBase}thai_silk_pattern_${index}.glb`; 
+            modelUrl = `${modelBase}thai_silk_pattern_${targetIndex}.glb`; 
         } else if (!modelUrl.startsWith('http') && !modelUrl.startsWith('/')) {
             // Append base if it's just a filename
             modelUrl = modelBase + modelUrl;
@@ -135,13 +162,31 @@ document.addEventListener("DOMContentLoaded", async () => {
                 anchor.group.add(model);
             })
             .catch((err) => {
-                console.warn(`Failed to load model for index ${index}: ${modelUrl}`, err);
+                console.warn(`Failed to load model for index ${targetIndex}: ${modelUrl}`, err);
             });
 
         // --- Logic B: UI Updates on Target Found ---
         anchor.onTargetFound = () => {
+            try {
+                // Let the outer page know we detected something (used for auto-cycling mind files)
+                window.__arDetected = true;
+                window.__arDetectedAt = Date.now();
+                window.__arLostAt = 0;
+
+                // Persist last successful mind file for users who don't know what to pick
+                const params = new URLSearchParams(window.location.search);
+                const mindFromUrl = params.get("mind");
+                const mindSelect = document.getElementById("mindSelect");
+                const chosenMind = (mindFromUrl || (mindSelect && mindSelect.value) || "").trim();
+                if (chosenMind) {
+                    localStorage.setItem("ar_last_mind", chosenMind);
+                }
+            } catch (e) {
+                // ignore
+            }
+
             // Update Text
-            if (displayTitle) displayTitle.innerText = pattern.name || "Silk Pattern " + (index + 1);
+            if (displayTitle) displayTitle.innerText = pattern.name || "Silk Pattern " + (targetIndex + 1);
             if (displayDesc) displayDesc.innerText = pattern.detail || "Luxury Thai Silk Collection";
             
             // Update Image
@@ -157,33 +202,69 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             // Update Full Detail List (หลังจากสแกน AR แสดงข้อมูลทั้งหมดให้อ่านง่าย)
             if (displayMeta) {
-                const rows = [];
-                if (pattern.si_id) {
-                    rows.push(`<div class="meta-row"><span class="meta-label">รหัสผ้า:</span><span class="meta-value">${pattern.si_id}</span></div>`);
-                }
-                if (pattern.si_type) {
-                    rows.push(`<div class="meta-row"><span class="meta-label">ประเภทผ้า:</span><span class="meta-value">${pattern.si_type}</span></div>`);
-                }
-                if (pattern.si_color) {
-                    rows.push(`<div class="meta-row"><span class="meta-label">สีหลัก:</span><span class="meta-value">${pattern.si_color}</span></div>`);
-                }
-                if (pattern.si_address) {
-                    rows.push(`<div class="meta-row"><span class="meta-label">แหล่งผลิต / ที่มา:</span><span class="meta-value">${pattern.si_address}</span></div>`);
-                }
-                if (pattern.target_file) {
-                    rows.push(`<div class="meta-row"><span class="meta-label">Target File:</span><span class="meta-value">${pattern.target_file}</span></div>`);
-                }
-                if (pattern.si_history) {
-                    rows.push(`<div class="meta-block"><span class="meta-label">ประวัติความเป็นมา</span><p class="meta-value">${pattern.si_history}</p></div>`);
-                }
+                const toText = (value) => {
+                    if (value === null || value === undefined) return "";
+                    return String(value).trim();
+                };
 
-                displayMeta.innerHTML = rows.join("");
+                const clearChildren = (el) => {
+                    while (el.firstChild) el.removeChild(el.firstChild);
+                };
+
+                const addRow = (label, value) => {
+                    const v = toText(value);
+                    if (!v) return;
+
+                    const row = document.createElement("div");
+                    row.className = "meta-row";
+
+                    const labelEl = document.createElement("span");
+                    labelEl.className = "meta-label";
+                    labelEl.textContent = label;
+
+                    const valueEl = document.createElement("span");
+                    valueEl.className = "meta-value";
+                    valueEl.textContent = v;
+
+                    row.appendChild(labelEl);
+                    row.appendChild(valueEl);
+                    displayMeta.appendChild(row);
+                };
+
+                const addBlock = (label, value) => {
+                    const v = toText(value);
+                    if (!v) return;
+
+                    const block = document.createElement("div");
+                    block.className = "meta-block";
+
+                    const labelEl = document.createElement("span");
+                    labelEl.className = "meta-label";
+                    labelEl.textContent = label;
+
+                    const valueEl = document.createElement("div");
+                    valueEl.className = "meta-value meta-preline";
+                    valueEl.textContent = v;
+
+                    block.appendChild(labelEl);
+                    block.appendChild(valueEl);
+                    displayMeta.appendChild(block);
+                };
+
+                clearChildren(displayMeta);
+
+                addRow("รหัสผ้า:", pattern.si_id);
+                addRow("ประเภทผ้า:", pattern.si_type);
+                addRow("สีหลัก:", pattern.si_color);
+                addRow("แหล่งผลิต / ที่มา:", pattern.si_address);
+                addBlock("ประวัติความเป็นมา", pattern.si_history);
+
                 displayMeta.classList.remove("hidden");
             }
 
             // Update Status Badge
             if (statusText) {
-                statusText.innerText = "Pattern Detected";
+                statusText.innerText = "พบลายผ้าแล้ว";
                 statusText.style.color = "#2ecc71"; // Green
                 // Animate dot if needed
                 const dot = document.querySelector('.status-dot');
@@ -192,8 +273,18 @@ document.addEventListener("DOMContentLoaded", async () => {
         };
 
         anchor.onTargetLost = () => {
+             // Allow auto-cycling to continue if detection was lost
+             try {
+                 window.__arDetected = false;
+                 window.__arDetectedAt = 0;
+                 window.__arLostAt = Date.now();
+             } catch (e) {
+                 // ignore
+             }
              if (statusText) {
-                statusText.innerText = "Scanning...";
+                statusText.innerText = hasMultipleMindFiles
+                    ? "กำลังค้นหาลายผ้า... รอหน่อยนะ"
+                    : "Scanning...";
                 statusText.style.color = "#fff";
                 
                 const dot = document.querySelector('.status-dot');
@@ -219,6 +310,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     } catch (err) {
         console.error("Failed to start MindAR", err);
+        try { window.__arStartFailed = true; } catch (e) {}
         if (loaderScreen) {
             loaderScreen.innerHTML = `<div style="color:red; text-align:center; padding:20px;">
                 <h3>Camera Error</h3>

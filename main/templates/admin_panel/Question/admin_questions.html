@@ -20,24 +20,20 @@
                             <a href="{% url 'admin_dashboard' %}" class="hover:text-amber-600">Dashboard</a>
                             <i class="fas fa-chevron-right mx-2 text-[10px]"></i>
                         </li>
-                        <li class="text-amber-600 font-bold">จัดการคำถาม (Q&A)</li>
+                        <li class="text-amber-600 font-bold">ข้อคำถาม</li>
                     </ol>
                 </nav>
                 <h2 class="text-3xl font-black text-gray-800 tracking-tight flex items-center gap-3">
                     <i class="fas fa-comments text-[#8B0000]"></i>
                     ระบบจัดการคำถาม
                 </h2>
-                <p class="text-gray-500 mt-1 font-medium">รายการคำถามที่พบบ่อยสำหรับผู้เข้าชม ทั้งหมด <span class="text-amber-700 font-bold">{{ questions|length }}</span> รายการ</p>
+                <p class="text-gray-500 mt-1 font-medium">ข้อคำถามทั้งหมด <span class="text-amber-700 font-bold">{{ questions|length }}</span> รายการ</p>
             </div>
             
             <div class="flex items-center gap-3">
                 <a href="{% url 'manage_questions_add' %}" class="inline-flex items-center justify-center bg-gradient-to-r from-[#8B0000] to-[#5e0000] text-white px-6 py-3.5 rounded-2xl shadow-lg shadow-red-900/20 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 font-bold group">
                     <i class="fas fa-plus-circle mr-2 group-hover:rotate-90 transition-transform"></i>
                     เพิ่มคำถามใหม่
-                </a>
-                <a href="{% url 'booking_responses_summary' %}" class="inline-flex items-center justify-center bg-white border border-gray-200 text-[#8B0000] px-4 py-2 rounded-2xl shadow-sm hover:bg-gray-50 transition-all duration-200 font-bold">
-                    <i class="fas fa-clipboard-list mr-2"></i>
-                    สรุปคำตอบการประเมิน
                 </a>
             </div>
         </div>
@@ -98,9 +94,6 @@
                             </td>
                             <td class="p-6">
                                 <div class="flex items-center justify-center gap-3">
-                                    <a href="{% url 'question_rate' q.id %}" class="w-10 h-10 flex items-center justify-center rounded-xl bg-amber-50 text-amber-700 hover:bg-amber-600 hover:text-white transition-all duration-300 shadow-sm" title="ไปยังหน้าประเมิน">
-                                        <i class="fas fa-star text-sm"></i>
-                                    </a>
                                     <a href="{% url 'manage_questions_edit' q.id %}" class="w-10 h-10 flex items-center justify-center rounded-xl bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white hover:rotate-12 transition-all duration-300 shadow-sm" title="แก้ไขคำถาม">
                                         <i class="fas fa-pen-nib text-sm"></i>
                                     </a>

@@ -1,0 +1,179 @@
+{# templates/speaker/_upload_work_partial.html #}
+
+<!-- Messages -->
+{% if messages %}
+  <div class="space-y-2">
+    {% for message in messages %}
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm px-5 py-4 text-gray-700">
+        {{ message }}
+      </div>
+    {% endfor %}
+  </div>
+{% endif %}
+
+<!-- Upload Form -->
+<div class="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+  <div class="p-6 border-b border-gray-100">
+    <h3 class="text-xl font-extrabold text-gray-800">ฟอร์มอัปโหลดรูป</h3>
+    <p class="text-sm text-gray-500 mt-1">เลือกงาน (ถ้ามี) + ใส่หัวข้อ/หมายเหตุ + เลือกรูปหลายรูปได้</p>
+  </div>
+
+  <div class="p-6 space-y-5">
+    <form method="post" enctype="multipart/form-data" class="space-y-5">
+      {% csrf_token %}
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-1">งานที่เกี่ยวข้อง (ไม่บังคับ)</label>
+          <select name="assignment_id"
+                  class="w-full rounded-2xl border border-gray-200 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-amber-200 bg-white">
+            <option value="">— ไม่ระบุงาน —</option>
+            {% for a in assignments %}
+              <option value="{{ a.assignment_id }}">
+                {{ a.assignment_id }}{% if a.title %} • {{ a.title }}{% endif %}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-1">หัวข้อ/ชื่อชุดรูป</label>
+          <input type="text" name="title" maxlength="255"
+                 placeholder="เช่น นำชมพิพิธภัณฑ์ / กิจกรรมเวิร์กช็อป"
+                 class="w-full rounded-2xl border border-gray-200 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-amber-200">
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-1">หมายเหตุ/รายละเอียด (ไม่บังคับ)</label>
+        <textarea name="note" rows="3"
+                  placeholder="สรุปสั้น ๆ เช่น สถานที่ / ช่วงเวลา / สิ่งที่ทำ"
+                  class="w-full rounded-2xl border border-gray-200 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-amber-200"></textarea>
+      </div>
+
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-1">เลือกรูปภาพ (เลือกได้หลายรูป)</label>
+        <div class="rounded-3xl border border-dashed border-gray-300 bg-gray-50 p-5">
+          <input id="workFiles" type="file" name="images" accept="image/*" multiple
+                 class="block w-full text-sm text-gray-700
+                        file:mr-4 file:py-2.5 file:px-4
+                        file:rounded-2xl file:border-0
+                        file:bg-amber-700 file:text-white
+                        hover:file:bg-amber-800
+                        cursor-pointer">
+          <p class="text-xs text-gray-500 mt-2">รองรับ JPG/PNG/WEBP</p>
+
+          <!-- Preview -->
+          <div id="previewWrap" class="mt-4 hidden">
+            <div class="flex items-center justify-between">
+              <div class="text-sm font-semibold text-gray-700">ตัวอย่างรูปที่เลือก</div>
+              <button type="button" id="clearBtn"
+                      class="px-3 py-1.5 rounded-xl bg-white border border-gray-200 text-gray-700 font-semibold hover:bg-gray-50">
+                ล้างรูป
+              </button>
+            </div>
+            <div id="previewGrid" class="mt-3 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end">
+        <button type="submit"
+                class="px-6 py-3 rounded-2xl bg-amber-700 text-white font-bold hover:bg-amber-800 transition">
+          อัปโหลด
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Latest Uploads -->
+<div class="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+  <div class="p-6 border-b border-gray-100">
+    <h3 class="text-xl font-extrabold text-gray-800">ชุดรูปที่อัปโหลดล่าสุด</h3>
+    <p class="text-sm text-gray-500 mt-1">แสดงล่าสุด 12 ชุด</p>
+  </div>
+
+  <div class="p-6">
+    {% if uploads %}
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {% for u in uploads %}
+          <div class="rounded-3xl border border-gray-100 p-5 hover:bg-amber-50/30 transition">
+            <div class="flex items-start justify-between gap-3">
+              <div class="min-w-0">
+                <div class="font-bold text-gray-800 truncate">{{ u.title|default:"(ไม่มีหัวข้อ)" }}</div>
+                <div class="text-xs text-gray-500 mt-1">
+                  อัปโหลดเมื่อ: {{ u.created_at|date:"d M Y H:i" }}
+                  {% if u.assignment %} • งาน: {{ u.assignment.assignment_id }}{% endif %}
+                </div>
+              </div>
+              <div class="text-xs px-2.5 py-1 rounded-xl bg-amber-50 text-amber-800 border border-amber-100 shrink-0">
+                {{ u.images.count }} รูป
+              </div>
+            </div>
+
+            {% if u.note %}
+              <p class="mt-3 text-sm text-gray-600">{{ u.note|truncatechars:120 }}</p>
+            {% endif %}
+
+            <div class="mt-4 grid grid-cols-3 gap-2">
+              {% for img in u.images.all|slice:":6" %}
+                <a href="{{ img.image.url }}" target="_blank" class="block">
+                  <img src="{{ img.image.url }}" class="w-full h-24 object-cover rounded-2xl border border-gray-100" alt="work">
+                </a>
+              {% endfor %}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="px-6 py-10 text-center text-gray-400">
+        ยังไม่มีการอัปโหลดผลงาน
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+(function () {
+  const input = document.getElementById('workFiles');
+  const wrap = document.getElementById('previewWrap');
+  const grid = document.getElementById('previewGrid');
+  const clearBtn = document.getElementById('clearBtn');
+  if (!input || !wrap || !grid) return;
+
+  function clearPreview() {
+    grid.innerHTML = '';
+    wrap.classList.add('hidden');
+    input.value = '';
+  }
+
+  input.addEventListener('change', function () {
+    grid.innerHTML = '';
+    const files = Array.from(input.files || []);
+    if (!files.length) { wrap.classList.add('hidden'); return; }
+    wrap.classList.remove('hidden');
+
+    files.slice(0, 20).forEach(file => {
+      const url = URL.createObjectURL(file);
+
+      const card = document.createElement('div');
+      card.className = 'rounded-2xl border border-gray-100 bg-white overflow-hidden';
+
+      const img = document.createElement('img');
+      img.src = url;
+      img.className = 'w-full h-24 object-cover';
+
+      const meta = document.createElement('div');
+      meta.className = 'px-2 py-1 text-[11px] text-gray-600 truncate';
+      meta.textContent = file.name;
+
+      card.appendChild(img);
+      card.appendChild(meta);
+      grid.appendChild(card);
+    });
+  });
+
+  if (clearBtn) clearBtn.addEventListener('click', clearPreview);
+})();
+</script>
