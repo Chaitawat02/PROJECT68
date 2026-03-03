@@ -11,6 +11,30 @@
   </div>
 {% endif %}
 
+{% if just_completed_booking %}
+  <div class="bg-white rounded-3xl border border-amber-100 shadow-sm overflow-hidden">
+    <div class="p-6 border-b border-amber-100 bg-amber-50/60">
+      <h3 class="text-lg font-extrabold text-gray-800">ข้อมูลการจองที่เพิ่งปิดงาน</h3>
+      <p class="text-sm text-gray-600 mt-1">
+        การจองของ <span class="font-bold">{{ just_completed_booking.fullname|default:"-" }}</span>
+      </p>
+    </div>
+    <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+      <div class="text-gray-700"><span class="text-gray-500">วันที่:</span> {% if just_completed_booking.Re_date %}{{ just_completed_booking.Re_date|date:"d M Y" }}{% else %}-{% endif %}</div>
+      <div class="text-gray-700"><span class="text-gray-500">ช่วงเวลา:</span> {% if just_completed_booking.get_visit_session_display %}{{ just_completed_booking.get_visit_session_display }}{% else %}{{ just_completed_booking.visit_session|default:"-" }}{% endif %}</div>
+      <div class="text-gray-700"><span class="text-gray-500">จำนวน:</span> {{ just_completed_booking.Re_quantity|default:"-" }} ท่าน</div>
+      <div class="text-gray-700"><span class="text-gray-500">สถานะ:</span> {{ just_completed_booking.get_Re_status_display|default:just_completed_booking.Re_status|default:"-" }}</div>
+
+      <div class="md:col-span-2">
+        <a href="{% url 'booking_detail' just_completed_booking.id %}"
+           class="inline-flex items-center gap-2 text-amber-800 font-bold hover:text-amber-900">
+          ดูรายละเอียดการจอง <i class="fas fa-arrow-right text-xs"></i>
+        </a>
+      </div>
+    </div>
+  </div>
+{% endif %}
+
 <!-- Upload Form -->
 <div class="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
   <div class="p-6 border-b border-gray-100">
@@ -19,8 +43,12 @@
   </div>
 
   <div class="p-6 space-y-5">
-    <form method="post" enctype="multipart/form-data" class="space-y-5">
+    <form method="post" action="{% url 'speaker_upload_work' %}" enctype="multipart/form-data" class="space-y-5">
       {% csrf_token %}
+
+      {% if upload_next %}
+        <input type="hidden" name="next" value="{{ upload_next }}">
+      {% endif %}
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
@@ -29,8 +57,9 @@
                   class="w-full rounded-2xl border border-gray-200 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-amber-200 bg-white">
             <option value="">— ไม่ระบุงาน —</option>
             {% for a in assignments %}
-              <option value="{{ a.assignment_id }}">
-                {{ a.assignment_id }}{% if a.title %} • {{ a.title }}{% endif %}
+              <option value="{{ a.assignment_id }}"
+                      {% if just_completed_assignment and a.assignment_id == just_completed_assignment.assignment_id %}selected{% endif %}>
+                {{ a.assignment_id }} • การจองของ {% if a.booking %}{{ a.booking.fullname|default:"-" }}{% else %}-{% endif %}
               </option>
             {% endfor %}
           </select>

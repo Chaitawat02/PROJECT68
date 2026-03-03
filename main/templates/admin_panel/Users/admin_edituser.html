@@ -98,7 +98,7 @@
                         <div class="relative">
                             <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400"><i class="fas fa-shield-alt"></i></span>
                             <select name="role" class="block w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600 appearance-none bg-white">
-                                <option value="member" {% if profile.role == 'member' %}selected{% endif %}>สมาชิกทั่วไป (Member)</option>
+                                <option value="member" {% if profile.role == 'member' %}selected{% endif %}>ผู้ใช้งาน (User)</option>
                                 <option value="speaker" {% if profile.role == 'speaker' %}selected{% endif %}>วิทยากร (Speaker)</option>
                             </select>
                             <span class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-gray-400"><i class="fas fa-chevron-down text-xs"></i></span>

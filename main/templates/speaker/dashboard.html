@@ -54,19 +54,19 @@
           <div class="grid grid-cols-2 md:grid-cols-4 gap-3 w-full">
             <button type="button" data-tab-btn="pending"
               class="tab-btn bg-white/80 px-5 py-4 rounded-2xl border border-amber-100 shadow-sm text-center transition-all hover:-translate-y-1 hover:shadow-md hover:bg-white active:scale-95 cursor-pointer group">
-              <p class="text-[10px] text-amber-900/60 uppercase font-bold tracking-wider mb-1 group-hover:text-amber-800">ยังไม่รับ</p>
+              <p class="text-[10px] text-amber-900/60 uppercase font-bold tracking-wider mb-1 group-hover:text-amber-800">รับงาน</p>
               <p class="text-2xl font-bold text-amber-600 group-hover:text-amber-700">{{ pending_assignments.count }}</p>
             </button>
 
             <button type="button" data-tab-btn="accepted"
               class="tab-btn bg-white/80 px-5 py-4 rounded-2xl border border-blue-100 shadow-sm text-center transition-all hover:-translate-y-1 hover:shadow-md hover:bg-white active:scale-95 cursor-pointer group">
-              <p class="text-[10px] text-blue-900/60 uppercase font-bold tracking-wider mb-1 group-hover:text-blue-800">กำลังทำ</p>
+              <p class="text-[10px] text-blue-900/60 uppercase font-bold tracking-wider mb-1 group-hover:text-blue-800">ปิดงาน</p>
               <p class="text-2xl font-bold text-blue-600 group-hover:text-blue-700">{{ accepted_assignments.count }}</p>
             </button>
 
             <button type="button" data-tab-btn="completed"
               class="tab-btn bg-white/80 px-5 py-4 rounded-2xl border border-emerald-100 shadow-sm text-center transition-all hover:-translate-y-1 hover:shadow-md hover:bg-white active:scale-95 cursor-pointer group">
-              <p class="text-[10px] text-emerald-900/60 uppercase font-bold tracking-wider mb-1 group-hover:text-emerald-800">เสร็จสิ้น</p>
+              <p class="text-[10px] text-emerald-900/60 uppercase font-bold tracking-wider mb-1 group-hover:text-emerald-800">ประวัติงาน</p>
               <p class="text-2xl font-bold text-emerald-600 group-hover:text-emerald-700">{{ completed_assignments.count }}</p>
             </button>
 
@@ -121,7 +121,7 @@
                 <div class="flex justify-between items-start gap-4">
                   <div>
                     <h4 class="font-bold text-lg text-gray-900 group-hover:text-amber-700 transition-colors">
-                      {{ assignment.title|default:"บรรยายนำชมและสาธิต" }}
+                      การจองของ {{ assignment.booking.fullname|default:"-" }}
                     </h4>
 
                     <div class="flex items-center gap-4 mt-2 text-sm text-gray-500">
@@ -384,100 +384,41 @@
         <div id="section-report" data-tab="report" class="tab-section hidden space-y-6 scroll-mt-32">
           <div class="flex items-center gap-3 mb-2">
             <div class="w-1.5 h-6 bg-gray-800 rounded-full"></div>
-            <h3 class="text-xl font-bold text-gray-800">
-              รายงานการประเมิน
-              <span class="text-gray-400 text-sm font-normal ml-2">({{ rating_summary.total|default:0 }})</span>
-            </h3>
+            <h3 class="text-xl font-bold text-gray-800">รายงาน</h3>
           </div>
 
-          <!-- Summary -->
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div class="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
-              <p class="text-sm text-gray-500">จำนวนแบบประเมิน</p>
-              <p class="text-3xl font-black text-amber-700 mt-2">{{ rating_summary.total|default:0 }}</p>
-            </div>
+          <div class="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
+            <p class="text-sm text-gray-500">เลือกประเภทรายงานที่ต้องการดู</p>
 
-            <div class="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
-              <p class="text-sm text-gray-500">เฉลี่ย “แนะนำ” (ข้อ 10)</p>
-              <p class="text-3xl font-black text-emerald-700 mt-2">{{ rating_summary.avg_q10|floatformat:2|default:"0.00" }}</p>
-            </div>
+            <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <a href="{% url 'speaker_report' %}"
+                 class="group block rounded-3xl border border-gray-100 bg-gray-50/30 hover:bg-amber-50/40 transition overflow-hidden">
+                <div class="p-6">
+                  <div class="flex items-start justify-between gap-4">
+                    <div class="min-w-0">
+                      <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-700">
+                          <i class="fas fa-star"></i>
+                        </div>
+                        <div>
+                          <p class="text-lg font-extrabold text-gray-800">รายงานการประเมินจากผู้ใช้</p>
+                          <p class="text-sm text-gray-500 mt-0.5">สรุปผลแบบประเมินแยกตามรอบการจอง (ของคุณเท่านั้น)</p>
+                        </div>
+                      </div>
+                    </div>
 
-            <div class="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
-              <p class="text-sm text-gray-500">เฉลี่ยรวม (10 ข้อ)</p>
-              {% with a1=rating_summary.avg_q1 a2=rating_summary.avg_q2 a3=rating_summary.avg_q3 a4=rating_summary.avg_q4 a5=rating_summary.avg_q5 a6=rating_summary.avg_q6 a7=rating_summary.avg_q7 a8=rating_summary.avg_q8 a9=rating_summary.avg_q9 a10=rating_summary.avg_q10 %}
-                {% if a1 %}
-                  {% widthratio a1|add:a2|add:a3|add:a4|add:a5|add:a6|add:a7|add:a8|add:a9|add:a10 10 1 as avg_all %}
-                  <p class="text-3xl font-black text-blue-700 mt-2">{{ avg_all|floatformat:2 }}</p>
-                {% else %}
-                  <p class="text-3xl font-black text-blue-700 mt-2">0.00</p>
-                {% endif %}
-              {% endwith %}
-            </div>
-          </div>
-
-          <!-- Table -->
-          <div class="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-            <div class="p-6 border-b border-gray-100">
-              <h4 class="text-lg font-extrabold text-gray-800">รายการแบบประเมิน</h4>
-              <p class="text-sm text-gray-500 mt-1">แสดงเฉพาะงานที่มอบหมายให้คุณเท่านั้น</p>
-            </div>
-
-            <div class="overflow-x-auto">
-              <table class="min-w-full text-sm">
-                <thead class="bg-gray-50 text-gray-600">
-                  <tr>
-                    <th class="text-left px-6 py-3">วันที่</th>
-                    <th class="text-left px-6 py-3">ช่วงเวลา</th>
-                    <th class="text-left px-6 py-3">จำนวน</th>
-                    <th class="text-left px-6 py-3">เฉลี่ย</th>
-                    <th class="text-left px-6 py-3">ความคิดเห็น</th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-100">
-                  {% for r in rating_list %}
-                  <tr class="hover:bg-gray-50">
-                    <td class="px-6 py-4 font-semibold text-gray-800">{{ r.booking__Re_date|date:"d/m/Y" }}</td>
-                    <td class="px-6 py-4 text-gray-600">
-                      {% if r.booking__visit_session == "morning" %}ช่วงเช้า{% elif r.booking__visit_session == "afternoon" %}ช่วงบ่าย{% else %}-{% endif %}
-                    </td>
-                    <td class="px-6 py-4 text-gray-600">{{ r.booking__Re_quantity|default:"-" }}</td>
-                    <td class="px-6 py-4">
-                      <span class="inline-flex px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 font-bold">
-                        {{ r.avg_total|floatformat:2 }}
+                    <div class="shrink-0">
+                      <span class="inline-flex items-center px-3 py-1 rounded-full bg-white border border-gray-200 text-gray-700 text-xs font-bold">
+                        {{ rating_summary.total|default:0 }} แบบประเมิน
                       </span>
-                    </td>
-                    <td class="px-6 py-4 text-gray-600">{{ r.comment|default:"-"|truncatechars:80 }}</td>
-                  </tr>
-                  {% empty %}
-                  <tr>
-                    <td colspan="5" class="px-6 py-10 text-center text-gray-400">
-                      ยังไม่มีข้อมูลแบบประเมิน
-                    </td>
-                  </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
-            </div>
-          </div>
+                    </div>
+                  </div>
 
-          <!-- Question summary -->
-          <div class="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-            <div class="p-6 border-b border-gray-100">
-              <h4 class="text-lg font-extrabold text-gray-800">สรุปคำตอบหลังเข้าชม</h4>
-            </div>
-
-            <div class="p-6 space-y-3">
-              {% for row in response_summary %}
-                <div class="p-4 rounded-2xl border border-gray-100 bg-gray-50/40">
-                  <div class="font-bold text-gray-800">Q{{ row.question_id }}: {{ row.question__question }}</div>
-                  <div class="text-sm text-gray-600 mt-1">
-                    คำตอบ: <span class="font-bold">{{ row.answer }}</span>
-                    <span class="ml-2 px-2 py-0.5 rounded-full bg-white border border-gray-200 font-bold">{{ row.cnt }}</span>
+                  <div class="mt-5 inline-flex items-center gap-2 text-amber-800 font-bold">
+                    เปิดรายงาน <i class="fas fa-arrow-right text-xs group-hover:translate-x-0.5 transition-transform"></i>
                   </div>
                 </div>
-              {% empty %}
-                <p class="text-gray-400">ยังไม่มีข้อมูลคำตอบหลังเข้าชม</p>
-              {% endfor %}
+              </a>
             </div>
           </div>
         </div>
@@ -486,7 +427,7 @@
              upload (คุณมีอยู่แล้ว)
         ================================ -->
 <section id="section-upload" data-tab="upload" class="tab-section hidden space-y-6 scroll-mt-32">
-  {% include "speaker/_upload_work_partial.html" %}
+  {% include "speaker/_upload_work_partial.html" with upload_next=request.path|add:"#section-upload" assignments=upload_assignments uploads=uploads %}
 </section>
 
       </main>

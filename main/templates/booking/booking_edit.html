@@ -1,0 +1,181 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block title %}แก้ไขการจอง{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto py-10 px-4">
+    <div class="flex flex-col md:flex-row justify-between items-center mb-12 gap-6">
+        <div class="text-center md:text-left">
+            <h6 class="text-amber-600 font-bold uppercase tracking-widest mb-2">Reservation</h6>
+            <h2 class="text-4xl font-extrabold text-gray-900">แก้ไขข้อมูลการจอง</h2>
+            <p class="text-gray-500 mt-2 max-w-2xl">คุณสามารถแก้ไขได้ก่อนผู้ดูแลระบบยืนยันการจองเท่านั้น</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <a href="/user/dashboard/?section=booking"
+               class="inline-flex items-center gap-2 px-4 py-2 rounded-2xl border border-gray-200 bg-white text-gray-700 font-bold hover:bg-gray-50 transition">
+                <i class="fas fa-arrow-left"></i> กลับไปหน้าประวัติการจอง
+            </a>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-10">
+        <div class="lg:col-span-2 space-y-8">
+            <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-8">
+                <form method="post" class="space-y-6" id="bookingEditForm">
+                    {% csrf_token %}
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="space-y-2">
+                            <label class="block text-sm font-semibold text-gray-700">ชื่อ-นามสกุล</label>
+                            <input type="text" name="fullname" required
+                                value="{{ user_initial.fullname|default:'' }}"
+                                class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500 outline-none transition-all">
+                        </div>
+                        <div class="space-y-2">
+                            <label class="block text-sm font-semibold text-gray-700">อีเมลติดต่อ</label>
+                            <input type="email" name="email" required
+                                value="{{ user_initial.email|default:'' }}"
+                                class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500 outline-none transition-all">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 border-t border-gray-50 pt-6">
+                        <div class="space-y-2">
+                            <label class="block text-sm font-semibold text-gray-700">วันที่เข้าชม</label>
+                            <input type="date" name="Re_date" id="id_Re_date" required min="{{ today }}"
+                                value="{{ preselect_date }}"
+                                class="w-full rounded-xl border-gray-200 focus:border-amber-500 focus:ring-amber-500 px-4 py-3 border shadow-sm transition-all">
+                        </div>
+                        <div class="space-y-2">
+                            <label class="block text-sm font-semibold text-gray-700">ช่วงเวลาที่เข้าชม</label>
+                            <select name="visit_session" id="id_visit_session" required
+                                class="w-full rounded-xl border-gray-200 focus:border-amber-500 focus:ring-amber-500 px-4 py-3 border shadow-sm transition-all">
+                                <option value="">-- เลือกช่วงเวลา --</option>
+                                <option value="morning" {% if preselect_session == 'morning' %}selected{% endif %}>ช่วงเช้า (09:00 - 12:00 น.)</option>
+                                <option value="afternoon" {% if preselect_session == 'afternoon' %}selected{% endif %}>ช่วงบ่าย (13:00 - 16:00 น.)</option>
+                            </select>
+                        </div>
+                        <div class="space-y-2">
+                            <label class="block text-sm font-semibold text-gray-700">จำนวนผู้เข้าชม (ท่าน)</label>
+                            <input type="number" name="Re_quantity" min="1" required value="{{ user_initial.Re_quantity|default:1 }}"
+                                class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500 outline-none transition-all">
+                        </div>
+                        <div class="space-y-2">
+                            <label class="block text-sm font-semibold text-gray-700">เบอร์โทรศัพท์</label>
+                            <input type="text" name="phone" required value="{{ user_initial.phone|default:'' }}"
+                                class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500 outline-none transition-all">
+                        </div>
+                    </div>
+
+                    <div class="mt-8 border-t border-gray-100 pt-8">
+                        <h4 class="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                            <i class="fas fa-calendar-check text-amber-500"></i> กิจกรรมประจำพิพิธภัณฑ์
+                        </h4>
+
+                        <div id="workshop-list-container" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {% for workshop in all_workshops %}
+                            <label class="relative flex items-start p-4 border-2 rounded-2xl cursor-pointer transition-all hover:border-amber-300 hover:bg-amber-50/30 group 
+                                {% if workshop.id|stringformat:'s' in selected_workshop_ids %}border-amber-500 bg-amber-50{% else %}border-gray-100{% endif %}">
+
+                                <input type="checkbox" name="workshop_ids" value="{{ workshop.id }}"
+                                    {% if workshop.id|stringformat:'s' in selected_workshop_ids %}checked{% endif %}
+                                    class="w-5 h-5 text-amber-600 focus:ring-amber-500 border-gray-300 rounded-lg mt-1">
+
+                                <div class="ml-4 flex gap-4 w-full">
+                                    {% if workshop.image %}
+                                    <div class="w-20 h-20 flex-shrink-0">
+                                        <img src="{{ workshop.image.url }}" alt="{{ workshop.title }}" class="w-full h-full object-cover rounded-xl shadow-sm">
+                                    </div>
+                                    {% else %}
+                                    <div class="w-20 h-20 flex-shrink-0 bg-gray-100 rounded-xl flex items-center justify-center">
+                                        <i class="fas fa-image text-gray-300 text-2xl"></i>
+                                    </div>
+                                    {% endif %}
+
+                                    <div class="flex-1">
+                                        <span class="block font-bold text-gray-900 group-hover:text-amber-700 leading-tight">{{ workshop.title }}</span>
+
+                                        <span class="text-xs text-gray-500 font-medium mt-1 block">
+                                            <i class="far fa-clock mr-1"></i>
+                                            {% if workshop.duration %}
+                                                ใช้เวลา {{ workshop.duration }} นาที
+                                            {% else %}
+                                                ไม่ระบุระยะเวลา
+                                            {% endif %}
+                                        </span>
+
+                                        {% if workshop.location %}
+                                        <span class="text-xs text-gray-500 font-medium mt-1 block">
+                                            <i class="fas fa-map-marker-alt mr-1"></i> {{ workshop.location }}
+                                        </span>
+                                        {% endif %}
+
+                                        {% if workshop.description %}
+                                        <p class="text-[11px] text-gray-500 mt-2 leading-snug">
+                                            {{ workshop.description|truncatechars:90 }}
+                                        </p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </label>
+                            {% empty %}
+                            <p class="text-gray-400 text-sm italic col-span-full py-10 text-center bg-gray-50 rounded-3xl border-2 border-dashed border-gray-100">
+                                <i class="fas fa-calendar-times text-2xl mb-2 block"></i>
+                                ขออภัย ไม่มีกิจกรรม Workshop
+                            </p>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="pt-6">
+                        <button type="submit" class="w-full bg-amber-800 text-white py-4 rounded-2xl font-bold text-lg hover:bg-black transition-all shadow-lg flex items-center justify-center gap-2">
+                            <i class="fas fa-save"></i> บันทึกการแก้ไข
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <aside class="space-y-6">
+            <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-6">
+                <h3 class="text-lg font-extrabold text-gray-900 flex items-center gap-2">
+                    <i class="fas fa-info-circle text-amber-600"></i>
+                    ข้อมูลการจอง
+                </h3>
+                <div class="mt-4 space-y-3 text-sm">
+                    <div class="flex items-center justify-between">
+                        <span class="text-gray-500">รหัสการจอง</span>
+                        <span class="font-extrabold text-gray-900">#{{ booking.id }}</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-gray-500">สถานะ</span>
+                        <span class="px-3 py-1 bg-yellow-50 text-yellow-800 border border-yellow-200 rounded-full text-xs font-extrabold">รอยืนยัน</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-gray-500">วันที่สร้าง</span>
+                        <span class="font-semibold text-gray-900">{{ booking.created_at|date:"j M Y" }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-6">
+                <h3 class="text-lg font-extrabold text-gray-900 flex items-center gap-2">
+                    <i class="fas fa-shield-alt text-amber-600"></i>
+                    เงื่อนไขการแก้ไข
+                </h3>
+                <div class="mt-4 text-sm text-gray-600 space-y-2">
+                    <p class="font-semibold">แก้ไขได้เฉพาะก่อนผู้ดูแลระบบยืนยันการจอง</p>
+                    <p>หากสถานะถูกยืนยัน/อนุมัติแล้ว ระบบจะไม่อนุญาตให้แก้ไข</p>
+                </div>
+                <div class="mt-4">
+                    <a href="/user/dashboard/?section=booking"
+                       class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-gray-900 text-white font-extrabold hover:bg-black transition">
+                        <i class="fas fa-list"></i> ดูประวัติการจอง
+                    </a>
+                </div>
+            </div>
+        </aside>
+    </div>
+</div>
+{% endblock %}

@@ -1,7 +1,7 @@
 {% extends 'main/base.html' %}
 {% load static %}
 
-{% block title %}รายละเอียดงาน - {{ assignment.title }}{% endblock %}
+{% block title %}รายละเอียดงาน - การจองของ {% if booking and booking.fullname %}{{ booking.fullname }}{% else %}-{% endif %}{% endblock %}
 
 {% block content %}
 <div class="max-w-6xl mx-auto px-4 py-8">
@@ -62,7 +62,7 @@
             <div class="bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
                 <div class="flex justify-between items-start mb-6">
                     <h2 class="text-3xl font-extrabold text-gray-900 leading-tight">
-                        {{ assignment.title }}
+                        การจองของ {{ booking.fullname|default:"-" }}
                     </h2>
                 </div>
 
@@ -114,7 +114,7 @@
                         {% if assignment.status == 'pending' or assignment.status == 'assigned' %}
                             <a href="{% url 'accept_assignment' assignment.pk %}" 
                                class="flex-1 text-center px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl transition-all transform hover:-translate-y-1 shadow-md hover:shadow-lg">
-                                <i class="fas fa-check mr-2"></i> รับงานนี้
+                                <i class="fas fa-check mr-2"></i> รับงาน
                             </a>
 
                             <a href="{% url 'reject_assignment' assignment.assignment_id %}"
@@ -128,7 +128,7 @@
                         {% if assignment.status == 'accepted' or assignment.status == 'confirmed' %}
                             <a href="{% url 'complete_assignment' assignment.pk %}" 
                                class="flex-1 text-center px-6 py-3 bg-amber-800 hover:bg-amber-900 text-white font-bold rounded-xl transition-all transform hover:-translate-y-1 shadow-md hover:shadow-lg">
-                                <i class="fas fa-flag-checkered mr-2"></i> เสร็จสิ้นภารกิจ
+                                <i class="fas fa-flag-checkered mr-2"></i> ปิดงาน
                             </a>
                         {% endif %}
                     {% endif %}

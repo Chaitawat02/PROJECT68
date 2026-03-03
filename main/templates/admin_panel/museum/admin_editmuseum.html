@@ -11,45 +11,44 @@
     </aside>
 
     <main class="w-full lg:w-3/4 xl:w-4/5 pr-4 lg:pr-8">
-        
-        <div class="relative p-10 rounded-[3rem] overflow-hidden bg-white shadow-2xl shadow-gray-200/50 border border-gray-100 mb-8 group">
-            <div class="absolute top-0 right-0 w-80 h-80 bg-gradient-to-br from-amber-100/40 to-red-50/40 rounded-full -mr-40 -mt-40 blur-3xl transition-all group-hover:scale-110 duration-700"></div>
-            
-            <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-                <div class="flex items-center gap-8">
-                    <div class="w-24 h-24 bg-gradient-to-br from-amber-700 to-amber-900 text-white rounded-[2rem] flex items-center justify-center shadow-2xl shadow-amber-200 rotate-3 group-hover:rotate-0 transition-all duration-500">
-                        <i class="fas fa-landmark text-4xl"></i>
+        <div class="max-w-6xl mx-auto">
+
+        <section class="bg-white border border-gray-100 rounded-3xl shadow-sm p-6 sm:p-8 mb-8">
+            <div class="flex items-start sm:items-center justify-between gap-6">
+                <div class="flex items-center gap-4 sm:gap-6">
+                    <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-amber-50 border border-amber-100 flex items-center justify-center overflow-hidden">
+                        {% if museum and museum.logo %}
+                            <img src="{{ museum.logo.url }}" alt="{{ museum.name|default:'logo' }}" class="w-full h-full object-contain" />
+                        {% else %}
+                            <i class="fas fa-landmark text-3xl text-amber-700"></i>
+                        {% endif %}
                     </div>
                     <div>
-                        <nav class="flex text-[11px] text-gray-400 uppercase tracking-[0.3em] mb-3">
-                            <span class="hover:text-amber-700 cursor-default">Admin Panel</span>
-                            <i class="fas fa-chevron-right mx-3 text-[8px] opacity-50"></i>
-                            <span class="text-amber-600 font-black">Identity Management</span>
-                        </nav>
-                        <h1 class="text-4xl font-black text-gray-800 tracking-tight">
-                            {{ title|default:"ตั้งค่าข้อมูลพิพิธภัณฑ์" }}
+                        <p class="text-xs font-extrabold text-gray-500 uppercase tracking-wider">Admin Panel</p>
+                        <h1 class="text-2xl sm:text-3xl font-extrabold text-gray-800 tracking-tight mt-1">
+                            {{ title|default:"จัดการข้อมูลพิพิธภัณฑ์" }}
                         </h1>
-                        <p class="text-sm text-gray-400 font-medium mt-2 flex items-center gap-2">
-                            <span class="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></span>
+                        <p class="text-sm text-gray-600 mt-2">
                             ข้อมูลชุดนี้จะถูกแสดงบนหน้าแรกและหน้าติดต่อสอบถามของเว็บไซต์หลัก
                         </p>
                     </div>
                 </div>
             </div>
-        </div>
+        </section>
 
         {% if messages %}
-        <div class="mb-8 space-y-4">
+        <div class="mb-8 space-y-3">
             {% for message in messages %}
-            <div class="p-5 rounded-[1.5rem] bg-white border-l-[6px] shadow-lg shadow-gray-200/40 animate-fade-in-down
-                {% if message.tags == 'success' %}border-emerald-500 text-emerald-900{% else %}border-rose-500 text-rose-900{% endif %} flex items-center justify-between">
-                <div class="flex items-center">
-                    <div class="mr-4 p-3 rounded-2xl {% if message.tags == 'success' %}bg-emerald-50 text-emerald-500{% else %}bg-rose-50 text-rose-500{% endif %}">
-                        <i class="fas {% if message.tags == 'success' %}fa-check-double{% else %}fa-exclamation-triangle{% endif %} text-lg"></i>
-                    </div>
-                    <span class="font-bold tracking-tight">{{ message }}</span>
+            <div class="flex items-start gap-3 p-4 rounded-2xl border shadow-sm bg-white animate-fade-in-down
+                {% if message.tags == 'success' %}border-emerald-200 text-emerald-900{% else %}border-rose-200 text-rose-900{% endif %}">
+                <div class="mt-0.5 w-9 h-9 rounded-xl flex items-center justify-center
+                    {% if message.tags == 'success' %}bg-emerald-50 text-emerald-600{% else %}bg-rose-50 text-rose-600{% endif %}">
+                    <i class="fas {% if message.tags == 'success' %}fa-check-circle{% else %}fa-exclamation-circle{% endif %}"></i>
                 </div>
-                <button onclick="this.parentElement.remove()" class="text-gray-400 hover:text-gray-600 transition-colors">
+                <div class="flex-1">
+                    <div class="font-bold">{{ message }}</div>
+                </div>
+                <button type="button" onclick="this.parentElement.remove()" class="text-gray-400 hover:text-gray-600 transition-colors">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -60,26 +59,24 @@
         <form method="POST" enctype="multipart/form-data" class="space-y-10">
             {% csrf_token %}
             
-            <div class="grid grid-cols-1 lg:grid-cols-12 gap-10">
+            <div class="grid grid-cols-1 gap-8">
 
                 <!-- คอลัมน์ซ้าย: ข้อมูลตัวหนังสือทั้งหมด เรียงลงมา -->
-                <div class="lg:col-span-7 space-y-10">
-                    <div class="bg-white p-10 rounded-[3rem] shadow-xl shadow-gray-200/30 border border-gray-50 relative overflow-hidden">
-                        <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-transparent via-amber-200/30 to-transparent"></div>
-                        
-                        <div class="flex items-center gap-5 mb-12">
-                            <div class="w-14 h-14 bg-gray-50 rounded-[1.25rem] flex items-center justify-center text-amber-700 shadow-inner border border-gray-100">
-                                <i class="fas fa-feather-alt text-2xl"></i>
+                <div class="space-y-8">
+                    <section class="bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-gray-100">
+                        <div class="flex items-center gap-4 mb-8">
+                            <div class="w-12 h-12 bg-amber-50 text-amber-700 rounded-2xl flex items-center justify-center border border-amber-100">
+                                <i class="fas fa-feather-alt text-xl"></i>
                             </div>
                             <div>
-                                <h3 class="text-2xl font-black text-gray-800">ข้อมูลพิพิธภัณฑ์</h3>
-                                <p class="text-xs text-gray-400 uppercase tracking-widest mt-1">Identity & Contact Information</p>
+                                <h3 class="text-xl font-extrabold text-gray-800">ข้อมูลพิพิธภัณฑ์</h3>
+                                <p class="text-xs text-gray-500 mt-1">Identity & Contact</p>
                             </div>
                         </div>
                         
                         <div class="space-y-7">
                             <div class="space-y-3 group">
-                                <label class="text-[12px] font-black text-gray-500 uppercase tracking-widest ml-2 flex items-center gap-2">
+                                <label class="text-xs font-extrabold text-gray-500 uppercase tracking-wider ml-2 flex items-center gap-2">
                                     ชื่อพิพิธภัณฑ์ <span class="text-red-500">*</span>
                                     <span class="text-[10px] font-medium text-gray-300 normal-case">(ภาษาไทย/อังกฤษ)</span>
                                 </label>
@@ -89,14 +86,14 @@
                             </div>
 
                             <div class="space-y-3 group">
-                                <label class="text-[12px] font-black text-gray-500 uppercase tracking-widest ml-2">ประวัติความเป็นมา</label>
-                                <div class="relative rounded-[1.5rem] overflow-hidden">
+                                <label class="text-xs font-extrabold text-gray-500 uppercase tracking-wider ml-2">ประวัติความเป็นมา</label>
+                                <div class="relative rounded-2xl overflow-hidden">
                                     {{ form.history }}
                                 </div>
                             </div>
 
                             <div class="space-y-3 group">
-                                <label class="text-[12px] font-black text-gray-500 uppercase tracking-widest ml-2">ที่ตั้งสำนักงาน</label>
+                                <label class="text-xs font-extrabold text-gray-500 uppercase tracking-wider ml-2">ที่ตั้งสำนักงาน</label>
                                 <div class="relative">
                                     {{ form.address }}
                                 </div>
@@ -104,13 +101,13 @@
 
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
                                 <div class="space-y-2 group">
-                                    <label class="block text-[10px] font-black text-amber-700 uppercase tracking-[0.2em] ml-1">เวลาทำการ</label>
+                                    <label class="block text-xs font-extrabold text-amber-700 uppercase tracking-wider ml-1">เวลาทำการ</label>
                                     <div class="relative">
                                         {{ form.opening_hours }}
                                     </div>
                                 </div>
                                 <div class="space-y-2 group">
-                                    <label class="block text-[10px] font-black text-amber-700 uppercase tracking-[0.2em] ml-1">เบอร์โทรศัพท์</label>
+                                    <label class="block text-xs font-extrabold text-amber-700 uppercase tracking-wider ml-1">เบอร์โทรศัพท์</label>
                                     <div class="relative">
                                         {{ form.phone }}
                                     </div>
@@ -118,28 +115,38 @@
                             </div>
 
                             <div class="space-y-2 group">
-                                <label class="block text-[10px] font-black text-amber-700 uppercase tracking-[0.2em] ml-1">อีเมลทางการ</label>
+                                <label class="block text-xs font-extrabold text-amber-700 uppercase tracking-wider ml-1">อีเมลทางการ</label>
                                 <div class="relative">
                                     {{ form.email }}
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    </section>
                 </div>
 
                 <!-- คอลัมน์ขวา: รูปภาพเรียงลงมา -->
-                <div class="lg:col-span-5 space-y-10">
-                    <div class="bg-white p-12 rounded-[3.5rem] shadow-xl shadow-gray-200/30 border border-gray-50">
-                        <h3 class="text-xl font-black text-gray-800 mb-10 flex items-center gap-4">
-                            <div class="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center shadow-inner border border-amber-100">
+                <div class="space-y-8">
+                    <section class="bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-gray-100">
+                        <div class="flex items-center gap-4 mb-8">
+                            <div class="w-12 h-12 bg-amber-50 text-amber-700 rounded-2xl flex items-center justify-center border border-amber-100">
                                 <i class="fas fa-image text-xl"></i>
                             </div>
-                            รูปภาพพิพิธภัณฑ์
-                        </h3>
+                            <h3 class="text-xl font-extrabold text-gray-800">รูปภาพพิพิธภัณฑ์</h3>
+                        </div>
 
                         <div class="space-y-6">
-                            <div class="field-container p-5 bg-gray-50/50 rounded-[1.75rem] border border-gray-100">
-                                <label class="block text-[10px] font-black text-amber-600 uppercase tracking-[0.2em] mb-2 ml-1">รูปพื้นหลังหลักของหน้าแรก</label>
+                            <div class="field-container p-5 bg-gray-50/50 rounded-2xl border border-gray-100">
+                                <label class="block text-xs font-extrabold text-amber-700 uppercase tracking-wider mb-2 ml-1">โลโก้พิพิธภัณฑ์</label>
+                                {{ form.logo }}
+                                {% if museum and museum.logo %}
+                                    <p class="text-[11px] text-gray-400 mt-2">โลโก้ปัจจุบัน:</p>
+                                    <div class="mt-2 w-32 h-32 rounded-full overflow-hidden border border-gray-200 bg-white flex items-center justify-center">
+                                        <img src="{{ museum.logo.url }}" alt="Logo" class="w-full h-full object-contain">
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="field-container p-5 bg-gray-50/50 rounded-2xl border border-gray-100">
+                                <label class="block text-xs font-extrabold text-amber-700 uppercase tracking-wider mb-2 ml-1">รูปพื้นหลังหลักของหน้าแรก</label>
                                 {{ form.hero_image }}
                                 {% if museum.hero_image %}
                                     <p class="text-[11px] text-gray-400 mt-2">รูปปัจจุบัน:</p>
@@ -148,22 +155,22 @@
                             </div>
 
                             <div class="space-y-4">
-                                <div class="field-container p-5 bg-gray-50/50 rounded-[1.75rem] border border-gray-100">
-                                    <label class="block text-[10px] font-black text-amber-600 uppercase tracking-[0.2em] mb-2 ml-1">รูปแกลเลอรี 1</label>
+                                <div class="field-container p-5 bg-gray-50/50 rounded-2xl border border-gray-100">
+                                    <label class="block text-xs font-extrabold text-amber-700 uppercase tracking-wider mb-2 ml-1">รูปแกลเลอรี 1</label>
                                     {{ form.gallery_image1 }}
                                     {% if museum.gallery_image1 %}
                                         <img src="{{ museum.gallery_image1.url }}" alt="Gallery 1" class="mt-2 rounded-2xl border border-gray-200 max-h-32 w-full object-cover">
                                     {% endif %}
                                 </div>
-                                <div class="field-container p-5 bg-gray-50/50 rounded-[1.75rem] border border-gray-100">
-                                    <label class="block text-[10px] font-black text-amber-600 uppercase tracking-[0.2em] mb-2 ml-1">รูปแกลเลอรี 2</label>
+                                <div class="field-container p-5 bg-gray-50/50 rounded-2xl border border-gray-100">
+                                    <label class="block text-xs font-extrabold text-amber-700 uppercase tracking-wider mb-2 ml-1">รูปแกลเลอรี 2</label>
                                     {{ form.gallery_image2 }}
                                     {% if museum.gallery_image2 %}
                                         <img src="{{ museum.gallery_image2.url }}" alt="Gallery 2" class="mt-2 rounded-2xl border border-gray-200 max-h-32 w-full object-cover">
                                     {% endif %}
                                 </div>
-                                <div class="field-container p-5 bg-gray-50/50 rounded-[1.75rem] border border-gray-100">
-                                    <label class="block text-[10px] font-black text-amber-600 uppercase tracking-[0.2em] mb-2 ml-1">รูปแกลเลอรี 3</label>
+                                <div class="field-container p-5 bg-gray-50/50 rounded-2xl border border-gray-100">
+                                    <label class="block text-xs font-extrabold text-amber-700 uppercase tracking-wider mb-2 ml-1">รูปแกลเลอรี 3</label>
                                     {{ form.gallery_image3 }}
                                     {% if museum.gallery_image3 %}
                                         <img src="{{ museum.gallery_image3.url }}" alt="Gallery 3" class="mt-2 rounded-2xl border border-gray-200 max-h-32 w-full object-cover">
@@ -171,30 +178,24 @@
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    </section>
                 </div>
             </div>
 
-            <div class="bg-white p-6 md:p-8 rounded-[2.5rem] shadow-xl shadow-gray-200/30 border border-gray-50 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-                <div class="hidden md:flex items-center gap-4">
-                    <div class="relative">
-                        <div class="w-3 h-3 bg-emerald-500 rounded-full animate-ping absolute opacity-75"></div>
-                        <div class="w-3 h-3 bg-emerald-500 rounded-full relative"></div>
-                    </div>
-                    <div class="flex flex-col">
-                        <span class="text-[11px] font-black text-gray-800 uppercase tracking-widest">Status: Ready</span>
-                        <span class="text-[10px] text-gray-400 font-medium">ทุกฟิลด์จะได้รับการบันทึกลงฐานข้อมูลทันที</span>
-                    </div>
-                </div>
+            <div class="bg-white p-5 sm:p-6 rounded-3xl shadow-sm border border-gray-100 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <p class="text-sm text-gray-600">
+                    ระบบจะบันทึกข้อมูลพิพิธภัณฑ์ลงฐานข้อมูล
+                </p>
 
-                <div class="flex gap-4 w-full md:w-auto">
-                    <button type="submit" class="w-full md:w-auto bg-amber-700 text-white px-12 py-5 rounded-[1.75rem] font-black shadow-2xl shadow-amber-900/20 hover:shadow-amber-900/30 hover:bg-amber-800 hover:-translate-y-1 active:scale-95 transition-all duration-300 text-xs uppercase tracking-[0.2em] flex items-center justify-center gap-4 group">
-                        <i class="fas fa-cloud-upload-alt text-lg group-hover:rotate-12 transition-transform"></i>
+                <div class="flex gap-3 w-full md:w-auto">
+                    <button type="submit" class="w-full md:w-auto bg-amber-700 text-white px-8 py-4 rounded-2xl font-extrabold hover:bg-amber-800 active:scale-95 transition-all duration-200 flex items-center justify-center gap-3">
+                        <i class="fas fa-cloud-upload-alt"></i>
                         บันทึกข้อมูลพิพิธภัณฑ์
                     </button>
                 </div>
             </div>
         </form>
+        </div>
     </main>
 </div>
 

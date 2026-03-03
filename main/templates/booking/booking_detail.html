@@ -122,9 +122,9 @@
 
             <hr class="border-gray-100">
 <div class="flex gap-4">
-                <a href="{% url 'user_dashboard' %}?section=booking"
+                     <a href="{{ back_to_history_url|default:"/user/dashboard/?section=booking" }}"
                    class="flex-1 text-center py-3 border border-gray-200 rounded-xl hover:bg-gray-50 transition font-medium">
-                   กลับไปที่ประวัติ
+                         กลับไปที่ประวัติการจอง
                 </a>
             </div>
         </div>

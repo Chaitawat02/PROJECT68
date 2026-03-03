@@ -76,12 +76,13 @@ class SignUpForm(forms.ModelForm):
         if commit:
             user.save()
 
-            # 2. บันทึกเบอร์โทรลง Profile (ต้องทำหลังจาก user.save())
-            # ตรวจสอบว่ามี profile หรือไม่ (ปกติจะมีจาก signals.py)
-            if hasattr(user, 'profile'):
-                profile = user.profile
-                profile.phone = self.cleaned_data['phone']
-                profile.save()
+            # 2) บันทึกข้อมูลลง Profile ให้ชัวร์ (ไม่พึ่ง signal)
+            profile, _ = Profile.objects.get_or_create(user=user)
+            first = (user.first_name or "").strip()
+            last = (user.last_name or "").strip()
+            profile.full_name = f"{first} {last}".strip()
+            profile.phone = (self.cleaned_data.get('phone') or "").strip()
+            profile.save()
 
         return user
 
@@ -413,7 +414,7 @@ class QuestionForm(forms.ModelForm):
         model = Question
         fields = ['question', 'option_a', 'option_b', 'option_c', 'option_d', 'option_e', 'is_active']
         widgets = {
-            'question': forms.Textarea(attrs={'rows': 3, 'placeholder': 'ระบุหัวข้อการประเมิน...'}),
+            'question': forms.Textarea(attrs={'rows': 3, 'placeholder': 'ระบุหัวข้อคำถาม...'}),
             'option_a': forms.TextInput(attrs={'placeholder': '5', 'readonly': 'readonly'}),
             'option_b': forms.TextInput(attrs={'placeholder': '4', 'readonly': 'readonly'}),
             'option_c': forms.TextInput(attrs={'placeholder': '3', 'readonly': 'readonly'}),

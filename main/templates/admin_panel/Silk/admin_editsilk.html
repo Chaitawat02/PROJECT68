@@ -17,9 +17,9 @@
         <div class="flex items-center justify-between mb-8 fade-in">
             <div>
                 <nav class="flex text-sm text-gray-500 mb-1">
-                    <a href="{% url 'manage_silk_patterns' %}" class="hover:text-amber-700 transition-colors">จัดการลายผ้า</a>
+                    <a href="{% url 'manage_silk_patterns' %}" class="hover:text-amber-700 transition-colors">จัดการข้อมูลผ้าไหม</a>
                     <span class="mx-2">/</span>
-                    <span class="text-gray-800 font-medium">แก้ไขข้อมูล</span>
+                    <span class="text-gray-800 font-medium">แก้ไขข้อมูลผ้าไหม</span>
                 </nav>
                 <h2 class="text-3xl font-extrabold text-gray-800 tracking-tight">
                     <i class="fas fa-edit text-amber-600 mr-2"></i>{{ title }}
@@ -65,19 +65,19 @@
                         </h3>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div class="form-group">
-                                <label class="label-custom">รหัสผ้า (Si_ID)</label>
+                                <label class="label-custom">รหัสผ้าไหม (Si_ID)</label>
                                 <div class="input-wrapper">
                                     {{ form.Si_ID }}
                                 </div>
                             </div>
                             <div class="form-group">
-                                <label class="label-custom">ชื่อลายผ้า (Si_name) <span class="text-red-500">*</span></label>
+                                <label class="label-custom">ชื่อลายผ้าไหม (Si_name) <span class="text-red-500">*</span></label>
                                 <div class="input-wrapper">
                                     {{ form.Si_name }}
                                 </div>
                             </div>
                             <div class="form-group">
-                                <label class="label-custom">ประเภทผ้า (Si_type)</label>
+                                <label class="label-custom">ประเภทผ้าไหม (Si_type)</label>
                                 <div class="input-wrapper">
                                     {{ form.Si_type }}
                                 </div>
@@ -89,7 +89,7 @@
                                 </div>
                             </div>
                             <div class="form-group md:col-span-2">
-                                <label class="label-custom">แหล่งผลิต / ที่มา (Si_address)</label>
+                                <label class="label-custom">แหล่งผลิต / ผู้คิดค้นลายผ้าไหม (Si_address)</label>
                                 <div class="input-wrapper">
                                     {{ form.Si_address }}
                                 </div>
@@ -148,12 +148,12 @@
 
                             <!-- รูปภาพหน้าปกผ้า -->
                             <div class="md:col-span-2 space-y-4">
-                                <label class="text-sm font-black text-gray-700 uppercase tracking-wide ml-1">รูปภาพหน้าปกผ้า</label>
+                                <label class="text-sm font-black text-gray-700 uppercase tracking-wide ml-1">รูปภาพหน้าปกผ้าไหม</label>
                                 <div class="flex items-center justify-center w-full">
                                     <label for="image-upload" class="flex flex-col items-center justify-center w-full h-64 border-2 border-dashed border-gray-300 rounded-[2rem] cursor-pointer bg-gray-50 hover:bg-gray-100 transition-all relative overflow-hidden group">
                                         <div class="flex flex-col items-center justify-center pt-5 pb-6 {% if form.instance.image %}opacity-0{% endif %}" id="upload-placeholder">
                                             <i class="fas fa-image text-4xl text-gray-400 mb-3 group-hover:scale-110 transition-transform"></i>
-                                            <p class="mb-2 text-sm text-gray-500 font-bold">คลิกเพื่ออัปโหลดรูปภาพผ้า</p>
+                                            <p class="mb-2 text-sm text-gray-500 font-bold">คลิกเพื่ออัปโหลดรูปภาพผ้าไหม</p>
                                             <p class="text-xs text-gray-400">แนะนำขนาด 1200x600px (JPG, PNG)</p>
                                         </div>
                                         <img id="image-preview" src="{% if form.instance.image %}{{ form.instance.image.url }}{% endif %}" 
@@ -169,7 +169,7 @@
                             <!-- ✅✅✅ รูปประกอบผ้าเพิ่มเติม (อัปโหลดได้หลายรูป) -->
                             <div class="md:col-span-2 space-y-4">
                                 <label class="text-sm font-black text-gray-700 uppercase tracking-wide ml-1">
-                                    รูปประกอบผ้าเพิ่มเติม (อัปโหลดได้หลายรูป)
+                                    รูปประกอบผ้าไหมเพิ่มเติม (อัปโหลดได้หลายรูป)
                                 </label>
 
                                 <div class="flex flex-col gap-4">
@@ -179,7 +179,7 @@
                                            class="flex flex-col items-center justify-center w-full min-h-[140px] border-2 border-dashed border-gray-300 rounded-[2rem] cursor-pointer bg-gray-50 hover:bg-gray-100 transition-all">
                                         <div class="flex flex-col items-center justify-center pt-4 pb-5 text-center">
                                             <i class="fas fa-images text-2xl text-gray-400 mb-2"></i>
-                                            <p class="mb-1 text-sm text-gray-500 font-bold">คลิกเพื่ออัปโหลดรูปผ้าหลายรูป</p>
+                                            <p class="mb-1 text-sm text-gray-500 font-bold">คลิกเพื่ออัปโหลดรูปผ้าไหมหลายรูป</p>
                                             <p class="text-xs text-gray-400">เลือกได้มากกว่าหนึ่งไฟล์ (JPG, PNG)</p>
                                         </div>
                                         <input id="gallery-images-upload" type="file" name="gallery_images" class="hidden" accept="image/*" multiple>

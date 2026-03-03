@@ -5,11 +5,41 @@
 
 {% block content %}
 <style>
+  @page {
+    size: A4 portrait;
+    margin: 12mm;
+  }
+
   @media print {
     body { background: #fff !important; }
     .print\\:hidden { display: none !important; }
     .print\\:block { display: block !important; }
     .print\\:break-after { break-after: page; }
+
+    /* Hide global navbar (from main/base.html) */
+    nav { display: none !important; }
+
+    /* Use full width for report content */
+    main { width: 100% !important; padding: 0 !important; }
+
+    /* Avoid scrollbars/overflow wrappers in print */
+    .overflow-x-auto { overflow: visible !important; }
+
+    /* Make report containers print-clean */
+    section { box-shadow: none !important; }
+
+    /* Table tweaks for A4 */
+    table { width: 100% !important; font-size: 11px !important; }
+    thead { display: table-header-group; }
+    tfoot { display: table-footer-group; }
+    tr { break-inside: avoid; page-break-inside: avoid; }
+    th, td { padding: 8px 10px !important; vertical-align: top !important; }
+
+    /* Keep colors in PDF where supported */
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+    /* Hide footer in printed receipts */
+    footer { display: none !important; }
   }
 
   /* Preview (screen) — make the page look like print just before opening the print dialog */
@@ -18,6 +48,10 @@
     body.report-preview .print\\:hidden { display: none !important; }
     body.report-preview .print\\:block { display: block !important; }
     body.report-preview .print\\:break-after { break-after: page; }
+
+    /* Match print look in preview */
+    body.report-preview nav { display: none !important; }
+    body.report-preview .overflow-x-auto { overflow: visible !important; }
   }
 </style>
 
@@ -30,33 +64,75 @@
   <main class="w-full lg:w-3/4 xl:w-4/5 pr-4 lg:pr-8 py-8">
     <div class="max-w-5xl mx-auto space-y-6">
 
-      <!-- Receipt Header -->
-      <section class="bg-white border border-gray-100 rounded-3xl shadow-sm p-7 sm:p-8">
-        <div class="text-center">
-          <div class="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl bg-amber-50 border border-amber-100 mx-auto flex items-center justify-center overflow-hidden">
-            <img src="{% static 'images/logo.png' %}" alt="logo" class="w-14 h-14 sm:w-16 sm:h-16 object-contain"
-                 onerror="this.style.display='none'; this.parentElement.innerHTML='<i class=&quot;fas fa-file-invoice text-3xl text-amber-600&quot;></i>';" />
+      {% if single_container %}
+        <section class="bg-white border border-gray-100 rounded-3xl shadow-sm overflow-hidden">
+          <div class="p-7 sm:p-8">
+            <div class="text-center">
+              <div class="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-amber-50 border border-amber-100 mx-auto flex items-center justify-center overflow-hidden">
+                {% if museum and museum.logo %}
+                  <img src="{{ museum.logo.url }}" alt="logo" class="w-full h-full object-contain"
+                       onerror="this.style.display='none'; this.parentElement.innerHTML='<i class=&quot;fas fa-file-invoice text-3xl text-amber-600&quot;></i>';" />
+                {% else %}
+                  <img src="{% static 'images/logo.png' %}" alt="logo" class="w-full h-full object-contain"
+                       onerror="this.style.display='none'; this.parentElement.innerHTML='<i class=&quot;fas fa-file-invoice text-3xl text-amber-600&quot;></i>';" />
+                {% endif %}
+              </div>
+
+              <p class="text-sm font-extrabold text-gray-500 uppercase tracking-wider mt-4">รายงาน</p>
+              <h1 class="text-2xl sm:text-3xl font-extrabold text-gray-800 leading-tight mt-1">
+                {{ title }}
+              </h1>
+
+              <p class="text-sm text-gray-600 mt-2">
+                ณ วันที่ <span class="font-semibold text-gray-800">{{ today|date:"d F Y" }}</span>
+                {% if now %}<span class="text-gray-400">•</span> <span class="font-semibold text-gray-800">{{ now|date:"H:i" }}</span>{% endif %}
+              </p>
+            </div>
           </div>
 
-          <p class="text-xs font-extrabold text-gray-500 uppercase tracking-wider mt-4">รายงานข้อมูล</p>
-          <h1 class="text-2xl sm:text-3xl font-extrabold text-gray-800 leading-tight mt-1">
-            {{ title }}
-          </h1>
+          <div class="border-t border-gray-100 p-6 space-y-6">
+      {% else %}
+        <section class="bg-white border border-gray-100 rounded-3xl shadow-sm p-7 sm:p-8">
+          <div class="text-center">
+            <div class="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-amber-50 border border-amber-100 mx-auto flex items-center justify-center overflow-hidden">
+              {% if museum and museum.logo %}
+                <img src="{{ museum.logo.url }}" alt="logo" class="w-full h-full object-contain"
+                     onerror="this.style.display='none'; this.parentElement.innerHTML='<i class=&quot;fas fa-file-invoice text-3xl text-amber-600&quot;></i>';" />
+              {% else %}
+                <img src="{% static 'images/logo.png' %}" alt="logo" class="w-full h-full object-contain"
+                     onerror="this.style.display='none'; this.parentElement.innerHTML='<i class=&quot;fas fa-file-invoice text-3xl text-amber-600&quot;></i>';" />
+              {% endif %}
+            </div>
 
-          <p class="text-sm text-gray-600 mt-2">
-            ณ วันที่ <span class="font-semibold text-gray-800">{{ today|date:"d F Y" }}</span>
-            {% if now %}<span class="text-gray-400">•</span> <span class="font-semibold text-gray-800">{{ now|date:"H:i" }}</span>{% endif %}
-          </p>
-        </div>
+            <p class="text-sm font-extrabold text-gray-500 uppercase tracking-wider mt-4">รายงาน</p>
+            <h1 class="text-2xl sm:text-3xl font-extrabold text-gray-800 leading-tight mt-1">
+              {{ title }}
+            </h1>
 
-        <div class="mt-6 flex items-center justify-center gap-2 print:hidden">
-          {% block report_actions %}{% endblock %}
-        </div>
-      </section>
+            <p class="text-sm text-gray-600 mt-2">
+              ณ วันที่ <span class="font-semibold text-gray-800">{{ today|date:"d F Y" }}</span>
+              {% if now %}<span class="text-gray-400">•</span> <span class="font-semibold text-gray-800">{{ now|date:"H:i" }}</span>{% endif %}
+            </p>
+          </div>
+        </section>
+      {% endif %}
 
       {% block report_filters %}{% endblock %}
       {% block report_data %}{% endblock %}
       {% block report_summary %}{% endblock %}
+
+      {% if single_container %}
+          </div>
+          <div class="border-t border-gray-100 p-6 flex items-center justify-center gap-2 print:hidden">
+      {% else %}
+        <div class="mt-6 flex items-center justify-center gap-2 print:hidden">
+      {% endif %}
+          {% block report_actions %}{% endblock %}
+        </div>
+
+      {% if single_container %}
+        </section>
+      {% endif %}
 
       <footer class="mt-6 text-center text-xs text-gray-500">
         © {% now "Y" %} ศาลาไหมไทย ชนบท ขอนแก่น

@@ -4,127 +4,250 @@
 {% block title %}รายงานการประเมิน - {{ speaker.name }}{% endblock %}
 
 {% block content %}
-<div class="min-h-screen py-10 px-4 sm:px-6 lg:px-8 bg-[#FDFBF7]">
-  <div class="max-w-7xl mx-auto space-y-8">
+<style>
+  @page {
+    size: A4 portrait;
+    margin: 12mm;
+  }
 
-    <div class="bg-white/80 border border-white/60 rounded-3xl p-8 shadow-sm">
-      <h2 class="text-3xl font-extrabold text-gray-800">รายงานการประเมิน</h2>
-      <p class="text-gray-500 mt-1">แสดงเฉพาะแบบประเมินจากงานที่มอบหมายให้คุณเท่านั้น</p>
-    </div>
+  @media print {
+    body { background: #fff !important; }
+    .print\:hidden { display: none !important; }
+    .print\:block { display: block !important; }
+    .print\:break-after { break-after: page; }
 
-    <!-- Summary Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <div class="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
-        <p class="text-sm text-gray-500">จำนวนแบบประเมิน (SilkPatternRating)</p>
-        <p class="text-3xl font-black text-amber-700 mt-2">{{ rating_summary.total|default:0 }}</p>
+    /* Hide global navbar (from main/base.html) */
+    nav { display: none !important; }
+
+    /* Avoid scrollbars/overflow wrappers in print */
+    .overflow-x-auto { overflow: visible !important; }
+
+    /* Table tweaks for A4 */
+    table { width: 100% !important; font-size: 11px !important; }
+    thead { display: table-header-group; }
+    tfoot { display: table-footer-group; }
+    tr { break-inside: avoid; page-break-inside: avoid; }
+    th, td { padding: 8px 10px !important; vertical-align: top !important; }
+
+    /* Keep colors in PDF where supported */
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+    /* Hide footer in printed receipts */
+    footer { display: none !important; }
+
+    /* Print only summary (hide data) */
+    body.report-print-summary .report-data { display: none !important; }
+  }
+
+  @media screen {
+    body.report-preview { background: #fff !important; }
+    body.report-preview .print\:hidden { display: none !important; }
+    body.report-preview .print\:block { display: block !important; }
+    body.report-preview .print\:break-after { break-after: page; }
+
+    /* Match print look in preview */
+    body.report-preview nav { display: none !important; }
+    body.report-preview .overflow-x-auto { overflow: visible !important; }
+
+    /* Preview only summary (hide data) */
+    body.report-preview.report-print-summary .report-data { display: none !important; }
+  }
+</style>
+
+<div class="min-h-screen bg-gray-50/50 py-8 px-4 sm:px-6 lg:px-8">
+  <div class="max-w-5xl mx-auto space-y-6">
+
+    <section class="bg-white border border-gray-100 rounded-3xl shadow-sm overflow-hidden">
+      <div class="p-7 sm:p-8">
+        <div class="text-center">
+          <div class="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-amber-50 border border-amber-100 mx-auto flex items-center justify-center overflow-hidden">
+            {% if museum and museum.logo %}
+              <img src="{{ museum.logo.url }}" alt="logo" class="w-full h-full object-contain"
+                   onerror="this.style.display='none'; this.parentElement.innerHTML='<i class=&quot;fas fa-file-invoice text-3xl text-amber-600&quot;></i>';" />
+            {% else %}
+              <img src="{% static 'images/logo.png' %}" alt="logo" class="w-full h-full object-contain"
+                   onerror="this.style.display='none'; this.parentElement.innerHTML='<i class=&quot;fas fa-file-invoice text-3xl text-amber-600&quot;></i>';" />
+            {% endif %}
+          </div>
+
+          <p class="text-sm font-extrabold text-gray-500 uppercase tracking-wider mt-4">รายงาน</p>
+          <h1 class="text-2xl sm:text-3xl font-extrabold text-gray-800 leading-tight mt-1">
+            {{ title|default:"การประเมิน" }}
+          </h1>
+
+          <p class="text-sm text-gray-600 mt-2">
+            วิทยากร: <span class="font-semibold text-gray-800">{{ speaker.name }}</span>
+            <span class="text-gray-400">•</span>
+            ณ วันที่ <span class="font-semibold text-gray-800">{{ today|date:"d F Y" }}</span>
+          </p>
+        </div>
       </div>
 
-      <div class="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
-        <p class="text-sm text-gray-500">ค่าเฉลี่ยข้อ 10 (แนะนำ)</p>
-        <p class="text-3xl font-black text-emerald-700 mt-2">{{ rating_summary.avg_q10|floatformat:2|default:"0.00" }}</p>
+      <div class="border-t border-gray-100 p-6 space-y-6">
+        <div class="report-data">
+          <div class="flex items-end justify-between gap-4">
+            <div>
+              <h2 class="text-xl font-extrabold text-gray-800">ข้อมูล</h2>
+            </div>
+          </div>
+
+          <div class="mt-4 overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead class="bg-gray-50 text-gray-500 text-xs uppercase font-semibold tracking-wider">
+                <tr>
+                  <th class="px-6 py-4 whitespace-nowrap">วันที่เข้าชม</th>
+                  <th class="px-6 py-4 whitespace-nowrap">ช่วงเวลา</th>
+                  <th class="px-6 py-4 whitespace-nowrap">ผู้จอง</th>
+                  <th class="px-6 py-4 whitespace-nowrap">จำนวน</th>
+                  <th class="px-6 py-4 whitespace-nowrap">จำนวนคำตอบ</th>
+                  <th class="px-6 py-4 whitespace-nowrap">อัปเดตล่าสุด</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-100 text-sm">
+                {% for r in booking_response_list %}
+                  <tr class="hover:bg-gray-50/60">
+                    <td class="px-6 py-4 font-semibold text-gray-800">
+                      <a class="text-amber-700 hover:underline" href="{% url 'speaker_report_booking_detail' r.booking_id %}">
+                        {{ r.booking__Re_date|date:"d/m/Y" }}
+                      </a>
+                    </td>
+                    <td class="px-6 py-4 text-gray-600">
+                      {% if r.booking__visit_session == "morning" %}ช่วงเช้า{% elif r.booking__visit_session == "afternoon" %}ช่วงบ่าย{% else %}-{% endif %}
+                    </td>
+                    <td class="px-6 py-4 text-gray-600">{{ r.booking__Us_ID__username }}</td>
+                    <td class="px-6 py-4 text-gray-600 tabular-nums">{{ r.booking__Re_quantity }}</td>
+                    <td class="px-6 py-4 text-gray-600 tabular-nums">{{ r.response_count|default:0 }}</td>
+                    <td class="px-6 py-4 text-gray-600">{{ r.last_answered_at|date:"d/m/Y H:i"|default:"-" }}</td>
+                  </tr>
+                {% empty %}
+                  <tr>
+                    <td colspan="6" class="px-6 py-10 text-center text-gray-400">
+                      ยังไม่มีข้อมูลแบบประเมินสำหรับงานของคุณ
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+
+          <div class="mt-6 overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead class="bg-gray-50 text-gray-500 text-xs uppercase font-semibold tracking-wider">
+                <tr>
+                  <th class="px-6 py-4 whitespace-nowrap">ข้อ</th>
+                  <th class="px-6 py-4">คำถาม</th>
+                  <th class="px-6 py-4 whitespace-nowrap">คำตอบ</th>
+                  <th class="px-6 py-4 whitespace-nowrap">จำนวน</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-100 text-sm">
+                {% for row in response_summary %}
+                  <tr class="hover:bg-gray-50/60">
+                    <td class="px-6 py-4 font-semibold text-gray-800">Q{{ row.question_id }}</td>
+                    <td class="px-6 py-4 text-gray-600">{{ row.question__question }}</td>
+                    <td class="px-6 py-4 text-gray-600">{{ row.answer_display }}</td>
+                    <td class="px-6 py-4 text-gray-600 tabular-nums">{{ row.cnt }}</td>
+                  </tr>
+                {% empty %}
+                  <tr>
+                    <td colspan="4" class="px-6 py-10 text-center text-gray-400">
+                      ยังไม่มีข้อมูลคำตอบแบบประเมินหลังเข้าชม
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="report-summary">
+          <h2 class="text-xl font-extrabold text-gray-800">สรุป</h2>
+          <div class="mt-3 text-sm text-gray-700 border-t border-gray-100">
+            <div class="flex items-center justify-between py-2 border-b border-gray-100">
+              <span class="text-gray-500">จำนวนรอบการจองที่มีแบบประเมิน</span>
+              <span class="font-semibold tabular-nums">{{ booking_response_summary.total_bookings|default:0 }}</span>
+            </div>
+
+            <div class="flex items-center justify-between py-2 border-b border-gray-100">
+              <span class="text-gray-500">จำนวนคำตอบทั้งหมด</span>
+              <span class="font-semibold tabular-nums">{{ booking_response_summary.total_answers|default:0 }}</span>
+            </div>
+
+            <div class="flex items-center justify-between py-2">
+              <span class="text-gray-500">เฉลี่ยจำนวนคำตอบต่อ 1 การจอง</span>
+              <span class="font-semibold tabular-nums">{{ booking_response_summary.avg_answers_per_booking|floatformat:2|default:"0.00" }}</span>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div class="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
-        <p class="text-sm text-gray-500">ค่าเฉลี่ยรวม (10 ข้อ)</p>
-        {% with a1=rating_summary.avg_q1 a2=rating_summary.avg_q2 a3=rating_summary.avg_q3 a4=rating_summary.avg_q4 a5=rating_summary.avg_q5 a6=rating_summary.avg_q6 a7=rating_summary.avg_q7 a8=rating_summary.avg_q8 a9=rating_summary.avg_q9 a10=rating_summary.avg_q10 %}
-          {% if a1 %}
-            {% widthratio a1|add:a2|add:a3|add:a4|add:a5|add:a6|add:a7|add:a8|add:a9|add:a10 10 1 as avg_all %}
-            <p class="text-3xl font-black text-blue-700 mt-2">{{ avg_all|floatformat:2 }}</p>
-          {% else %}
-            <p class="text-3xl font-black text-blue-700 mt-2">0.00</p>
-          {% endif %}
-        {% endwith %}
+      <div class="border-t border-gray-100 p-6 flex items-center justify-center gap-2 print:hidden">
+        <a href="{% url 'speaker_dashboard' %}"
+           class="px-4 py-2 rounded-xl bg-white border border-gray-200 text-gray-700 font-semibold hover:bg-gray-50">
+          กลับหน้าหลัก
+        </a>
+        <button type="button" onclick="window.print()"
+                data-print-scope="summary"
+                class="px-4 py-2 rounded-xl bg-amber-600 text-white font-semibold hover:bg-amber-700">
+          พิมพ์ / PDF
+        </button>
       </div>
-    </div>
+    </section>
 
-    <!-- Rating List -->
-    <div class="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-      <div class="p-6 border-b border-gray-100">
-        <h3 class="text-xl font-extrabold text-gray-800">รายการแบบประเมิน</h3>
-        <p class="text-sm text-gray-500 mt-1">เฉพาะงานที่อยู่ภายใต้การมอบหมายของคุณ</p>
-      </div>
-
-      <div class="overflow-x-auto">
-        <table class="min-w-full text-sm">
-          <thead class="bg-gray-50 text-gray-600">
-            <tr>
-              <th class="text-left px-6 py-3">วันที่เข้าชม</th>
-              <th class="text-left px-6 py-3">ช่วงเวลา</th>
-              <th class="text-left px-6 py-3">ผู้จอง</th>
-              <th class="text-left px-6 py-3">จำนวน</th>
-              <th class="text-left px-6 py-3">เฉลี่ยรวม</th>
-              <th class="text-left px-6 py-3">ความคิดเห็น</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-gray-100">
-            {% for r in rating_list %}
-            <tr class="hover:bg-amber-50/30">
-              <td class="px-6 py-4 font-semibold text-gray-800">
-              <a class="text-amber-700 hover:underline"
-                href="{% url 'speaker_report_booking_detail' r.booking_id %}">
-                {{ r.booking__Re_date|date:"d/m/Y" }}
-              </a>
-            </td>
-              <td class="px-6 py-4 text-gray-600">
-                {% if r.booking__visit_session == "morning" %}ช่วงเช้า{% elif r.booking__visit_session == "afternoon" %}ช่วงบ่าย{% else %}-{% endif %}
-              </td>
-              <td class="px-6 py-4 text-gray-600">{{ r.booking__Us_ID__username }}</td>
-              <td class="px-6 py-4 text-gray-600">{{ r.booking__Re_quantity }}</td>
-              <td class="px-6 py-4">
-                <span class="inline-flex px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 font-bold">
-                  {{ r.avg_total|floatformat:2 }}
-                </span>
-              </td>
-              <td class="px-6 py-4 text-gray-600">
-                {{ r.comment|default:"-"|truncatechars:80 }}
-              </td>
-            </tr>
-            {% empty %}
-            <tr>
-              <td colspan="6" class="px-6 py-10 text-center text-gray-400">
-                ยังไม่มีข้อมูลแบบประเมินสำหรับงานของคุณ
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- Question Responses Summary -->
-    <div class="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-      <div class="p-6 border-b border-gray-100">
-        <h3 class="text-xl font-extrabold text-gray-800">สรุปคำตอบแบบประเมินหลังเข้าชม</h3>
-      </div>
-
-      <div class="p-6 space-y-4">
-        <table class="min-w-full text-sm">
-          <thead>
-            <tr>
-              <th class="text-left px-4 py-2">ข้อ</th>
-              <th class="text-left px-4 py-2">คำถาม</th>
-              <th class="text-left px-4 py-2">คำตอบ</th>
-              <th class="text-left px-4 py-2">จำนวน</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for row in response_summary %}
-            <tr>
-              <td class="px-4 py-2 font-bold">Q{{ row.question_id }}</td>
-              <td class="px-4 py-2">{{ row.question__question }}</td>
-              <td class="px-4 py-2">{{  row.answer_display }}</td>
-              <td class="px-4 py-2">{{ row.cnt }}</td>
-            </tr>
-            {% empty %}
-            <tr>
-              <td colspan="4" class="text-center text-gray-400 py-4">ยังไม่มีข้อมูลคำตอบแบบประเมินหลังเข้าชม</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
+    <footer class="mt-6 text-center text-xs text-gray-500">
+      © {% now "Y" %} ศาลาไหมไทย ชนบท ขอนแก่น
+    </footer>
 
   </div>
 </div>
+
+<script>
+  (function () {
+    try {
+      var isPrinting = false;
+
+      function doPrint(scope) {
+        if (isPrinting) return;
+        isPrinting = true;
+
+        document.body.classList.add('report-preview');
+
+        if (scope === 'summary') {
+          document.body.classList.add('report-print-summary');
+        } else {
+          document.body.classList.remove('report-print-summary');
+        }
+
+        window.setTimeout(function () {
+          window.print();
+        }, 50);
+
+        window.setTimeout(function () {
+          document.body.classList.remove('report-preview');
+          document.body.classList.remove('report-print-summary');
+          isPrinting = false;
+        }, 2000);
+      }
+
+      window.__reportPrint = doPrint;
+
+      document.querySelectorAll('button[onclick*="window.print"]').forEach(function (btn) {
+        btn.addEventListener('click', function (e) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          var scope = (btn.getAttribute('data-print-scope') || '').toLowerCase();
+          doPrint(scope || 'full');
+        }, true);
+      });
+
+      window.addEventListener('afterprint', function () {
+        document.body.classList.remove('report-preview');
+        document.body.classList.remove('report-print-summary');
+        isPrinting = false;
+      });
+    } catch (err) {
+      // no-op
+    }
+  })();
+</script>
 {% endblock %}

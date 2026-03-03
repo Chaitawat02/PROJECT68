@@ -45,7 +45,7 @@ class Migration(migrations.Migration):
             name='Question',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('question', models.TextField(verbose_name='หัวข้อการประเมิน / คำถาม')),
+                ('question', models.TextField(verbose_name='หัวข้อคำถาม')),
                 ('option_a', models.CharField(max_length=200, verbose_name='ตัวเลือก A')),
                 ('option_b', models.CharField(max_length=200, verbose_name='ตัวเลือก B')),
                 ('option_c', models.CharField(max_length=200, verbose_name='ตัวเลือก C')),

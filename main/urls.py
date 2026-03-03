@@ -16,9 +16,6 @@ urlpatterns = [
     # 1) PUBLIC PAGES & AUTHENTICATION
     # ======================================================
     path("", views.home_view, name="home"),
-    path("about/", views.about_view, name="about"),
-    path("contact/", views.contact_view, name="contact"),
-    path("exhibitions/", views.exhibitions_view, name="exhibitions"),
 
     path("login/", views.login_view, name="login"),
     path("signup/", views.signup_view, name="signup"),
@@ -31,12 +28,11 @@ urlpatterns = [
     # 2) SILK & COLLECTIONS (สำหรับ User)
     # ======================================================
     path("collections/", views.collections_view, name="collections"),
-    path("silk/register/", views.silk_register_view, name="silk_register"),
     path("silk/<int:pk>/", views.silk_detail_view, name="silk_detail"),
     # path("silk/<int:pk>/ar/", views.silk_ar_view, name="silk_ar_detail"),
     path("silk/<int:pk>/qr/", views.silk_qr_view, name="silk_qr"),
     path("silk/detail/<str:pattern_id>/", views.silk_detail, name="silk_detail_str"),
-    path("silk/<int:pk>/rate/", views.silk_pattern_rating_view, name="silk_pattern_rate"),
+
 
     # path("ar/scan/", views.silk_ar_scan_view, name="silk_ar_scan"),
     path("ar-test-tracking/", views.ar_test_view, name="ar_test_tracking"),
@@ -50,6 +46,7 @@ urlpatterns = [
 
     path("booking/", views.booking_view, name="booking"),
     path("user/history/", views.user_booking_history_view, name="booking_history"),
+    path("booking/<int:booking_id>/edit/", views.booking_edit_view, name="booking_edit"),
     path("booking/<int:booking_id>/detail/", views.booking_detail_view, name="booking_detail"),
     path("booking/<int:booking_id>/questionnaire/", views.booking_questionnaire_view, name="booking_questionnaire"),
     path("booking/<int:pk>/rate/", views.booking_rate_view, name="booking_rate"),
@@ -57,10 +54,7 @@ urlpatterns = [
     # ======================================================
     # 4) SPEAKER PORTAL (สำหรับวิทยากร)
     # ======================================================
-    path("speaker/", views.speaker_home, name="speaker_home"),
     path("speaker/dashboard/", views.speaker_dashboard, name="speaker_dashboard"),
-
-    path("speaker/assignments/", views.speaker_assignment_list, name="speaker_assignments"),
     path("speaker/assignments/<str:assignment_id>/", views.speaker_assignment_detail, name="speaker_assignment_detail"),
     path("speaker/assignments/<str:assignment_id>/accept/", views.accept_assignment, name="accept_assignment"),
     path("speaker/assignments/<str:assignment_id>/complete/", views.complete_assignment, name="complete_assignment"),
@@ -107,12 +101,6 @@ urlpatterns = [
 
     # Admin: Speaker Management (โฟลเดอร์: speakers)
     path("admin-panel/manage-speakers/", views.manage_speakers_view, name="manage_speakers"),
-    path("admin-panel/manage-speakers/add/", views.manage_speakers_add_view, name="manage_speakers_add"),
-    path("admin-panel/manage-speakers/edit/<int:speaker_id>/", views.manage_speakers_edit_view, name="manage_speakers_edit"),
-    path("admin-panel/manage-speakers/delete/<int:speaker_id>/", views.manage_speakers_delete_view, name="manage_speakers_delete"),
-    path("admin-panel/manage-assignments/", views.manage_assignments_view, name="manage_assignments"),
-    path("admin-panel/speakers/<int:speaker_id>/assign/", views.speaker_assign_form_view, name="speaker_assign_form"),
-    path("admin-panel/speakers/assign/<int:assignment_id>/confirm/", views.speaker_assign_confirm_view, name="speaker_assign_confirm"),
 
     # Admin: User Management (โฟลเดอร์: Users)
     path("admin-panel/manage-users/", views.manage_users_view, name="manage_users"),

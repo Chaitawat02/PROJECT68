@@ -98,9 +98,9 @@
                             <td class="p-6 text-center">
                                 {% if user_item.is_superuser %}
                                     <span class="inline-flex items-center px-4 py-1.5 rounded-xl text-[10px] font-black bg-red-50 text-red-700 border border-red-100">
-                                        ADMIN
+                                        ผู้ดูแลระบบ
                                     </span>
-                                {% elif user_item.profile.role == 'speaker' %}
+                                {% elif user_item.speaker %}
                                     <span class="inline-flex items-center px-4 py-1.5 rounded-xl text-[10px] font-black bg-blue-50 text-blue-700 border border-blue-100">
                                         วิทยากร
                                     </span>
@@ -197,14 +197,20 @@
                 <div class="space-y-4">
                     <input type="text" name="username" required placeholder="ชื่อผู้ใช้ (Username)" class="w-full px-5 py-3.5 rounded-2xl bg-gray-50 border border-gray-100 focus:bg-white focus:border-amber-500 transition-all outline-none font-bold text-sm">
                     <input type="email" name="email" required placeholder="อีเมล" class="w-full px-5 py-3.5 rounded-2xl bg-gray-50 border border-gray-100 focus:bg-white focus:border-amber-500 transition-all outline-none font-bold text-sm">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <input type="text" name="first_name" placeholder="ชื่อจริง" class="w-full px-5 py-3.5 rounded-2xl bg-gray-50 border border-gray-100 focus:bg-white focus:border-amber-500 transition-all outline-none font-bold text-sm">
+                        <input type="text" name="last_name" placeholder="นามสกุล" class="w-full px-5 py-3.5 rounded-2xl bg-gray-50 border border-gray-100 focus:bg-white focus:border-amber-500 transition-all outline-none font-bold text-sm">
+                    </div>
+                    <input type="tel" name="phone" placeholder="เบอร์โทรศัพท์" class="w-full px-5 py-3.5 rounded-2xl bg-gray-50 border border-gray-100 focus:bg-white focus:border-amber-500 transition-all outline-none font-bold text-sm">
                     <input type="password" name="password" required placeholder="รหัสผ่าน" class="w-full px-5 py-3.5 rounded-2xl bg-gray-50 border border-gray-100 focus:bg-white focus:border-amber-500 transition-all outline-none font-bold text-sm">
+                    <input type="password" name="confirm_password" required placeholder="ยืนยันรหัสผ่าน" class="w-full px-5 py-3.5 rounded-2xl bg-gray-50 border border-gray-100 focus:bg-white focus:border-amber-500 transition-all outline-none font-bold text-sm">
                     <select name="role" class="w-full px-5 py-3.5 rounded-2xl bg-gray-50 border border-gray-100 focus:bg-white focus:border-amber-500 transition-all outline-none font-bold text-sm">
-                        <option value="member">สมาชิกทั่วไป</option>
+                        <option value="member">ผู้ใช้งาน</option>
                         <option value="speaker">วิทยากร</option>
                         {% if can_add_admin %}
-                        <option value="admin">แอดมิน</option>
+                        <option value="admin">ผู้ดูแลระบบ</option>
                         {% else %}
-                        <option value="admin" disabled>แอดมิน (มีอยู่แล้ว)</option>
+                        <option value="admin" disabled>ผู้ดูแลระบบ (มีอยู่แล้ว)</option>
                         {% endif %}
                     </select>
                 </div>

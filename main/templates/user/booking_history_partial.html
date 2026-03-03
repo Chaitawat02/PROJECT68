@@ -8,8 +8,8 @@
           <th class="px-4 py-3 font-extrabold border-r border-gray-200">วันที่</th>
           <th class="px-4 py-3 font-extrabold border-r border-gray-200">จำนวน</th>
           <th class="px-4 py-3 font-extrabold border-r border-gray-200">ช่วงเวลา</th>
-          <th class="px-4 py-3 font-extrabold border-r border-gray-200">สถานะ</th>
-          <th class="px-4 py-3 font-extrabold text-right">การทำงาน</th>
+          <th class="px-4 py-3 font-extrabold border-r border-gray-200 whitespace-nowrap">สถานะ</th>
+          <th class="px-4 py-3 font-extrabold text-right whitespace-nowrap">การทำงาน</th>
         </tr>
       </thead>
 
@@ -43,37 +43,52 @@
           </td>
 
           <td class="px-4 py-3 border-r border-gray-200">
-            {% if booking.Re_status == 'approved' %}
-              <span class="px-3 py-1 bg-green-50 text-green-700 border border-green-200 rounded-full text-xs font-extrabold">อนุมัติแล้ว</span>
+            {% if booking.Re_status == 'pending' %}
+              <span class="px-3 py-1 bg-yellow-50 text-yellow-800 border border-yellow-200 rounded-full text-xs font-extrabold whitespace-nowrap">รออนุมัติ</span>
+            {% elif booking.Re_status == 'approved' %}
+              <span class="px-3 py-1 bg-green-50 text-green-700 border border-green-200 rounded-full text-xs font-extrabold whitespace-nowrap">อนุมัติแล้ว</span>
+            {% elif booking.Re_status == 'confirmed' %}
+              <span class="px-3 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-full text-xs font-extrabold whitespace-nowrap">มอบหมายวิทยากรแล้ว</span>
             {% elif booking.Re_status == 'rejected' %}
-              <span class="px-3 py-1 bg-red-50 text-red-700 border border-red-200 rounded-full text-xs font-extrabold">ปฏิเสธ</span>
+              <span class="px-3 py-1 bg-red-50 text-red-700 border border-red-200 rounded-full text-xs font-extrabold whitespace-nowrap">ปฏิเสธ</span>
+              {% if booking.decision_note %}
+                <div class="text-[11px] text-gray-500 mt-1">เหตุผล: {{ booking.decision_note }}</div>
+              {% endif %}
             {% elif booking.Re_status == 'cancelled' %}
-              <span class="px-3 py-1 bg-gray-50 text-gray-700 border border-gray-200 rounded-full text-xs font-extrabold">ยกเลิกแล้ว</span>
+              <span class="px-3 py-1 bg-gray-50 text-gray-700 border border-gray-200 rounded-full text-xs font-extrabold whitespace-nowrap">ยกเลิกแล้ว</span>
               {% if booking.cancel_reason %}
                 <div class="text-[11px] text-gray-500 mt-1">เหตุผล: {{ booking.cancel_reason }}</div>
               {% endif %}
             {% elif booking.Re_status == 'completed' %}
-              <span class="px-3 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-full text-xs font-extrabold">เสร็จสิ้น</span>
+              <span class="px-3 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-full text-xs font-extrabold whitespace-nowrap">เสร็จสิ้น</span>
             {% else %}
-              <span class="px-3 py-1 bg-yellow-50 text-yellow-800 border border-yellow-200 rounded-full text-xs font-extrabold">รอยืนยัน</span>
+              <span class="px-3 py-1 bg-yellow-50 text-yellow-800 border border-yellow-200 rounded-full text-xs font-extrabold whitespace-nowrap">รออนุมัติ</span>
             {% endif %}
           </td>
 
           <td class="px-4 py-3">
-            <div class="flex items-center justify-end gap-2 flex-wrap">
+            <div class="flex items-center justify-end gap-2 flex-wrap md:flex-nowrap">
+              {% if booking.Re_status == 'pending' %}
+                <a href="{% url 'booking_edit' booking.id %}"
+                   class="px-3 py-1.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-2xl text-xs font-extrabold hover:bg-amber-100 transition shadow-sm whitespace-nowrap"
+                   title="แก้ไขการจอง">
+                  <i class="fas fa-pen mr-1"></i> แก้ไข
+                </a>
+              {% endif %}
+
               {% if booking.Re_status == 'completed' %}
                 <a href="{% url 'booking_questionnaire' booking.id %}"
-                   class="px-3 py-1.5 bg-amber-600 text-white rounded-2xl text-xs font-extrabold hover:bg-amber-700 transition">
+                   class="px-3 py-1.5 bg-amber-600 text-white rounded-2xl text-xs font-extrabold hover:bg-amber-700 transition whitespace-nowrap">
                   <i class="fas fa-star mr-1"></i> ประเมิน
                 </a>
               {% endif %}
 
-              {% if booking.Re_status != 'approved' and booking.Re_status != 'completed' and booking.Re_status != 'cancelled' and booking.Re_status != 'rejected' %}
+              {% if booking.Re_status == 'pending' %}
                 <form method="post" action="{% url 'booking_cancel' booking.id %}" class="inline-block">
                   {% csrf_token %}
                   <button
                     type="button"
-                    class="px-3 py-1.5 bg-red-50 text-red-700 border border-red-200 rounded-2xl text-xs font-extrabold hover:bg-red-100 transition"
+                    class="px-3 py-1.5 bg-red-50 text-red-700 border border-red-200 rounded-2xl text-xs font-extrabold hover:bg-red-100 transition whitespace-nowrap"
                     onclick="openCancelModal(this)"
                     data-booking-id="{{ booking.id }}"
                     data-booking-date="{{ booking.Re_date }}"
@@ -85,7 +100,7 @@
               {% endif %}
 
               <a href="{% url 'booking_detail' booking.id %}"
-                 class="px-3 py-1.5 bg-gray-900 text-white rounded-2xl text-xs font-extrabold hover:bg-black transition">
+                 class="px-3 py-1.5 bg-gray-900 text-white rounded-2xl text-xs font-extrabold hover:bg-black transition whitespace-nowrap">
                 <i class="fas fa-receipt mr-1"></i> รายละเอียด
               </a>
             </div>
@@ -98,7 +113,7 @@
             <tr class="bg-gray-50">
               <td class="px-4 py-3 border-r border-gray-200"></td>
               <td class="px-4 py-3 border-r border-gray-200 font-extrabold text-gray-700">
-                Workshop ในการจอง
+                กิจกรรมในการจอง
               </td>
               <td class="px-4 py-3 border-r border-gray-200" colspan="5">
                 <ul class="space-y-2">
@@ -108,7 +123,7 @@
                         <div class="font-bold text-gray-800">{{ it.workshop.title }}</div>
                         <div class="text-xs text-gray-500">วันที่: {{ it.date|date:"j M Y" }}</div>
                       </div>
-                      <span class="px-3 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-full text-xs font-bold">Workshop</span>
+                      <span class="px-3 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-full text-xs font-bold whitespace-nowrap">กิจกรรม</span>
                     </li>
                   {% endfor %}
                 </ul>
@@ -131,8 +146,8 @@
                   <i class="fas fa-tools"></i>
                 </span>
                 <div>
-                  <p class="font-extrabold text-gray-800 leading-tight">{{ ws.workshop.title|default:"กิจกรรม Workshop" }}</p>
-                  <p class="text-xs text-gray-500 leading-tight">Workshop (ไม่ผูก Booking)</p>
+                  <p class="font-extrabold text-gray-800 leading-tight">{{ ws.workshop.title|default:"กิจกรรม " }}</p>
+                  <p class="text-xs text-gray-500 leading-tight">กิจกรรม (ไม่ผูก Booking)</p>
                 </div>
               </div>
             </td>
@@ -142,7 +157,7 @@
             <td class="px-4 py-3 text-gray-400 border-r border-gray-200">-</td>
 
             <td class="px-4 py-3 border-r border-gray-200">
-              <span class="px-3 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-full text-xs font-extrabold">Workshop</span>
+              <span class="px-3 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-full text-xs font-extrabold">กิจกรรม</span>
             </td>
 
             <td class="px-4 py-3 text-right text-gray-500">—</td>

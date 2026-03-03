@@ -49,8 +49,12 @@
             <div class="flex justify-between items-center">
                 
                 <a href="{% url 'home' %}" class="flex items-center gap-3 cursor-pointer hover:opacity-90 transition-opacity">
-                    <div class="bg-white p-2 rounded-full text-amber-900">
-                        <i class="fas fa-scroll text-2xl"></i>
+                    <div class="bg-white rounded-full text-amber-900 w-10 h-10 flex items-center justify-center overflow-hidden shrink-0">
+                        {% if museum and museum.logo %}
+                            <img src="{{ museum.logo.url }}" alt="{{ museum.name|default:'logo' }}" class="w-full h-full object-cover" />
+                        {% else %}
+                            <i class="fas fa-scroll text-2xl"></i>
+                        {% endif %}
                     </div>
                     <div>
                         <h1 class="text-xl font-bold uppercase">{{ museum.name|default:"National Silk Museum" }}</h1>
@@ -81,7 +85,7 @@
                                 <p class="text-xs text-amber-300">
                                     {% if user.is_superuser or user.is_staff %} ผู้ดูแลระบบ
                                     {% elif user.profile.role == 'speaker' %} วิทยากร
-                                    {% else %} สมาชิกทั่วไป {% endif %}
+                                    {% else %} ผู้ใช้งาน {% endif %}
                                 </p>
                             </div>
                             <div class="w-10 h-10 bg-amber-200 rounded-full flex items-center justify-center text-amber-900 font-bold border-2 border-white shadow-sm overflow-hidden">
@@ -151,7 +155,7 @@
                             <span class="block text-xs text-amber-300">
                                 {% if user.is_superuser or user.is_staff %}ผู้ดูแลระบบ
                                 {% elif user.profile.role == 'speaker' %}วิทยากร
-                                {% else %}สมาชิกทั่วไป{% endif %}
+                                {% else %}ผู้ใช้งาน{% endif %}
                             </span>
                         </span>
                         <i class="fas fa-user-circle text-lg opacity-80"></i>

@@ -6,51 +6,30 @@
     กลับหน้ารวมรายงาน
   </a>
   <button onclick="window.print()"
+          data-print-scope="summary"
           class="px-4 py-2 rounded-xl bg-amber-600 text-white font-semibold hover:bg-amber-700">
     พิมพ์ / PDF
   </button>
 {% endblock %}
 
 {% block report_filters %}
-  <section class="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
-    <h2 class="text-lg font-extrabold text-gray-800">การกรองข้อมูล</h2>
-    <p class="text-sm text-gray-500 mt-1">รายงานภาพรวม (ไม่มีการกรอง)</p>
-
-    <div class="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
-      <div class="rounded-2xl border border-gray-100 bg-gray-50/60 p-4">
-        <p class="text-xs font-semibold text-gray-500">ช่วงข้อมูล</p>
-        <p class="font-bold text-gray-800 mt-1">ทั้งหมด</p>
-      </div>
-      <div class="rounded-2xl border border-gray-100 bg-gray-50/60 p-4">
-        <p class="text-xs font-semibold text-gray-500">ประเภท</p>
-        <p class="font-bold text-gray-800 mt-1">กิจกรรม / เวิร์กช็อป</p>
-      </div>
-      <div class="rounded-2xl border border-gray-100 bg-gray-50/60 p-4">
-        <p class="text-xs font-semibold text-gray-500">หมายเหตุ</p>
-        <p class="font-bold text-gray-800 mt-1">สรุปภาพรวม + กิจกรรมยอดนิยม</p>
-      </div>
-    </div>
-  </section>
+  <div class="print:hidden"></div>
 {% endblock %}
 
 {% block report_data %}
-  <section class="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-    <div class="p-6 border-b border-gray-100">
-      <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2">
-        <div>
-          <h2 class="text-xl font-extrabold text-gray-800">ข้อมูลกิจกรรมยอดนิยม</h2>
-          <p class="text-sm text-gray-500 mt-1">แสดง 20 อันดับกิจกรรมที่ถูกจองมากที่สุด</p>
-        </div>
-        <div class="text-xs font-semibold text-gray-500">เรียงจากยอดจองมาก → น้อย</div>
+  <div>
+    <div class="flex items-end justify-between gap-4">
+      <div>
+        <h2 class="text-xl font-extrabold text-gray-800">ข้อมูล</h2>
       </div>
     </div>
 
-    <div class="overflow-x-auto">
+    <div class="mt-4 overflow-x-auto">
       <table class="w-full text-left border-collapse">
         <thead class="bg-gray-50 text-gray-500 text-xs uppercase font-semibold tracking-wider">
           <tr>
             <th class="px-6 py-4 whitespace-nowrap">กิจกรรม</th>
-            <th class="px-6 py-4 whitespace-nowrap">ช่วงวันที่</th>
+            <th class="px-6 py-4">รายละเอียด</th>
             <th class="px-6 py-4 whitespace-nowrap">สถานะ</th>
             <th class="px-6 py-4 text-right whitespace-nowrap">จำนวนการจอง</th>
           </tr>
@@ -59,10 +38,8 @@
           {% for w in top_workshops %}
             <tr class="hover:bg-gray-50/60">
               <td class="px-6 py-4 font-semibold text-gray-800">{{ w.title|default:"-" }}</td>
-              <td class="px-6 py-4 text-gray-700">
-                {% if w.start_date %}{{ w.start_date|date:"d M Y" }}{% else %}-{% endif %}
-                –
-                {% if w.end_date %}{{ w.end_date|date:"d M Y" }}{% else %}-{% endif %}
+              <td class="px-6 py-4 text-gray-600">
+                {{ w.description|default:"-"|truncatechars:90 }}
               </td>
               <td class="px-6 py-4">
                 {% if w.is_active %}
@@ -83,27 +60,35 @@
         </tbody>
       </table>
     </div>
-  </section>
+  </div>
 {% endblock %}
 
 {% block report_summary %}
-  <section class="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
+  <div>
     <h2 class="text-xl font-extrabold text-gray-800">สรุป</h2>
-    <p class="text-sm text-gray-500 mt-1">สรุปภาพรวมข้อมูลกิจกรรม</p>
-
-    <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-      <div class="rounded-2xl border border-gray-100 p-6">
-        <p class="text-sm text-gray-500">จำนวนกิจกรรมทั้งหมด</p>
-        <p class="text-3xl font-extrabold text-gray-800 mt-1 tabular-nums">{{ summary.total_workshops|default:"0" }}</p>
-      </div>
-      <div class="rounded-2xl border border-gray-100 p-6">
-        <p class="text-sm text-gray-500">กิจกรรมที่เปิดจอง</p>
-        <p class="text-3xl font-extrabold text-gray-800 mt-1 tabular-nums">{{ summary.active_workshops|default:"0" }}</p>
-      </div>
-      <div class="rounded-2xl border border-gray-100 p-6">
-        <p class="text-sm text-gray-500">จำนวนการจองกิจกรรม</p>
-        <p class="text-3xl font-extrabold text-gray-800 mt-1 tabular-nums">{{ summary.total_bookings|default:"0" }}</p>
-      </div>
+    <div class="mt-3 overflow-x-auto">
+      <table class="w-full text-left border-collapse text-sm">
+        <thead class="bg-gray-50 text-gray-500 text-xs uppercase font-semibold tracking-wider">
+          <tr>
+            <th class="px-6 py-3">รายการ</th>
+            <th class="px-6 py-3 text-right">ค่า</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100 text-gray-700">
+          <tr>
+            <td class="px-6 py-3 text-gray-600">จำนวนกิจกรรมทั้งหมด</td>
+            <td class="px-6 py-3 text-right font-semibold tabular-nums">{{ summary.total_workshops|default:"0" }}</td>
+          </tr>
+          <tr>
+            <td class="px-6 py-3 text-gray-600">กิจกรรมที่เปิดจอง</td>
+            <td class="px-6 py-3 text-right font-semibold tabular-nums">{{ summary.active_workshops|default:"0" }}</td>
+          </tr>
+          <tr>
+            <td class="px-6 py-3 text-gray-600">จำนวนการจองกิจกรรม</td>
+            <td class="px-6 py-3 text-right font-semibold tabular-nums">{{ summary.total_bookings|default:"0" }}</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
-  </section>
+  </div>
 {% endblock %}

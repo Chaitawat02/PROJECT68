@@ -7,53 +7,30 @@
     กลับหน้ารวมรายงาน
   </a>
   <button onclick="window.print()"
+          data-print-scope="summary"
           class="px-4 py-2 rounded-xl bg-amber-600 text-white font-semibold hover:bg-amber-700">
     พิมพ์ / PDF
   </button>
 {% endblock %}
 
 {% block report_filters %}
-  <section class="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
-    <div class="flex items-start justify-between gap-4">
-      <div>
-        <h2 class="text-lg font-extrabold text-gray-800">การกรองข้อมูล</h2>
-        <p class="text-sm text-gray-500 mt-1">สรุปตัวกรองที่ใช้ในรายงานนี้</p>
-      </div>
-    </div>
-
-    <!-- Filter summary (shows in screen + print) -->
-    <div class="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
-      <div class="rounded-2xl border border-gray-100 bg-gray-50/60 p-4">
-        <p class="text-xs font-semibold text-gray-500">วันที่เริ่ม</p>
-        <p class="font-bold text-gray-800 mt-1">{{ filters.start_date|default:"-" }}</p>
-      </div>
-      <div class="rounded-2xl border border-gray-100 bg-gray-50/60 p-4">
-        <p class="text-xs font-semibold text-gray-500">วันที่สิ้นสุด</p>
-        <p class="font-bold text-gray-800 mt-1">{{ filters.end_date|default:"-" }}</p>
-      </div>
-      <div class="rounded-2xl border border-gray-100 bg-gray-50/60 p-4">
-        <p class="text-xs font-semibold text-gray-500">สถานะ</p>
-        <p class="font-bold text-gray-800 mt-1">{{ selected_status_label|default:"ทั้งหมด" }}</p>
-      </div>
-    </div>
-
-    <!-- Interactive filter form (hidden in print) -->
-    <form method="get" class="mt-5 grid grid-cols-1 md:grid-cols-4 gap-4 print:hidden">
-      <div>
-        <label class="block text-sm font-semibold text-gray-700 mb-1">วันที่เริ่ม</label>
-        <input type="date" name="start_date" value="{{ filters.start_date }}"
+  <div class="print:hidden">
+    <form method="get" class="flex flex-col md:flex-row md:items-end gap-3">
+      <div class="flex-1 min-w-[180px]">
+        <label class="block text-xs font-semibold text-gray-500 mb-1" for="start_date">วันที่เริ่ม</label>
+        <input id="start_date" type="date" name="start_date" value="{{ filters.start_date }}"
                class="w-full rounded-xl border-gray-200 focus:border-amber-500 focus:ring-amber-500">
       </div>
 
-      <div>
-        <label class="block text-sm font-semibold text-gray-700 mb-1">วันที่สิ้นสุด</label>
-        <input type="date" name="end_date" value="{{ filters.end_date }}"
+      <div class="flex-1 min-w-[180px]">
+        <label class="block text-xs font-semibold text-gray-500 mb-1" for="end_date">วันที่สิ้นสุด</label>
+        <input id="end_date" type="date" name="end_date" value="{{ filters.end_date }}"
                class="w-full rounded-xl border-gray-200 focus:border-amber-500 focus:ring-amber-500">
       </div>
 
-      <div>
-        <label class="block text-sm font-semibold text-gray-700 mb-1">สถานะ</label>
-        <select name="status"
+      <div class="flex-1 min-w-[180px]">
+        <label class="block text-xs font-semibold text-gray-500 mb-1" for="status">สถานะ</label>
+        <select id="status" name="status"
                 class="w-full rounded-xl border-gray-200 focus:border-amber-500 focus:ring-amber-500">
           <option value="">ทั้งหมด</option>
           {% for value,label in status_choices %}
@@ -64,35 +41,35 @@
         </select>
       </div>
 
-      <div class="flex items-end gap-2">
+      <div class="flex gap-2">
         <button type="submit"
-                class="w-full md:w-auto px-4 py-2 rounded-xl bg-gray-900 text-white font-semibold hover:bg-gray-800">
-          กรองข้อมูล
+                class="px-4 py-2 rounded-xl bg-gray-900 text-white font-semibold hover:bg-gray-800">
+          กรอง
         </button>
         <a href="{% url 'admin_booking_visit_report' %}"
-           class="w-full md:w-auto px-4 py-2 rounded-xl bg-white border border-gray-200 text-gray-700 font-semibold hover:bg-gray-50 text-center">
+           class="px-4 py-2 rounded-xl bg-white border border-gray-200 text-gray-700 font-semibold hover:bg-gray-50 text-center">
           ล้างค่า
         </a>
       </div>
     </form>
-  </section>
+  </div>
 {% endblock %}
 
 {% block report_data %}
-  <section class="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-    <div class="p-6 border-b border-gray-100">
-      <h2 class="text-xl font-extrabold text-gray-800">ข้อมูล</h2>
-      <p class="text-sm text-gray-500 mt-1">ตารางรายการจองตามตัวกรองที่เลือก</p>
+  <div>
+    <div class="flex items-end justify-between gap-4">
+      <div>
+        <h2 class="text-xl font-extrabold text-gray-800">ข้อมูล</h2>
+      </div>
     </div>
 
-    <div class="overflow-x-auto">
+    <div class="mt-4 overflow-x-auto">
       <table class="w-full text-left border-collapse">
         <thead class="bg-gray-50 text-gray-500 text-xs uppercase font-semibold tracking-wider">
           <tr>
-            <th class="px-6 py-4">#</th>
+            <th class="px-6 py-4">การจอง</th>
             <th class="px-6 py-4">ผู้จอง</th>
             <th class="px-6 py-4">วันที่เข้าชม</th>
-            <th class="px-6 py-4">ช่วงเวลา</th>
             <th class="px-6 py-4">จำนวน</th>
             <th class="px-6 py-4">สถานะ</th>
           </tr>
@@ -107,7 +84,6 @@
                 <div class="text-xs text-gray-400">{{ b.email|default:"" }}</div>
               </td>
               <td class="px-6 py-4 text-gray-700">{{ b.Re_date|date:"d M Y" }}</td>
-              <td class="px-6 py-4 text-gray-700">{{ b.get_visit_session_display|default:"-" }}</td>
               <td class="px-6 py-4 text-gray-700 tabular-nums">{{ b.Re_quantity|default:"0" }}</td>
               <td class="px-6 py-4">
                 <span class="px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-100">
@@ -117,36 +93,34 @@
             </tr>
           {% empty %}
             <tr>
-              <td colspan="6" class="px-6 py-10 text-center text-gray-500">
-                ไม่พบข้อมูลตามเงื่อนไขที่เลือก
+              <td colspan="5" class="px-6 py-10 text-center text-gray-500">
+                ไม่พบรายการตามเงื่อนไขที่เลือก
               </td>
             </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
-  </section>
+  </div>
 {% endblock %}
 
 {% block report_summary %}
-  <section class="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
+  <div>
     <h2 class="text-xl font-extrabold text-gray-800">สรุป</h2>
-    <p class="text-sm text-gray-500 mt-1">สรุปผลรวมจากข้อมูลด้านบน</p>
-
-    <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-      <div class="rounded-2xl border border-gray-100 p-6">
-        <p class="text-sm text-gray-500">จำนวนรายการ (ตามตัวกรอง)</p>
-        <p class="text-3xl font-extrabold text-gray-800 mt-1 tabular-nums">{{ total_bookings|default:summary.total|default:"0" }}</p>
+    <div class="mt-3 text-sm text-gray-700 border-t border-gray-100">
+      <div class="flex items-center justify-between py-2 border-b border-gray-100">
+        <span class="text-gray-500">จำนวนรายการ</span>
+        <span class="font-semibold tabular-nums">{{ total_bookings|default:summary.total|default:"0" }}</span>
       </div>
 
-      <div class="rounded-2xl border border-gray-100 p-6">
-        <p class="text-sm text-gray-500">จำนวนผู้เข้าชมรวม</p>
-        <p class="text-3xl font-extrabold text-gray-800 mt-1 tabular-nums">{{ total_people|default:summary.total_people|default:"0" }}</p>
+      <div class="flex items-center justify-between py-2 border-b border-gray-100">
+        <span class="text-gray-500">จำนวนผู้เข้าชมรวม</span>
+        <span class="font-semibold tabular-nums">{{ total_people|default:summary.total_people|default:"0" }}</span>
       </div>
 
-      <div class="rounded-2xl border border-gray-100 p-6">
-        <p class="text-sm text-gray-500">สรุปตามสถานะ</p>
-        <div class="mt-3 space-y-1 text-sm text-gray-700">
+      <div class="pt-3">
+        <p class="text-xs font-semibold text-gray-500">แยกตามสถานะ</p>
+        <div class="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1">
           {% for row in status_summary %}
             <div class="flex items-center justify-between">
               <span>{{ row.label }}</span>
@@ -156,5 +130,5 @@
         </div>
       </div>
     </div>
-  </section>
+  </div>
 {% endblock %}

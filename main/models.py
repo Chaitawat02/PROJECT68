@@ -1,4 +1,22 @@
 from django.db import models
+from django.db.models.deletion import ProtectedError
+from django.db.models.signals import pre_delete
+from django.utils import timezone
+from .upload_paths import (
+    upload_ar_file,
+    upload_ar_poster,
+    upload_museum_image,
+    upload_profile_pic,
+    upload_qr_code,
+    upload_silk_gallery_image,
+    upload_silk_image,
+    upload_silk_model,
+    upload_silk_target,
+    upload_speaker_profile,
+    upload_speaker_work_image,
+    upload_workshop_gallery,
+    upload_workshop_image,
+)
 # =========================================================
 # 5.1) SILK PATTERN GALLERY IMAGE (Many images per pattern)
 # =========================================================
@@ -10,7 +28,7 @@ class SilkPatternGalleryImage(models.Model):
         verbose_name="ลายผ้า"
     )
     image = models.ImageField(
-        upload_to='main/gallery_images/',
+        upload_to=upload_silk_gallery_image,
         verbose_name="รูปประกอบผ้าเพิ่มเติม"
     )
     created_at = models.DateTimeField(auto_now_add=True)
@@ -51,7 +69,7 @@ class Profile(models.Model):
     )
     full_name = models.CharField(max_length=200, blank=True)
     phone = models.CharField(max_length=20, blank=True)
-    image = models.ImageField(upload_to='profile_pics/', blank=True, null=True, verbose_name="รูปโปรไฟล์", unique=False)
+    image = models.ImageField(upload_to=upload_profile_pic, blank=True, null=True, verbose_name="รูปโปรไฟล์", unique=False)
 
     role = models.CharField(
         max_length=20,
@@ -92,12 +110,25 @@ class Speaker(models.Model):
         null=True, blank=True
     )
     name = models.CharField(max_length=255)
-    profile_picture = models.ImageField(upload_to='speaker/', blank=True, null=True)
+    profile_picture = models.ImageField(upload_to=upload_speaker_profile, blank=True, null=True)
     biography = models.TextField(blank=True)
     expertise = models.CharField(max_length=255, blank=True, verbose_name="ความเชี่ยวชาญ")
 
     def __str__(self):
         return self.name
+
+    def delete(self, using=None, keep_parents=False):
+        # ห้ามลบวิทยากร ถ้ามีหลักฐานผลงาน หรือมีงานที่ปิดงานแล้ว
+        has_work_uploads = self.work_uploads.exists()
+        has_completed_assignments = self.assignments.filter(status="completed").exists()
+
+        if has_work_uploads or has_completed_assignments:
+            raise ProtectedError(
+                "ไม่สามารถลบวิทยากรได้ เนื่องจากมีประวัติผลงานหรือมีงานที่ปิดงานแล้ว",
+                [self],
+            )
+
+        return super().delete(using=using, keep_parents=keep_parents)
 
 
 # =========================================================
@@ -120,27 +151,34 @@ class MuseumProfile(models.Model):
     email = models.EmailField(blank=True, null=True, verbose_name="อีเมลทางการ")
 
     # รูปภาพสำหรับหน้าเว็บหลัก
+    logo = models.ImageField(
+        upload_to=upload_museum_image,
+        blank=True,
+        null=True,
+        verbose_name="โลโก้พิพิธภัณฑ์",
+        help_text="ใช้แสดงเป็นโลโก้ของพิพิธภัณฑ์ในหน้ารายงาน/ส่วนหัวต่าง ๆ"
+    )
     hero_image = models.ImageField(
-        upload_to="main/museum/",
+        upload_to=upload_museum_image,
         blank=True,
         null=True,
         verbose_name="รูปพื้นหลังหลักของหน้าแรก",
         help_text="ใช้แสดงเป็นภาพพื้นหลัง/เฮดเดอร์บนหน้าแรกของเว็บไซต์"
     )
     gallery_image1 = models.ImageField(
-        upload_to="main/museum/",
+        upload_to=upload_museum_image,
         blank=True,
         null=True,
         verbose_name="รูปแกลเลอรี 1 (เกี่ยวกับพิพิธภัณฑ์)"
     )
     gallery_image2 = models.ImageField(
-        upload_to="main/museum/",
+        upload_to=upload_museum_image,
         blank=True,
         null=True,
         verbose_name="รูปแกลเลอรี 2 (เกี่ยวกับพิพิธภัณฑ์)"
     )
     gallery_image3 = models.ImageField(
-        upload_to="main/museum/",
+        upload_to=upload_museum_image,
         blank=True,
         null=True,
         verbose_name="รูปแกลเลอรี 3 (เกี่ยวกับพิพิธภัณฑ์)"
@@ -185,9 +223,9 @@ class Workshop(models.Model):
         verbose_name="เหตุผลที่ปิดกิจกรรม",
         help_text="เช่น วัสดุอุปกรณ์ไม่พอ / เต็มแล้ว / ปิดปรับปรุง",
     )
-    image = models.ImageField(upload_to='workshops/', blank=True, null=True, verbose_name="รูปภาพ")
+    image = models.ImageField(upload_to=upload_workshop_image, blank=True, null=True, verbose_name="รูปภาพ")
     detail_image = models.ImageField(
-        upload_to='workshops/',
+        upload_to=upload_workshop_image,
         blank=True,
         null=True,
         verbose_name="รูปประกอบกิจกรรม",
@@ -196,6 +234,25 @@ class Workshop(models.Model):
 
     def __str__(self):
         return self.title
+
+    def delete(self, using=None, keep_parents=False):
+        # 1) ถ้ามีการจอง/ผูกข้อมูลแล้ว ห้ามลบ
+        has_any_booking = (
+            self.workshopbooking_set.exists()
+            or self.booking_set.exists()
+        )
+
+        # 2) ถ้ากิจกรรมจบไปแล้ว (ตามวันสิ้นสุด/วันเริ่ม) ห้ามลบ
+        end_or_start = self.end_date or self.start_date
+        is_past = bool(end_or_start and end_or_start < timezone.localdate())
+
+        if has_any_booking or is_past:
+            raise ProtectedError(
+                "ไม่สามารถลบกิจกรรมได้ เนื่องจากมีการจองหรือกิจกรรมสิ้นสุดแล้ว",
+                [self],
+            )
+
+        return super().delete(using=using, keep_parents=keep_parents)
 
 
 class WorkshopGalleryImage(models.Model):
@@ -206,7 +263,7 @@ class WorkshopGalleryImage(models.Model):
         verbose_name="กิจกรรม",
     )
     image = models.ImageField(
-        upload_to="workshops/gallery/",
+        upload_to=upload_workshop_gallery,
         verbose_name="รูปประกอบกิจกรรมเพิ่มเติม",
     )
     created_at = models.DateTimeField(auto_now_add=True)
@@ -297,7 +354,7 @@ class Booking(models.Model):
 
     # QR code image for this booking (generated and stored on server)
     qr_code = models.ImageField(
-        upload_to='qr_codes/',
+        upload_to=upload_qr_code,
         null=True,
         blank=True,
         verbose_name="QR Code สำหรับการจอง"
@@ -311,6 +368,24 @@ class Booking(models.Model):
 
     def __str__(self):
         return f"Booking #{self.pk} — {self.fullname} ({self.Re_status})"
+
+    def delete(self, using=None, keep_parents=False):
+        # ห้ามลบการจอง ถ้ามีการมอบหมายวิทยากรแล้ว หรือมีการตอบแบบประเมินแล้ว
+        has_speaker_assigned = False
+        try:
+            has_speaker_assigned = bool(getattr(self, "speaker_assignment", None))
+        except Exception:
+            has_speaker_assigned = False
+
+        has_questionnaire_answers = self.question_responses.exists()
+
+        if has_speaker_assigned or has_questionnaire_answers:
+            raise ProtectedError(
+                "ไม่สามารถลบการจองได้ เนื่องจากมีการมอบหมายวิทยากรหรือมีการทำแบบประเมินแล้ว",
+                [self],
+            )
+
+        return super().delete(using=using, keep_parents=keep_parents)
 
 class Reservation(models.Model):
     VISIT_CHOICES = [
@@ -331,9 +406,9 @@ class ARAsset(models.Model):
     title = models.CharField(max_length=120)
     slug = models.SlugField(unique=True)
     description = models.TextField(blank=True)
-    glb = models.FileField(upload_to='ar/', blank=True, null=True)
-    usdz = models.FileField(upload_to='ar/', blank=True, null=True)
-    poster = models.ImageField(upload_to='ar/posters/', blank=True, null=True)
+    glb = models.FileField(upload_to=upload_ar_file, blank=True, null=True)
+    usdz = models.FileField(upload_to=upload_ar_file, blank=True, null=True)
+    poster = models.ImageField(upload_to=upload_ar_poster, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -377,7 +452,7 @@ class SilkPattern(models.Model):
 
     # 3) ไฟล์โมเดล 3D (.glb) ใช้ช่องเดียว
     model_3d = models.FileField(
-        upload_to="main/models/",
+        upload_to=upload_silk_model,
         blank=True,
         null=True,
         verbose_name="โมเดล 3D (.glb)"
@@ -385,7 +460,7 @@ class SilkPattern(models.Model):
 
     # 4) รูปภาพอ้างอิง AR (jpg/png)
     reference = models.ImageField(
-        upload_to="main/targets/",
+        upload_to=upload_silk_target,
         blank=True,
         null=True,
         verbose_name="รูปภาพอ้างอิง AR (Reference Image)"
@@ -393,7 +468,7 @@ class SilkPattern(models.Model):
 
     # 5) รูปภาพประกอบลายผ้า
     image = models.ImageField(
-        upload_to="main/images/",
+        upload_to=upload_silk_image,
         blank=True,
         null=True,
         verbose_name="รูปภาพประกอบลายผ้า"
@@ -441,7 +516,7 @@ class SilkPatternRating(models.Model):
 # 6) QUESTION
 # =========================================================
 class Question(models.Model):
-    question = models.TextField(verbose_name="หัวข้อการประเมิน / คำถาม")
+    question = models.TextField(verbose_name="หัวข้อคำถาม")
     option_a = models.CharField(max_length=200, verbose_name="ตัวเลือก A")
     option_b = models.CharField(max_length=200, verbose_name="ตัวเลือก B")
     option_c = models.CharField(max_length=200, verbose_name="ตัวเลือก C")
@@ -452,6 +527,15 @@ class Question(models.Model):
 
     def __str__(self):
         return self.question
+
+    def delete(self, using=None, keep_parents=False):
+        # ถ้ามีคำตอบแล้ว ห้ามลบ
+        if self.bookingquestionresponse_set.exists() or self.survey_ratings.exists():
+            raise ProtectedError(
+                "ไม่สามารถลบคำถามได้ เนื่องจากมีผู้ตอบคำถามนี้แล้ว",
+                [self],
+            )
+        return super().delete(using=using, keep_parents=keep_parents)
 
 
 # =========================================================
@@ -490,6 +574,9 @@ class SpeakerAssignment(models.Model):
     note = models.TextField(blank=True, verbose_name="หมายเหตุ")
     status = models.CharField(max_length=20, default='pending', verbose_name="สถานะ")
     assigned_at = models.DateTimeField(auto_now_add=True)
+
+    # เวลา/วันที่ที่วิทยากรกดยืนยันปฏิเสธงาน (ใช้บังคับเงื่อนไข: ปฏิเสธวันนี้แล้วมอบหมายซ้ำวันนี้ไม่ได้)
+    rejected_at = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
         # ใช้ getattr ป้องกัน Error กรณี speaker ถูกลบไปแล้วแต่ assignment ยังอยู่ (ทางทฤษฎีไม่เกิดเพราะ on_delete=CASCADE แต่กันไว้ดีกว่า)
@@ -594,7 +681,7 @@ class SpeakerWorkImage(models.Model):
         related_name="images",
         verbose_name="ชุดอัปโหลด",
     )
-    image = models.ImageField(upload_to="speaker/work/", verbose_name="รูปภาพ")
+    image = models.ImageField(upload_to=upload_speaker_work_image, verbose_name="รูปภาพ")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -604,3 +691,44 @@ class SpeakerWorkImage(models.Model):
 
     def __str__(self):
         return f"WorkImage #{self.pk}"
+
+
+@receiver(pre_delete, sender=User)
+def prevent_user_delete_if_has_bookings(sender, instance, **kwargs):
+    # ✅ ถ้าผู้ใช้งานมีประวัติการจอง/เข้าร่วมแล้ว ห้ามลบ
+    # ครอบคลุม: การจองเข้าชม (Booking), การจองกิจกรรม (WorkshopBooking), และ Reservation
+    try:
+        has_booking = Booking.objects.filter(Us_ID=instance).exists()
+    except Exception:
+        has_booking = False
+
+    try:
+        has_workshop_booking = WorkshopBooking.objects.filter(user=instance).exists()
+    except Exception:
+        has_workshop_booking = False
+
+    try:
+        has_reservation = Reservation.objects.filter(user=instance).exists()
+    except Exception:
+        has_reservation = False
+
+    if has_booking or has_workshop_booking or has_reservation:
+        raise ProtectedError(
+            "ไม่สามารถลบผู้ใช้งานได้ เนื่องจากมีประวัติการจองในระบบ",
+            [instance],
+        )
+
+    # ✅ ถ้าเป็นบัญชีวิทยากร: ห้ามลบถ้ามีผลงาน หรือมีงาน completed แล้ว
+    try:
+        speaker = Speaker.objects.filter(user=instance).first()
+    except Exception:
+        speaker = None
+
+    if speaker:
+        has_work_uploads = speaker.work_uploads.exists()
+        has_completed_assignments = speaker.assignments.filter(status="completed").exists()
+        if has_work_uploads or has_completed_assignments:
+            raise ProtectedError(
+                "ไม่สามารถลบบัญชีวิทยากรได้ เนื่องจากมีประวัติผลงานหรือมีงานที่ปิดงานแล้ว",
+                [instance],
+            )
