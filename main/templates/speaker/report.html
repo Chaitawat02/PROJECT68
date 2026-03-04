@@ -1,5 +1,6 @@
 {% extends "main/base.html" %}
 {% load static %}
+{% load media_extras %}
 
 {% block title %}รายงานการประเมิน - {{ speaker.name }}{% endblock %}
 
@@ -136,16 +137,18 @@
                 <tr>
                   <th class="px-6 py-4 whitespace-nowrap">ข้อ</th>
                   <th class="px-6 py-4">คำถาม</th>
-                  <th class="px-6 py-4 whitespace-nowrap">คำตอบ</th>
-                  <th class="px-6 py-4 whitespace-nowrap">จำนวน</th>
+                  <th class="px-6 py-4 whitespace-nowrap">ค่าเฉลี่ย</th>
+                  <th class="px-6 py-4 whitespace-nowrap">จำนวนคำตอบ</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-gray-100 text-sm">
                 {% for row in response_summary %}
                   <tr class="hover:bg-gray-50/60">
-                    <td class="px-6 py-4 font-semibold text-gray-800">Q{{ row.question_id }}</td>
-                    <td class="px-6 py-4 text-gray-600">{{ row.question__question }}</td>
-                    <td class="px-6 py-4 text-gray-600">{{ row.answer_display }}</td>
+                    <td class="px-6 py-4 font-semibold text-gray-800">Q{{ forloop.counter }}</td>
+                    <td class="px-6 py-4 text-gray-600">{{ row.question__question|strip_leading_number }}</td>
+                    <td class="px-6 py-4 text-gray-600 tabular-nums">
+                      {% if row.avg_score is not None %}{{ row.avg_score|floatformat:2 }} / 5{% else %}-{% endif %}
+                    </td>
                     <td class="px-6 py-4 text-gray-600 tabular-nums">{{ row.cnt }}</td>
                   </tr>
                 {% empty %}

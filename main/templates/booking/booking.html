@@ -36,19 +36,31 @@
 
                     <div class="grid grid-cols-1 md:grid-cols-4 gap-6 border-t border-gray-50 pt-6">
                         <div class="space-y-2">
-                            <label class="block text-sm font-semibold text-gray-700">วันที่เข้าชม</label>
+                                                        <label class="block text-sm font-semibold text-gray-700">
+                                                                วันที่เข้าชม
+                                                                {% if is_day_full %}
+                                                                    <span class="ml-2 inline-flex items-center px-2.5 py-1 rounded-full text-xs font-extrabold bg-red-50 text-red-700 border border-red-200">เต็ม</span>
+                                                                {% endif %}
+                                                        </label>
                             <input type="date" name="Re_date" id="id_Re_date" required min="{{ today }}"
                                 value="{{ preselect_date }}"
                                 onchange="refreshWorkshops(this.value)"
                                 class="w-full rounded-xl border-gray-200 focus:border-amber-500 focus:ring-amber-500 px-4 py-3 border shadow-sm transition-all">
+                                                        {% if is_day_full %}
+                                                            <p class="text-xs text-red-700 font-semibold">วันที่เลือกเต็มทั้งช่วงเช้าและช่วงบ่าย กรุณาเลือกวันอื่น</p>
+                                                        {% endif %}
                         </div>
                         <div class="space-y-2">
                             <label class="block text-sm font-semibold text-gray-700">ช่วงเวลาที่เข้าชม</label>
                             <select name="visit_session" id="id_visit_session" required
                                 class="w-full rounded-xl border-gray-200 focus:border-amber-500 focus:ring-amber-500 px-4 py-3 border shadow-sm transition-all">
                                 <option value="">-- เลือกช่วงเวลา --</option>
-                                <option value="morning" {% if preselect_session == 'morning' %}selected{% endif %}>ช่วงเช้า (09:00 - 12:00 น.)</option>
-                                <option value="afternoon" {% if preselect_session == 'afternoon' %}selected{% endif %}>ช่วงบ่าย (13:00 - 16:00 น.)</option>
+                                                                <option value="morning" {% if preselect_session == 'morning' %}selected{% endif %} {% if is_morning_full %}disabled{% endif %}>
+                                                                    ช่วงเช้า (09:00 - 12:00 น.){% if is_morning_full %} (เต็ม){% endif %}
+                                                                </option>
+                                                                <option value="afternoon" {% if preselect_session == 'afternoon' %}selected{% endif %} {% if is_afternoon_full %}disabled{% endif %}>
+                                                                    ช่วงบ่าย (13:00 - 16:00 น.){% if is_afternoon_full %} (เต็ม){% endif %}
+                                                                </option>
                             </select>
                         </div>
                         <div class="space-y-2">

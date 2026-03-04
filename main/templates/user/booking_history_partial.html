@@ -86,6 +86,7 @@
               {% if booking.Re_status == 'pending' %}
                 <form method="post" action="{% url 'booking_cancel' booking.id %}" class="inline-block">
                   {% csrf_token %}
+                  <input type="hidden" name="cancel_reason" value="">
                   <button
                     type="button"
                     class="px-3 py-1.5 bg-red-50 text-red-700 border border-red-200 rounded-2xl text-xs font-extrabold hover:bg-red-100 transition whitespace-nowrap"
@@ -177,3 +178,126 @@
     </div>
   {% endif %}
 </div>
+
+{# ===== Cancel modal (used by pending bookings) ===== #}
+<div id="cancel-modal" class="fixed inset-0 z-50 hidden" aria-hidden="true">
+  <div class="absolute inset-0 bg-black/40" onclick="closeCancelModal()"></div>
+
+  <div class="relative min-h-full flex items-center justify-center p-4">
+    <div class="w-full max-w-lg bg-white rounded-3xl border border-gray-200 shadow-sm overflow-hidden">
+      <div class="p-6 sm:p-7">
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <h3 class="text-lg sm:text-xl font-extrabold text-gray-900">ยืนยันการยกเลิกการจอง</h3>
+            <p id="cancel-modal-subtitle" class="text-sm text-gray-600 mt-1">กรุณาระบุเหตุผลก่อนยืนยัน</p>
+          </div>
+          <button type="button" class="text-gray-400 hover:text-gray-600" onclick="closeCancelModal()" aria-label="Close">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+
+        <div class="mt-5">
+          <label class="block text-xs font-extrabold text-gray-500 uppercase tracking-wider ml-1">เหตุผลการยกเลิก</label>
+          <textarea
+            id="cancel-reason"
+            rows="3"
+            class="mt-2 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-gray-800 font-semibold focus:border-amber-500 focus:ring-amber-500"
+            placeholder="เช่น ติดธุระ / เปลี่ยนวันเข้าชม / ใส่จำนวนผิด"
+          ></textarea>
+          <p id="cancel-reason-error" class="hidden mt-2 text-xs font-bold text-rose-700">กรุณาระบุเหตุผลการยกเลิก</p>
+        </div>
+      </div>
+
+      <div class="p-5 sm:p-6 bg-gray-50 border-t border-gray-200 flex flex-col sm:flex-row gap-3 sm:justify-end">
+        <button type="button" class="px-5 py-3 rounded-2xl font-extrabold border border-gray-200 bg-white text-gray-700 hover:bg-gray-100" onclick="closeCancelModal()">
+          ไม่ยกเลิก
+        </button>
+        <button type="button" class="px-5 py-3 rounded-2xl font-extrabold bg-red-600 text-white hover:bg-red-700" onclick="confirmCancel()">
+          ยืนยันยกเลิก
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Stores the <form> associated with the cancel action
+  let __cancelForm = null;
+
+  function openCancelModal(buttonEl) {
+    __cancelForm = buttonEl ? buttonEl.closest('form') : null;
+
+    const modal = document.getElementById('cancel-modal');
+    const subtitle = document.getElementById('cancel-modal-subtitle');
+    const reasonEl = document.getElementById('cancel-reason');
+    const errorEl = document.getElementById('cancel-reason-error');
+
+    if (!modal || !reasonEl) {
+      // Fallback: if modal is missing for any reason
+      const reason = window.prompt('กรุณาระบุเหตุผลการยกเลิก');
+      if (!reason || !reason.trim() || !__cancelForm) return;
+      const input = __cancelForm.querySelector('input[name="cancel_reason"]');
+      if (input) input.value = reason.trim();
+      __cancelForm.submit();
+      return;
+    }
+
+    if (errorEl) errorEl.classList.add('hidden');
+    reasonEl.value = '';
+    reasonEl.focus();
+
+    const date = buttonEl?.dataset?.bookingDate || '';
+    const qty = buttonEl?.dataset?.bookingQty || '';
+    if (subtitle) {
+      subtitle.textContent = (date || qty)
+        ? `การจองวันที่ ${date || '-'} จำนวน ${qty || '-'} ท่าน` 
+        : 'กรุณาระบุเหตุผลก่อนยืนยัน';
+    }
+
+    modal.classList.remove('hidden');
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeCancelModal() {
+    const modal = document.getElementById('cancel-modal');
+    const errorEl = document.getElementById('cancel-reason-error');
+    if (errorEl) errorEl.classList.add('hidden');
+    if (modal) {
+      modal.classList.add('hidden');
+      modal.setAttribute('aria-hidden', 'true');
+    }
+    document.body.style.overflow = '';
+    __cancelForm = null;
+  }
+
+  function confirmCancel() {
+    if (!__cancelForm) {
+      closeCancelModal();
+      return;
+    }
+
+    const reasonEl = document.getElementById('cancel-reason');
+    const errorEl = document.getElementById('cancel-reason-error');
+    const reason = (reasonEl?.value || '').trim();
+    if (!reason) {
+      if (errorEl) errorEl.classList.remove('hidden');
+      if (reasonEl) reasonEl.focus();
+      return;
+    }
+
+    const input = __cancelForm.querySelector('input[name="cancel_reason"]');
+    if (input) input.value = reason;
+    __cancelForm.submit();
+  }
+
+  // ESC to close
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+      const modal = document.getElementById('cancel-modal');
+      if (modal && !modal.classList.contains('hidden')) {
+        closeCancelModal();
+      }
+    }
+  });
+</script>

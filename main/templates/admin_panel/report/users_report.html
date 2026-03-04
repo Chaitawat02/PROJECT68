@@ -17,12 +17,22 @@
     <form method="get" class="bg-gray-50 border border-gray-100 rounded-2xl p-4">
       <div class="flex flex-col sm:flex-row sm:items-end gap-3">
         <div class="w-full sm:w-64">
-          <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider">สถานะ</label>
-          <select name="status"
+          <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider">บทบาท</label>
+          <select name="role"
                   class="mt-2 w-full px-4 py-2 rounded-xl border border-gray-200 bg-white text-gray-700 font-semibold">
-            <option value="all" {% if filters.status == 'all' %}selected{% endif %}>ทั้งหมด</option>
-            <option value="active" {% if filters.status == 'active' %}selected{% endif %}>ใช้งาน</option>
-            <option value="inactive" {% if filters.status == 'inactive' %}selected{% endif %}>ปิดใช้งาน</option>
+            <option value="all" {% if filters.role == 'all' %}selected{% endif %}>ทั้งหมด</option>
+            <option value="member" {% if filters.role == 'member' %}selected{% endif %}>ผู้ใช้งาน</option>
+            <option value="speaker" {% if filters.role == 'speaker' %}selected{% endif %}>วิทยากร</option>
+            <option value="admin" {% if filters.role == 'admin' %}selected{% endif %}>ผู้ดูแลระบบ</option>
+          </select>
+        </div>
+
+        <div class="w-full sm:w-64">
+          <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider">สมัครเมื่อ</label>
+          <select name="order"
+                  class="mt-2 w-full px-4 py-2 rounded-xl border border-gray-200 bg-white text-gray-700 font-semibold">
+            <option value="newest" {% if filters.order == 'newest' %}selected{% endif %}>ใหม่ล่าสุดก่อน</option>
+            <option value="oldest" {% if filters.order == 'oldest' %}selected{% endif %}>เก่าที่สุดก่อน</option>
           </select>
         </div>
 
@@ -53,7 +63,7 @@
       <table class="w-full text-left border-collapse">
         <thead class="bg-gray-50 text-gray-500 text-xs uppercase font-semibold tracking-wider">
           <tr>
-            <th class="px-6 py-4 whitespace-nowrap">รหัส</th>
+            <th class="px-6 py-4 whitespace-nowrap">ลำดับ</th>
             <th class="px-6 py-4 whitespace-nowrap">ผู้ใช้</th>
             <th class="px-6 py-4 whitespace-nowrap">อีเมล</th>
             <th class="px-6 py-4 whitespace-nowrap">บทบาท</th>
@@ -64,7 +74,7 @@
         <tbody class="divide-y divide-gray-100 text-sm">
           {% for u in users %}
             <tr class="hover:bg-gray-50/60">
-              <td class="px-6 py-4 font-semibold text-gray-800 tabular-nums">{{ u.id }}</td>
+              <td class="px-6 py-4 font-semibold text-gray-800 tabular-nums">{{ forloop.counter }}</td>
               <td class="px-6 py-4 text-gray-700">
                 {{ u.get_full_name|default:u.username|default:"-" }}
                 <div class="text-xs text-gray-400">{{ u.username|default:"" }}</div>

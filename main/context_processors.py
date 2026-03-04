@@ -2,7 +2,8 @@ from django.db.models import Q
 from .models import MuseumProfile, Booking
 
 def museum_context(request):
-    museum = MuseumProfile.objects.first()
+    # ถ้ามีหลายแถว (เช่น เพิ่มผ่าน /admin/) ให้ใช้แถวล่าสุด
+    museum = MuseumProfile.objects.order_by('-id').first()
     return {'museum': museum}
 
 def admin_sidebar_counts(request):

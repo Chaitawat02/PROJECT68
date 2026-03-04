@@ -255,12 +255,37 @@ class WorkshopForm(forms.ModelForm):
 # 3) SILK / MUSEUM / RATING FORMS
 # =========================================================
 class SilkPatternForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Populate target_file choices from static/main/targets/*.mind
+        try:
+            import os
+            import glob
+            from django.conf import settings
+
+            targets_dir = os.path.join(settings.BASE_DIR, 'main', 'static', 'main', 'targets')
+            mind_paths = glob.glob(os.path.join(targets_dir, '*.mind'))
+            mind_files = sorted({os.path.basename(p) for p in mind_paths})
+        except Exception:
+            mind_files = []
+
+        choices = [('', 'ไม่ระบุไฟล์ .mind')]
+        choices += [(f, f) for f in mind_files]
+
+        if 'target_file' in self.fields:
+            self.fields['target_file'].widget = forms.Select(attrs={'class': 'form-control'})
+            # IMPORTANT: for non-ChoiceField model fields, ensure widget also gets choices
+            self.fields['target_file'].choices = choices
+            self.fields['target_file'].widget.choices = choices
+
     def clean(self):
         cleaned_data = super().clean()
         # ใช้ชื่อไฟล์จาก mind_file ถ้ามี mind_file อัปโหลดใหม่
         mind_file = self.files.get('mind_file') if hasattr(self, 'files') else None
         if mind_file:
-            target_file = mind_file.name
+            import os
+            target_file = os.path.basename(getattr(mind_file, 'name', '') or '')
         else:
             target_file = cleaned_data.get('target_file')
 
@@ -305,9 +330,7 @@ class SilkPatternForm(forms.ModelForm):
             'reference': HideCurrentFileInput(attrs={'class': 'form-control'}),
 
             'target_index': forms.NumberInput(attrs={'class': 'form-control'}),
-            'target_file': forms.TextInput(
-                attrs={'class': 'form-control', 'placeholder': 'เช่น targets0.mind', 'readonly': 'readonly'}
-            ),
+            'target_file': forms.Select(attrs={'class': 'form-control'}),
 
             # ✅ เปลี่ยนเป็น HideCurrentFileInput (ไม่โชว์ path)
             'model_3d': HideCurrentFileInput(attrs={'class': 'form-control'}),
@@ -321,6 +344,7 @@ class MuseumProfileForm(forms.ModelForm):
         fields = [
             'name', 'history', 'address',
             'opening_hours', 'phone', 'email',
+            'logo',
             'hero_image', 'gallery_image1', 'gallery_image2', 'gallery_image3',
         ]
         widgets = {
@@ -349,6 +373,14 @@ class MuseumProfileForm(forms.ModelForm):
             'email': forms.EmailInput(attrs={
                 'class': 'w-full rounded-2xl border border-gray-200 bg-white px-5 py-4 text-gray-800 font-semibold '
                          'focus:border-amber-500 focus:ring-amber-500',
+            }),
+
+            # ✅ Logo upload (same styling as other image fields)
+            'logo': HideCurrentFileInput(attrs={
+                'class': 'block w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600 '
+                         'file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 '
+                         'file:text-sm file:font-semibold file:bg-amber-50 file:text-amber-700 '
+                         'hover:file:bg-amber-100 cursor-pointer',
             }),
 
             # ✅ HideCurrentFileInput (ไม่โชว์ path) + แต่งด้วย Tailwind

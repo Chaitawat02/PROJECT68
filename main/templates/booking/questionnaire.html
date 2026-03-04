@@ -1,4 +1,5 @@
 {% extends 'main/base.html' %}
+{% load media_extras %}
 {% block content %}
 <div class="min-h-screen bg-[#FDFBF7] py-10 px-4 sm:px-6">
   <div class="max-w-6xl mx-auto space-y-6">  {# <- ขยายจาก max-w-4xl #}
@@ -122,6 +123,14 @@
       <form method="post" class="p-6 sm:p-7">
         {% csrf_token %}
 
+        {% if token %}
+          <input type="hidden" name="t" value="{{ token }}">
+        {% endif %}
+
+        {% if question_sig %}
+          <input type="hidden" name="qsig" value="{{ question_sig }}">
+        {% endif %}
+
         <div class="space-y-4">
           {% for q in questions %}
           <div class="rounded-3xl border border-gray-100 bg-white shadow-sm hover:shadow transition-shadow">
@@ -129,7 +138,7 @@
               <div class="flex items-start justify-between gap-3">
                 <p class="font-bold text-gray-800">
                   <span class="text-amber-700">{{ forloop.counter }}.</span>
-                  {{ q.question }}
+                  {{ q.question|strip_leading_number }}
                 </p>
                 <span class="shrink-0 text-xs bg-gray-50 border border-gray-100 text-gray-600 rounded-full px-3 py-1">
                   เลือก 1 คำตอบ

@@ -3,9 +3,11 @@
 # IMPORTS
 # =====================================================================
 import json
+import logging
 import statistics
 import io
 import base64
+import uuid
 from datetime import datetime, time, timedelta
 from urllib.parse import quote_plus
 
@@ -16,6 +18,7 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.views.decorators.http import require_http_methods
 from django.shortcuts import get_object_or_404, redirect, render
 from django.core.files.base import ContentFile
+from django.core import signing
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import IntegrityError, transaction
 from django.db.utils import OperationalError
@@ -56,6 +59,56 @@ from .forms import (
 QuestionModel = Question
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
+
+
+QUESTIONNAIRE_TOKEN_SALT = "booking-questionnaire-v1"
+QUESTIONNAIRE_QUESTIONS_SALT = "booking-questionnaire-questions-v1"
+
+
+def _questionnaire_token_for_booking_id(booking_id: int) -> str:
+    # Token is deterministic for the booking id (no DB field needed).
+    return signing.dumps(int(booking_id), salt=QUESTIONNAIRE_TOKEN_SALT)
+
+
+def _is_valid_questionnaire_token(booking_id: int, token: str | None) -> bool:
+    if not token:
+        return False
+    try:
+        payload = signing.loads(token, salt=QUESTIONNAIRE_TOKEN_SALT)
+    except Exception:
+        return False
+    return str(payload) == str(booking_id)
+
+
+def _questionnaire_public_path(booking_id: int) -> str:
+    token = _questionnaire_token_for_booking_id(booking_id)
+    return f"{reverse('booking_questionnaire', args=[booking_id])}?t={quote_plus(token)}"
+
+
+def _questionnaire_questions_signature(question_ids: list[int]) -> str:
+    # Use a timestamped signature so stale pages naturally expire.
+    return signing.dumps([int(x) for x in question_ids], salt=QUESTIONNAIRE_QUESTIONS_SALT)
+
+
+def _load_questionnaire_question_ids(signature: str | None, *, max_age_seconds: int = 60 * 60 * 24 * 7) -> list[int] | None:
+    if not signature:
+        return None
+    try:
+        ids = signing.loads(signature, salt=QUESTIONNAIRE_QUESTIONS_SALT, max_age=max_age_seconds)
+    except Exception:
+        return None
+
+    if not isinstance(ids, list):
+        return None
+
+    out: list[int] = []
+    for x in ids:
+        try:
+            out.append(int(x))
+        except Exception:
+            return None
+    return out
 
 
 def _generate_qr_data_uri(text: str) -> str:
@@ -449,7 +502,8 @@ def home_view(request):
     """หน้าแรก"""
     ar_items = _get_latest_ar_items(request, limit=4)
 
-    museum = MuseumProfile.objects.first()
+    # ถ้ามีหลายแถว (เช่น เพิ่มผ่าน /admin/) ให้ใช้แถวล่าสุด
+    museum = MuseumProfile.objects.order_by('-id').first()
 
     return render(request, 'main/base.html', {
         'ar_items': ar_items,
@@ -570,6 +624,14 @@ def booking_view(request):
     except ValueError:
         target_date = today
 
+    # --- 2.1 เช็คว่ารอบของวันนั้นเต็มหรือไม่ (1 คณะต่อ 1 รอบ) ---
+    occupied_qs = Booking.objects.filter(Re_date=target_date).exclude(
+        Re_status__in=['rejected', 'cancelled']
+    )
+    is_morning_full = occupied_qs.filter(visit_session='morning').exists()
+    is_afternoon_full = occupied_qs.filter(visit_session='afternoon').exists()
+    is_day_full = bool(is_morning_full and is_afternoon_full)
+
     # --- 2. บันทึกข้อมูล (POST) ---
     if request.method == "POST":
         fullname = request.POST.get('fullname')
@@ -589,7 +651,7 @@ def booking_view(request):
                 session_conflict = Booking.objects.filter(
                     Re_date=target_date,
                     visit_session=visit_session
-                ).exclude(Re_status='rejected').exists()
+                ).exclude(Re_status__in=['rejected', 'cancelled']).exists()
                 if session_conflict:
                     if visit_session == 'morning':
                         raise ValueError("ช่วงเช้าของวันที่เลือกมีคณะอื่นจองเต็มแล้ว กรุณาเลือกช่วงบ่ายหรือวันอื่น")
@@ -629,6 +691,9 @@ def booking_view(request):
                             # ถ้าเต็มให้ Raise Error เพื่อให้ transaction.atomic ทำการ Rollback ข้อมูล Booking ที่สร้างไปก่อนหน้า
                             raise ValueError(f"กิจกรรม {workshop_obj.title} ในวันที่เลือกเต็มแล้ว")
 
+                # ✅ สร้าง QR สำหรับแบบประเมินผูกกับการจองนี้ทันที (หลัง commit)
+                transaction.on_commit(lambda: _ensure_booking_qr(request, booking))
+
                 # ถ้าผ่านหมดถึงจะ Success
                 messages.success(request, "บันทึกข้อมูลการจองเรียบร้อยแล้ว!")
                 return redirect('/user/dashboard/?section=booking')
@@ -658,6 +723,9 @@ def booking_view(request):
         "preselect_session": request.POST.get('visit_session', ''),
         "today": today.strftime('%Y-%m-%d'),
         "all_workshops": available_workshops,
+        "is_morning_full": is_morning_full,
+        "is_afternoon_full": is_afternoon_full,
+        "is_day_full": is_day_full,
     })
 
 
@@ -700,7 +768,7 @@ def booking_edit_view(request, booking_id):
                 session_conflict = (
                     Booking.objects.filter(Re_date=target_date, visit_session=visit_session)
                     .exclude(pk=booking.pk)
-                    .exclude(Re_status='rejected')
+                    .exclude(Re_status__in=['rejected', 'cancelled'])
                     .exists()
                 )
                 if session_conflict:
@@ -784,13 +852,15 @@ def user_dashboard_view(request):
     profile = getattr(request.user, 'profile', None)
     bookings = Booking.objects.filter(Us_ID=request.user).order_by('-Re_date')
 
-    # ✅ ประวัติแบบประเมินการจอง (สรุปต่อ booking)
+    # ✅ ประวัติแบบประเมินการจอง
+    # แสดงเป็น "หนึ่งแถวต่อหนึ่งครั้งที่ส่งแบบประเมิน" (submission)
+    # และรวมผู้ที่ตอบแบบไม่ต้องล็อกอินผ่าน QR (user = NULL) สำหรับ booking ของ user คนนี้ด้วย
     responses = (
         BookingQuestionResponse.objects
-        .filter(user=request.user)
+        .filter(booking__Us_ID=request.user)
         .select_related('booking', 'booking__workshop')
         .annotate(score_int=Cast('answer', IntegerField()))   # answer เป็น string -> แปลงเป็น int
-        .values('booking_id', 'booking__Re_date', 'booking__workshop__title')
+        .values('booking_id', 'booking__Re_date', 'booking__workshop__title', 'submission_id')
         .annotate(
             avg_score=Avg('score_int'),
             latest_at=Max('created_at')
@@ -1024,12 +1094,12 @@ def booking_detail_view(request, booking_id):
     questionnaire_url = None
     qr_data = None
     if questions_exist:
-        questionnaire_url = reverse('booking_questionnaire', args=[booking.id])
-        # ให้เป็นลิงก์เต็ม
-        full_q_url = request.build_absolute_uri(questionnaire_url)
+        questionnaire_url = _questionnaire_public_path(booking.id)
+        # ให้เป็นลิงก์เต็ม (tokenized สำหรับให้ผู้มาด้วยตอบได้โดยไม่ต้องสมัคร)
+        full_q_url = request.build_absolute_uri(_questionnaire_public_path(booking.id))
         # If booking already has a saved QR image, use it; otherwise generate and save one
         qr_data = None
-        if getattr(booking, 'qr_code', None):
+        if getattr(booking, 'qr_code', None) and booking.qr_code and 'questionnaire_v2' in (booking.qr_code.name or ''):
             try:
                 qr_url = booking.qr_code.url
             except Exception:
@@ -1046,7 +1116,7 @@ def booking_detail_view(request, booking_id):
                 buf = _io.BytesIO()
                 img.save(buf, format='PNG')
                 buf.seek(0)
-                filename = f'booking_{booking.id}_questionnaire.png'
+                filename = f'booking_{booking.id}_questionnaire_v2.png'
                 # save to booking.qr_code
                 booking.qr_code.save(filename, ContentFile(buf.read()), save=True)
                 qr_data = booking.qr_code.url
@@ -1073,26 +1143,49 @@ def booking_detail_view(request, booking_id):
 
 
 
-@login_required
 def booking_questionnaire_view(request, booking_id):
     """แสดง/บันทึกแบบประเมินหลังการเข้าชมสำหรับการจองนั้นๆ"""
     booking = get_object_or_404(Booking, pk=booking_id)
 
-    # ✅ ตรวจสิทธิ์: เจ้าของการจองหรือ staff/admin เท่านั้น
-    if booking.Us_ID != request.user and not is_staff_or_admin(request.user):
-        messages.error(request, "คุณไม่มีสิทธิ์เข้าถึงแบบประเมินนี้")
+    # Public (QR) access uses a signed token in querystring.
+    token = (request.GET.get("t") or request.POST.get("t") or "").strip() or None
+    is_privileged = bool(getattr(request.user, "is_authenticated", False)) and is_staff_or_admin(request.user)
+    is_owner = bool(getattr(request.user, "is_authenticated", False)) and booking.Us_ID_id == request.user.id
+    token_ok = _is_valid_questionnaire_token(booking.id, token)
+
+    # ✅ ตรวจสิทธิ์: เจ้าของการจอง / staff/admin / หรือผู้มี token ถูกต้องจาก QR
+    if not (is_owner or is_privileged or token_ok):
+        messages.error(request, "ลิงก์แบบประเมินไม่ถูกต้องหรือคุณไม่มีสิทธิ์เข้าถึง")
         return redirect('home')
 
     # ✅ บังคับว่าต้องปิดงานโดยวิทยากร/เสร็จสิ้นก่อน ถึงทำแบบประเมินได้
-    if getattr(booking, "Re_status", None) != "completed" and not is_staff_or_admin(request.user):
+    if getattr(booking, "Re_status", None) != "completed" and not is_privileged:
         messages.error(request, "ยังไม่สามารถทำแบบประเมินได้ (รอวิทยากรกดปิดงานก่อน)")
-        return redirect('booking_detail', booking_id=booking.id)
+        if getattr(request.user, "is_authenticated", False):
+            return redirect('booking_detail', booking_id=booking.id)
+        return redirect('home')
 
-    # ✅ ดึงคำถามที่เปิดใช้งาน
-    questions = QuestionModel.objects.filter(is_active=True).order_by('id')
+    # ✅ ดึง "ชุดคำถาม" ที่จะแสดง/บันทึก
+    # IMPORTANT: ใช้ signature จาก GET เพื่อให้แม้ admin เปิด/ปิดคำถามระหว่างทำแบบประเมิน
+    # ผู้ใช้ยังส่งได้ตามชุดคำถามที่เห็นตอนเปิดหน้า
+    question_sig = None
+    questions = None
+    if request.method == "POST":
+        question_sig = (request.POST.get("qsig") or "").strip() or None
+        question_ids = _load_questionnaire_question_ids(question_sig)
+        if not question_ids:
+            messages.error(request, "แบบฟอร์มหมดอายุหรือไม่ถูกต้อง กรุณาเปิดหน้าแบบประเมินใหม่")
+            return redirect(request.path + (f"?t={quote_plus(token)}" if token else ""))
+        questions = QuestionModel.objects.filter(id__in=question_ids).order_by('id')
+    else:
+        questions = QuestionModel.objects.filter(is_active=True).order_by('id')
+        question_sig = _questionnaire_questions_signature(list(questions.values_list('id', flat=True)))
+
     if not questions.exists():
         messages.error(request, "แบบประเมินยังไม่ถูกเปิดใช้งาน")
-        return redirect('booking_detail', booking_id=booking.id)
+        if getattr(request.user, "is_authenticated", False):
+            return redirect('booking_detail', booking_id=booking.id)
+        return redirect('home')
 
     # -----------------------------
     # POST: validate + save answers
@@ -1119,17 +1212,42 @@ def booking_questionnaire_view(request, booking_id):
                 "questions": questions,
                 "qr_data": qr_data,
                 "missing": missing,  # (ถ้าจะเอาไปไฮไลท์ใน template)
+                "token": token,
+                "question_sig": question_sig,
             })
 
-        # ✅ 2) บันทึกแบบไม่ลบของเก่าทิ้ง (ถ้าทำซ้ำจะ update)
+        # ✅ 1.5) ตรวจว่าเป็นคะแนน 1-5 เท่านั้น (กันแก้ request payload)
+        invalid = []
+        for qid, val in answers.items():
+            if str(val) not in {"1", "2", "3", "4", "5"}:
+                invalid.append(qid)
+
+        if invalid:
+            messages.error(request, "พบคำตอบที่ไม่ถูกต้อง (คะแนนต้องอยู่ระหว่าง 1–5)")
+            qr_data = _ensure_booking_qr(request, booking)
+            return render(request, "booking/questionnaire.html", {
+                "booking": booking,
+                "questions": questions,
+                "qr_data": qr_data,
+                "missing": [],
+                "invalid": invalid,
+                "token": token,
+                "question_sig": question_sig,
+            })
+
+        # ✅ 2) บันทึกทุกครั้งที่ส่งแบบประเมิน (สร้าง record ใหม่ ไม่ทับของเดิม)
+        submission_id = uuid.uuid4()
         with transaction.atomic():
-            for q in questions:
-                BookingQuestionResponse.objects.update_or_create(
+            BookingQuestionResponse.objects.bulk_create([
+                BookingQuestionResponse(
                     booking=booking,
-                    user=request.user,
+                    user=request.user if getattr(request.user, "is_authenticated", False) else None,
                     question=q,
-                    defaults={"answer": answers[q.id]},
+                    answer=str(answers[q.id]),
+                    submission_id=submission_id,
                 )
+                for q in questions
+            ])
 
         messages.success(request, "ขอบคุณที่ทำแบบประเมินค่ะ")
         qr_data = _ensure_booking_qr(request, booking)
@@ -1147,16 +1265,21 @@ def booking_questionnaire_view(request, booking_id):
         "booking": booking,
         "questions": questions,
         "qr_data": qr_data,
+        "token": token,
+        "question_sig": question_sig,
     })
 
 
 def _ensure_booking_qr(request, booking):
     """สร้าง/ดึง QR ของ booking แบบ persistent"""
     try:
-        full_q_url = request.build_absolute_uri(request.path)
+        # Always generate QR for the public tokenized questionnaire URL.
+        full_q_url = request.build_absolute_uri(_questionnaire_public_path(booking.id))
 
-        # ถ้ายังไม่มีไฟล์ qr_code ก็สร้างแล้ว save
-        if not getattr(booking, "qr_code", None):
+        # ถ้ายังไม่มีไฟล์ qr_code หรือเป็น QR แบบเก่า ให้สร้างใหม่แล้ว save
+        current_name = getattr(getattr(booking, "qr_code", None), "name", "") or ""
+        needs_regen = (not getattr(booking, "qr_code", None)) or ("questionnaire_v2" not in current_name)
+        if needs_regen:
             import qrcode
             import io as _io
 
@@ -1164,13 +1287,13 @@ def _ensure_booking_qr(request, booking):
             buf = _io.BytesIO()
             img.save(buf, format="PNG")
             buf.seek(0)
-            filename = f"booking_{booking.id}_questionnaire.png"
+            filename = f"booking_{booking.id}_questionnaire_v2.png"
             booking.qr_code.save(filename, ContentFile(buf.read()), save=True)
 
         return booking.qr_code.url if booking.qr_code else _generate_qr_data_uri(full_q_url)
 
     except Exception:
-        return _generate_qr_data_uri(request.build_absolute_uri(request.path))
+        return _generate_qr_data_uri(request.build_absolute_uri(_questionnaire_public_path(booking.id)))
 
 
 @login_required
@@ -1210,7 +1333,7 @@ def booking_responses_admin_view(request):
             BookingQuestionResponse.objects
             .filter(booking_id=booking_id)
             .select_related('question', 'user', 'booking')
-            .order_by('user_id', 'question_id', 'created_at')
+            .order_by('submission_id', 'user_id', 'question_id', 'created_at')
         )
 
         question_map = OrderedDict()
@@ -1221,7 +1344,12 @@ def booking_responses_admin_view(request):
 
         respondent_map = OrderedDict()
         for r in responses_qs:
-            key = r.user_id or f"anon-{r.id}"
+            if r.submission_id:
+                key = f"sub-{r.submission_id}"
+            elif r.user_id:
+                key = f"user-{r.user_id}"
+            else:
+                key = f"row-{r.id}"
             if key not in respondent_map:
                 respondent_map[key] = {
                     'user': r.user,
@@ -1395,8 +1523,10 @@ def booking_responses_admin_view(request):
 
             if score_val is not None:
                 qstats['scores'].append(score_val)
-            if r.user_id:
-                qstats['respondents'].add(r.user_id)
+            if r.submission_id:
+                qstats['respondents'].add(f"sub-{r.submission_id}")
+            elif r.user_id:
+                qstats['respondents'].add(f"user-{r.user_id}")
 
         # แปลงเป็น list เรียงตามลำดับคำถาม
         question_stats = []
@@ -1479,13 +1609,15 @@ def booking_responses_summary_view(request):
     all_scores = []
 
     # ดึงคำตอบทั้งหมดของทุก booking มากลุ่มใน Python
-    all_responses = BookingQuestionResponse.objects.values('booking_id', 'answer', 'user_id')
+    all_responses = BookingQuestionResponse.objects.values('booking_id', 'answer', 'user_id', 'submission_id')
     for r in all_responses:
         bid = r['booking_id']
         stat = stats_map[bid]
-        # เก็บ user ที่ทำแบบประเมิน (ถ้ามีข้อมูลผู้ใช้งาน)
-        if r['user_id']:
-            stat['respondents'].add(r['user_id'])
+        # เก็บผู้ที่ทำแบบประเมิน: นับเป็น "submission" ถ้ามี (รองรับ anonymous) ไม่เช่นนั้น fallback เป็น user
+        if r.get('submission_id'):
+            stat['respondents'].add(f"sub-{r['submission_id']}")
+        elif r.get('user_id'):
+            stat['respondents'].add(f"user-{r['user_id']}")
         # แปลง a-d เป็นคะแนนตัวเลข
         score = answer_score.get(r['answer'])
         if score is not None:
@@ -1609,8 +1741,10 @@ def manage_speakers_view(request):
         booking = get_object_or_404(Booking, id=booking_id)
         speaker = get_object_or_404(Speaker, id=speaker_id)
 
-        # ถ้าวิทยากรปฏิเสธงานภายใน "วันนี้" แล้ว จะไม่ให้มอบหมายซ้ำภายในวันเดียวกัน
-        if _speaker_rejected_today(speaker):
+        # ถ้าวิทยากรปฏิเสธงานภายใน "วันนี้" แล้ว จะไม่ให้มอบหมาย "งานของวันนี้" ให้ซ้ำในวันเดียวกัน
+        # (แต่ถ้างานเป็นวันอื่น ยังมอบหมายได้)
+        today = timezone.localdate()
+        if booking.Re_date and booking.Re_date == today and _speaker_rejected_today(speaker):
             messages.warning(request, "ไม่สามารถมอบหมายงานได้ เนื่องจากวิทยากรคนนี้ปฏิเสธงานภายในวันนี้แล้ว")
             return redirect('manage_speakers')
 
@@ -1660,8 +1794,10 @@ def speaker_assign_from_booking_view(request, booking_id):
         # ดึง Object วิทยากร
         speaker = get_object_or_404(Speaker, id=speaker_id)
 
-        # ถ้าวิทยากรปฏิเสธงานภายใน "วันนี้" แล้ว จะไม่ให้มอบหมายซ้ำภายในวันเดียวกัน
-        if _speaker_rejected_today(speaker):
+        # ถ้าวิทยากรปฏิเสธงานภายใน "วันนี้" แล้ว จะไม่ให้มอบหมาย "งานของวันนี้" ให้ซ้ำในวันเดียวกัน
+        # (แต่ถ้างานเป็นวันอื่น ยังมอบหมายได้)
+        today = timezone.localdate()
+        if booking.Re_date and booking.Re_date == today and _speaker_rejected_today(speaker):
             messages.warning(request, "ไม่สามารถมอบหมายงานได้ เนื่องจากวิทยากรคนนี้ปฏิเสธงานภายในวันนี้แล้ว")
             return redirect('speaker_assign_from_booking', booking_id=booking.id)
 
@@ -1788,7 +1924,8 @@ def question_rate_view(request, question_id):
 @login_required
 @user_passes_test(is_admin)
 def admin_edit_museum_view(request):
-    museum = MuseumProfile.objects.first()
+    # ถ้ามีหลายแถว (เช่น เพิ่มผ่าน /admin/) ให้แก้ไขแถวล่าสุด
+    museum = MuseumProfile.objects.order_by('-id').first()
 
     if request.method == 'POST':
         form = MuseumProfileForm(
@@ -1806,6 +1943,11 @@ def admin_edit_museum_view(request):
             # ใช้ชื่อ URL ให้ตรงกับ main/urls.py และ templates
             return redirect('admin_editmuseum')
         else:
+            logger.warning(
+                "MuseumProfileForm invalid for user=%s errors=%s",
+                getattr(request.user, "username", None),
+                form.errors,
+            )
             messages.error(
                 request,
                 "ข้อมูลไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง"
@@ -2370,36 +2512,37 @@ def _get_speaker_report_context(speaker):
         "last_answered_at": responses_qs.aggregate(m=Max("created_at")).get("m"),
     }
 
-    # ✅ ทำเป็น list เพื่อแก้/เติม field ได้
-    response_summary = list(
-        responses_qs.values("question_id", "question__question", "answer")
-        .annotate(cnt=Count("id"))
-        .order_by("question_id", "answer")
+    # สรุปต่อคำถาม: ต้องเรียงและนับข้อให้ตรงตาม "รายการคำถามในระบบ"
+    # - แสดง 1 แถวต่อ 1 คำถาม (แม้บางข้อยังไม่มีคนตอบ)
+    # - ค่าเฉลี่ยคำนวณจากคำตอบ 1–5 (แบบฟอร์มปัจจุบันส่งเป็นสตริงตัวเลข "1".."5")
+
+    all_questions = list(
+        Question.objects
+        .order_by("id")
+        .values("id", "question")
     )
 
-    # ✅ map answer (a/b/c/d/e) -> ข้อความตัวเลือก
-    from .models import Question  # กันลืม import
+    numeric_responses_qs = responses_qs.filter(answer__in=["1", "2", "3", "4", "5"])
+    agg_rows = list(
+        numeric_responses_qs
+        .values("question_id")
+        .annotate(
+            cnt=Count("id"),
+            avg_score=Avg(Cast("answer", IntegerField())),
+        )
+    )
+    agg_map = {r["question_id"]: r for r in agg_rows}
 
-    question_ids = {row["question_id"] for row in response_summary}
-    q_map = {q.id: q for q in Question.objects.filter(id__in=question_ids)}
-
-    choice_field = {
-        "a": "option_a",
-        "b": "option_b",
-        "c": "option_c",
-        "d": "option_d",
-        "e": "option_e",
-    }
-
-    for row in response_summary:
-        q = q_map.get(row["question_id"])
-        ans = (row.get("answer") or "").strip().lower()
-
-        if q and ans in choice_field:
-            row["answer_display"] = getattr(q, choice_field[ans], None) or ans.upper()
-        else:
-            # เผื่อกรณี answer เป็นเลข/ข้อความอื่น
-            row["answer_display"] = row.get("answer") or "-"
+    response_summary = []
+    for q in all_questions:
+        qid = q["id"]
+        agg = agg_map.get(qid) or {}
+        response_summary.append({
+            "question_id": qid,
+            "question__question": q["question"],
+            "cnt": agg.get("cnt", 0) or 0,
+            "avg_score": agg.get("avg_score"),
+        })
 
     return {
         "assignments": assignments,
@@ -2593,15 +2736,13 @@ def accept_assignment(request, assignment_id):
 
     if assignment.status not in ("pending", "assigned"):
         messages.warning(request, "ไม่สามารถรับงานได้ เนื่องจากสถานะไม่ใช่รอดำเนินการ")
-        redirect_id = getattr(assignment, "assignment_id", None) or assignment.id
-        return redirect("speaker_assignment_detail", assignment_id=redirect_id)
+        return redirect(f"{reverse('speaker_dashboard')}#section-pending")
 
     assignment.status = "accepted"
     assignment.save(update_fields=["status"])
     messages.success(request, "รับงานเรียบร้อยแล้ว")
 
-    redirect_id = getattr(assignment, "assignment_id", None) or assignment.id
-    return redirect("speaker_assignment_detail", assignment_id=redirect_id)
+    return redirect(f"{reverse('speaker_dashboard')}#section-pending")
 
 
 @login_required
@@ -2667,6 +2808,18 @@ def admin_dashboard_view(request):
         speaker_assignment__isnull=True
     ).count()
 
+    pending_assign_count = Booking.objects.filter(
+        Re_status='approved'
+    ).filter(
+        Q(speaker_assignment__isnull=True) | Q(speaker_assignment__status='rejected')
+    ).count()
+
+    assigned_jobs_count = SpeakerAssignment.objects.filter(
+        booking__isnull=False
+    ).exclude(
+        status__in=['rejected', 'cancelled']
+    ).count()
+
     context = {
         'total_users': User.objects.count(),
 
@@ -2676,6 +2829,8 @@ def admin_dashboard_view(request):
 
         'today_bookings_count': Booking.objects.filter(Re_date=today).count(),
         'unassigned_count': unassigned_bookings,
+        'pending_assign_count': pending_assign_count,
+        'assigned_jobs_count': assigned_jobs_count,
 
         'total_bookings': Booking.objects.count(),
         'total_patterns': SilkPattern.objects.count(),
@@ -2730,7 +2885,7 @@ def admin_report_pdf_view(request):
     global_avg = SurveyRating.objects.aggregate(avg=Avg('rating'))['avg'] or 0
 
     # ข้อมูลพิพิธภัณฑ์สำหรับส่วนหัวรายงาน
-    museum_profile = MuseumProfile.objects.first()
+    museum_profile = MuseumProfile.objects.order_by('-id').first()
     museum_name = museum_profile.name if museum_profile else "พิพิธภัณฑ์ผ้าไหม"
     museum_address = museum_profile.address or "" if museum_profile else ""
     museum_phone = museum_profile.phone or "" if museum_profile else ""
@@ -3149,7 +3304,10 @@ def manage_users_view(request):
                 profile.save()
 
                 if role == 'speaker':
-                    Speaker.objects.get_or_create(user=user, defaults={'name': profile.full_name})
+                    Speaker.objects.get_or_create(
+                        user=user,
+                        defaults={'name': (profile.full_name or user.get_full_name() or user.username).strip()},
+                    )
 
             messages.success(request, f'เพิ่มผู้ใช้ {username} เรียบร้อยแล้ว')
 
@@ -3172,6 +3330,7 @@ def manage_users_view(request):
 def manage_users_edit_view(request, user_id):
     user = get_object_or_404(User, id=user_id)
     profile, _ = Profile.objects.get_or_create(user=user)
+    speaker = Speaker.objects.filter(user=user).first()
 
     if request.method == 'POST':
         user.first_name = request.POST.get('first_name', '')
@@ -3193,19 +3352,45 @@ def manage_users_edit_view(request, user_id):
         profile.full_name = f"{(user.first_name or '').strip()} {(user.last_name or '').strip()}".strip()
         profile.phone = request.POST.get('phone', '')
         profile.role = role
-        if 'image' in request.FILES:
-            profile.image = request.FILES['image']
+        uploaded_image = request.FILES.get('image')
+
+        # Save profile image only for non-speaker accounts (speaker uses Speaker.profile_picture)
+        if uploaded_image and role != 'speaker':
+            profile.image = uploaded_image
         profile.save()
 
-        if role == 'speaker' and not Speaker.objects.filter(user=user).exists():
-            Speaker.objects.create(user=user, name=user.get_full_name())
+        if role == 'speaker':
+            speaker, _created = Speaker.objects.get_or_create(
+                user=user,
+                defaults={
+                    'name': (profile.full_name or user.get_full_name() or user.username).strip(),
+                },
+            )
+
+            # Ensure speaker name is never empty (helps list/assign screens)
+            if not (speaker.name or '').strip():
+                speaker.name = (profile.full_name or user.get_full_name() or user.username).strip()
+
+            if uploaded_image:
+                speaker.profile_picture = uploaded_image
+
+            speaker.save(update_fields=['name', 'profile_picture'] if uploaded_image else ['name'])
+
+        # refresh speaker for rendering fallback below if redirect doesn't happen
+        speaker = Speaker.objects.filter(user=user).first()
 
         messages.success(request, 'บันทึกข้อมูลเรียบร้อยแล้ว')
         return redirect('manage_users')
 
+    effective_role = profile.role
+    if speaker and effective_role != 'speaker':
+        effective_role = 'speaker'
+
     return render(request, 'admin_panel/Users/admin_edituser.html', {
         'target_user': user,
-        'profile': profile
+        'profile': profile,
+        'speaker': speaker,
+        'effective_role': effective_role,
     })
 
 
@@ -3246,6 +3431,7 @@ def manage_users_delete_view(request, user_id):
 @login_required
 @user_passes_test(is_staff_or_admin)
 def manage_silk_patterns_add_view(request):
+    import os
     form = SilkPatternForm(request.POST or None, request.FILES or None)
 
     latest_si_id = (
@@ -3259,25 +3445,29 @@ def manage_silk_patterns_add_view(request):
     if request.method == 'POST' and form.is_valid():
         mind_file = request.FILES.get('mind_file')
 
+        # normalize filename (prevent path traversal, keep it consistent)
+        safe_mind_name = None
+        if mind_file:
+            safe_mind_name = os.path.basename(getattr(mind_file, 'name', '') or '').strip()
+
         # ตรวจสอบนามสกุลไฟล์ .mind ถ้ามีการอัปโหลด
-        if mind_file and not mind_file.name.lower().endswith('.mind'):
+        if mind_file and not safe_mind_name.lower().endswith('.mind'):
             form.add_error('mind_file', 'กรุณาอัปโหลดเฉพาะไฟล์นามสกุล .mind เท่านั้น')
         else:
             # ถ้ามีไฟล์ .mind ใหม่ ให้เซต target_file ใน instance ก่อน save
-            if mind_file:
-                form.instance.target_file = mind_file.name[:100]
-                mind_name = mind_file.name
+            if mind_file and safe_mind_name:
+                form.instance.target_file = safe_mind_name[:100]
+                mind_name = safe_mind_name
                 exists = SilkPattern.objects.filter(target_file=mind_name).exists()
                 if not exists:
                     form.instance.target_index = 0
             pattern = form.save()
 
             # ถ้ามีไฟล์ .mind ให้บันทึกลง static/main/targets
-            if mind_file:
-                import os
+            if mind_file and safe_mind_name:
                 targets_dir = os.path.join(settings.BASE_DIR, 'main', 'static', 'main', 'targets')
                 os.makedirs(targets_dir, exist_ok=True)
-                dest_path = os.path.join(targets_dir, mind_file.name)
+                dest_path = os.path.join(targets_dir, safe_mind_name)
                 with open(dest_path, 'wb+') as destination:
                     for chunk in mind_file.chunks():
                         destination.write(chunk)
@@ -3318,6 +3508,7 @@ def manage_silk_patterns_add_view(request):
 @login_required
 @user_passes_test(is_staff_or_admin)
 def manage_silk_edit_view(request, pattern_id):
+    import os
     from .models import SilkPatternGalleryImage
     pattern = get_object_or_404(SilkPattern, id=pattern_id)
     form = SilkPatternForm(request.POST or None, request.FILES or None, instance=pattern)
@@ -3333,13 +3524,18 @@ def manage_silk_edit_view(request, pattern_id):
     if request.method == 'POST' and form.is_valid():
         mind_file = request.FILES.get('mind_file')
 
-        if mind_file and not mind_file.name.lower().endswith('.mind'):
+        # normalize filename (prevent path traversal, keep it consistent)
+        safe_mind_name = None
+        if mind_file:
+            safe_mind_name = os.path.basename(getattr(mind_file, 'name', '') or '').strip()
+
+        if mind_file and not safe_mind_name.lower().endswith('.mind'):
             form.add_error('mind_file', 'กรุณาอัปโหลดเฉพาะไฟล์นามสกุล .mind เท่านั้น')
         else:
             # ถ้ามีไฟล์ .mind ใหม่ ให้เซต target_file ใน instance ก่อน save
-            if mind_file:
-                form.instance.target_file = mind_file.name[:100]
-                mind_name = mind_file.name
+            if mind_file and safe_mind_name:
+                form.instance.target_file = safe_mind_name[:100]
+                mind_name = safe_mind_name
                 exists = SilkPattern.objects.filter(target_file=mind_name).exists()
                 if not exists:
                     form.instance.target_index = 0
@@ -3350,11 +3546,10 @@ def manage_silk_edit_view(request, pattern_id):
             for f in gallery_files:
                 SilkPatternGalleryImage.objects.create(silkpattern=pattern, image=f)
 
-            if mind_file:
-                import os
+            if mind_file and safe_mind_name:
                 targets_dir = os.path.join(settings.BASE_DIR, 'main', 'static', 'main', 'targets')
                 os.makedirs(targets_dir, exist_ok=True)
-                dest_path = os.path.join(targets_dir, mind_file.name)
+                dest_path = os.path.join(targets_dir, safe_mind_name)
                 with open(dest_path, 'wb+') as destination:
                     for chunk in mind_file.chunks():
                         destination.write(chunk)
@@ -3875,20 +4070,25 @@ def admin_booking_visit_report_view(request):
 @user_passes_test(is_staff_or_admin)
 def admin_users_report_view(request):
     from django.contrib.auth import get_user_model
-    from django.db.models import Count
     from django.db.models import Q
     from django.utils import timezone
-
-    from .models import Profile
 
     UserModel = get_user_model()
     today = timezone.localdate()
 
+    order = (request.GET.get("order") or "newest").strip().lower()
+    if order not in {"newest", "oldest"}:
+        order = "newest"
+
+    # filter by role via query string ?role=member|speaker|admin
+    # รองรับของเดิมที่เคยใช้ชื่อ param เป็น status ด้วย
     role = (request.GET.get("role") or request.GET.get("status") or "all").strip().lower()
     if role not in {"all", "member", "speaker", "admin"}:
         role = "all"
 
     users_qs = UserModel.objects.all()
+
+    # role filter (optional)
     if role == "speaker":
         users_qs = users_qs.filter(profile__role="speaker")
     elif role == "admin":
@@ -3922,7 +4122,7 @@ def admin_users_report_view(request):
 
     users = (
         users_qs.select_related("profile")
-        .order_by("-date_joined")
+        .order_by("date_joined" if order == "oldest" else "-date_joined")
     )[:50]
 
     role_label_map = {
@@ -3954,6 +4154,7 @@ def admin_users_report_view(request):
         "users": users,
         "filters": {
             "role": role,
+            "order": order,
         },
         "selected_role_label": selected_role_label,
         "summary": {

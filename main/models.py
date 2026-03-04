@@ -612,6 +612,7 @@ class BookingQuestionResponse(models.Model):
     # บันทึกคำตอบเป็นตัวอักษร 'a'|'b'|'c'|'d' หรือข้อความอื่นๆ
     answer = models.CharField(max_length=10)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    submission_id = models.UUIDField(null=True, blank=True, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

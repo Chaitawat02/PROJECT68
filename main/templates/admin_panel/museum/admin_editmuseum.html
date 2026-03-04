@@ -56,6 +56,37 @@
         </div>
         {% endif %}
 
+        {% if form.errors %}
+        <div class="mb-8">
+            <div class="p-5 rounded-2xl border border-rose-200 bg-white shadow-sm">
+                <div class="flex items-start gap-3">
+                    <div class="mt-0.5 w-9 h-9 rounded-xl flex items-center justify-center bg-rose-50 text-rose-600">
+                        <i class="fas fa-exclamation-circle"></i>
+                    </div>
+                    <div class="flex-1">
+                        <div class="font-extrabold text-rose-900">กรุณาตรวจสอบข้อมูลที่กรอก</div>
+                        <div class="text-sm text-rose-800 mt-2 space-y-2">
+                            {% if form.non_field_errors %}
+                                {% for err in form.non_field_errors %}
+                                    <div>• {{ err }}</div>
+                                {% endfor %}
+                            {% endif %}
+
+                            {% for field in form %}
+                                {% for err in field.errors %}
+                                    <div>• {{ field.label }}: {{ err }}</div>
+                                {% endfor %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <button type="button" onclick="this.parentElement.parentElement.remove()" class="text-gray-400 hover:text-gray-600 transition-colors">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
         <form method="POST" enctype="multipart/form-data" class="space-y-10">
             {% csrf_token %}
             

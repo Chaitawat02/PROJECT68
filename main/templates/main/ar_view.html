@@ -643,7 +643,8 @@
       const params = url.searchParams;
       const explicitMind = params.get('mind');
 
-      const files = Array.from(sel.options).map(o => (o.value || '').trim()).filter(Boolean);
+      const filesRaw = Array.from(sel.options).map(o => (o.value || '').trim()).filter(Boolean);
+      const files = Array.from(new Set(filesRaw));
       if (files.length <= 1) return;
 
       // Use last successful mind file when user didn't explicitly choose

@@ -1,7 +1,7 @@
 {% extends 'main/base.html' %}
 {% load static %}
 
-{% block title %}แผงควบคุมวิทยากร - {{ speaker.name }}{% endblock %}
+{% block title %}เมนูวิทยากร - {{ speaker.name }}{% endblock %}
 
 {% block content %}
 <style>
@@ -41,7 +41,7 @@
           </div>
 
           <div>
-            <h2 class="text-3xl font-bold text-gray-800 tracking-tight">แผงควบคุมวิทยากร</h2>
+            <h2 class="text-3xl font-bold text-gray-800 tracking-tight">เมนูวิทยากร</h2>
             <p class="text-gray-500 font-medium flex items-center gap-2 mt-1">
               ยินดีต้อนรับ, คุณ {{ user.profile.full_name|default:user.username }}
               <span class="animate-bounce delay-75">👋</span>

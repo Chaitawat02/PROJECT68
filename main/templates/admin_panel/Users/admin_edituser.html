@@ -37,7 +37,9 @@
                 
                 <div class="flex items-center gap-6">
                     <div class="shrink-0 relative">
-                        {% if profile.image %}
+                        {% if speaker and speaker.profile_picture %}
+                            <img src="{{ speaker.profile_picture.url }}" class="w-24 h-24 rounded-full object-cover border-4 border-white shadow-md">
+                        {% elif profile.image %}
                             <img src="{{ profile.image.url }}" class="w-24 h-24 rounded-full object-cover border-4 border-white shadow-md">
                         {% else %}
                             <div class="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center text-gray-400 text-3xl shadow-inner">
@@ -54,6 +56,9 @@
                     <div>
                         <h6 class="font-bold text-gray-700">รูปโปรไฟล์</h6>
                         <p class="text-xs text-gray-500 mb-2">รองรับไฟล์ JPG, PNG ขนาดไม่เกิน 2MB</p>
+                                                {% if speaker %}
+                                                    <p class="text-[11px] text-gray-400">* บัญชีนี้เป็นวิทยากร ระบบจะแสดงรูปจากโปรไฟล์วิทยากร</p>
+                                                {% endif %}
                     </div>
                 </div>
 
@@ -98,8 +103,8 @@
                         <div class="relative">
                             <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400"><i class="fas fa-shield-alt"></i></span>
                             <select name="role" class="block w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600 appearance-none bg-white">
-                                <option value="member" {% if profile.role == 'member' %}selected{% endif %}>ผู้ใช้งาน (User)</option>
-                                <option value="speaker" {% if profile.role == 'speaker' %}selected{% endif %}>วิทยากร (Speaker)</option>
+                                <option value="member" {% if effective_role == 'member' %}selected{% endif %}>ผู้ใช้งาน (User)</option>
+                                <option value="speaker" {% if effective_role == 'speaker' %}selected{% endif %}>วิทยากร (Speaker)</option>
                             </select>
                             <span class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-gray-400"><i class="fas fa-chevron-down text-xs"></i></span>
                         </div>

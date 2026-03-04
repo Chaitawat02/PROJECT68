@@ -32,7 +32,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     // If there are multiple target files, we will auto-cycle in the outer page.
     // Keep the status message friendly while scanning.
     const mindSelectForStatus = document.getElementById("mindSelect");
-    const hasMultipleMindFiles = !!(mindSelectForStatus && mindSelectForStatus.options && mindSelectForStatus.options.length > 1);
+    const hasMultipleMindFiles = (() => {
+        if (!mindSelectForStatus || !mindSelectForStatus.options) return false;
+        const files = Array.from(mindSelectForStatus.options)
+            .map((o) => (o && o.value ? String(o.value).trim() : ""))
+            .filter(Boolean);
+        const uniqueFiles = Array.from(new Set(files));
+        return uniqueFiles.length > 1;
+    })();
     if (statusText && hasMultipleMindFiles) {
         statusText.innerText = "กำลังค้นหาลายผ้า... รอหน่อยนะ";
     }
@@ -145,6 +152,10 @@ document.addEventListener("DOMContentLoaded", async () => {
                 // ลดขนาดและถอยออกเล็กน้อย เพื่อให้รู้สึกว่าไม่ซูมเมื่อสแกนติด
                 model.scale.set(0.85, 0.85, 0.85);
                 model.position.set(0, -0.4, -0.6);
+
+                // Fix: some exported .glb appear upside-down in MindAR scene
+                // Apply a 180° roll so the model is upright.
+                model.rotation.z = Math.PI;
                 
                 // Enable Shadows
                 model.traverse((o) => {

@@ -9,7 +9,7 @@
             <div class="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center mx-auto mb-3 backdrop-blur-sm">
                 <i class="fas fa-user-shield text-2xl"></i>
             </div>
-            <h5 class="font-bold text-lg tracking-wide">Admin Panel</h5>
+            <h5 class="font-bold text-lg tracking-wide">เมนูผู้ดูแลระบบ</h5>
             <p class="text-xs text-amber-100/80 font-light mt-1">ระบบจัดการพิพิธภัณฑ์ผ้าไหม</p>
         </div>
     </div>
@@ -120,7 +120,7 @@
             <span class="w-8 flex justify-center mr-2 transition-transform group-hover:scale-110">
                 <i class="fas fa-user-tie text-lg {% if 'speaker' in request.path %}text-amber-600{% else %}text-gray-400 group-hover:text-amber-600{% endif %}"></i>
             </span>
-            มอบหมายวิทยากร
+            มอบหมายงาน
 
             <span class="ml-auto text-[11px] font-black px-2 py-0.5 rounded-full
                         {% if pending_assign_count|default:0|add:0 > 0 %}bg-yellow-100 text-yellow-700{% else %}bg-gray-100 text-gray-500{% endif %}">
