@@ -3289,25 +3289,29 @@ def manage_users_view(request):
         elif User.objects.filter(username=username).exists():
             messages.error(request, 'ชื่อผู้ใช้นี้มีอยู่แล้ว')
         else:
-            with transaction.atomic():
-                user = User.objects.create_user(username=username, email=email, password=password)
-                user.first_name = first_name
-                user.last_name = last_name
-                user.is_staff = (role == 'admin')
-                user.is_superuser = (role == 'admin')
-                user.save()
+            try:
+                with transaction.atomic():
+                    user = User.objects.create_user(username=username, email=email, password=password)
+                    user.first_name = first_name
+                    user.last_name = last_name
+                    user.is_staff = (role == 'admin')
+                    user.is_superuser = (role == 'admin')
+                    user.save()
 
-                profile, _ = Profile.objects.get_or_create(user=user)
-                profile.full_name = f"{first_name} {last_name}".strip()
-                profile.phone = phone
-                profile.role = role
-                profile.save()
+                    profile, _ = Profile.objects.get_or_create(user=user)
+                    profile.full_name = f"{first_name} {last_name}".strip()
+                    profile.phone = phone
+                    profile.role = role
+                    profile.save()
 
-                if role == 'speaker':
-                    Speaker.objects.get_or_create(
-                        user=user,
-                        defaults={'name': (profile.full_name or user.get_full_name() or user.username).strip()},
-                    )
+                    if role == 'speaker':
+                        Speaker.objects.get_or_create(
+                            user=user,
+                            defaults={'name': (profile.full_name or user.get_full_name() or user.username).strip()},
+                        )
+            except IntegrityError:
+                messages.error(request, 'ชื่อผู้ใช้นี้มีอยู่แล้ว')
+                return redirect('manage_users')
 
             messages.success(request, f'เพิ่มผู้ใช้ {username} เรียบร้อยแล้ว')
 
