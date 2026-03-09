@@ -331,7 +331,7 @@
     .info-page { width: 100%; }
     .info-page:not(.is-active) { display: none; }
     .page-title {
-      display: block;
+      display: none;
       font-size: 0.8rem;
       font-weight: 600;
       letter-spacing: 1px;
@@ -342,14 +342,14 @@
 
     .info-nav {
       width: 100%;
-      display: flex;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
       align-items: center;
-      justify-content: space-between;
       gap: 12px;
       margin-top: 14px;
     }
     .info-nav-btn {
-      flex: 1;
+      width: 100%;
       background: transparent;
       border: 1px solid rgba(27, 38, 49, 0.25);
       color: var(--navy-deep);
@@ -360,8 +360,16 @@
       transition: all 0.2s ease;
       font-size: 0.8rem;
       letter-spacing: 0.5px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .info-nav-btn:hover { background: rgba(27, 38, 49, 0.06); }
+    .info-nav-btn.is-active {
+      background: var(--navy-deep);
+      color: #fff;
+      border-color: var(--navy-deep);
+    }
     .info-nav-btn:disabled {
       opacity: 0.5;
       cursor: not-allowed;
@@ -537,7 +545,7 @@
         height: auto;
         min-height: 220px;
         border-radius: 0 0 25px 25px;
-        padding: 24px;
+        padding: 20px 18px;
         background: rgba(255, 255, 255, 0.97);
         justify-content: flex-start;
         align-items: flex-start;
@@ -550,7 +558,7 @@
         flex-direction: row;
         align-items: flex-start;
         width: 100%;
-        gap: 20px;
+        gap: 14px;
         justify-content: flex-start;
       }
 
@@ -571,6 +579,7 @@
       .product-details p { font-size: 0.9rem; margin: 0; max-width: 100%; }
 
       /* หน้า 2/3 ควรให้พื้นที่แนวตั้งมากขึ้น */
+      .info-panel[data-info-page="1"] .product-showcase,
       .info-panel[data-info-page="2"] .product-showcase,
       .info-panel[data-info-page="3"] .product-showcase {
         flex-direction: column;
@@ -582,6 +591,7 @@
       .meta-list {
         max-width: 100%;
         width: 100%;
+        margin: 12px 0 0;
         padding: 10px 12px;
         border-radius: 14px;
       }
@@ -598,6 +608,17 @@
         margin-top: 12px;
         padding: 8px 18px;
         font-size: 0.75rem;
+      }
+
+      .info-nav {
+        gap: 10px;
+        margin-top: 12px;
+      }
+      .info-nav-btn {
+        padding: 9px 10px;
+        font-size: 0.74rem;
+        border-radius: 16px;
+        letter-spacing: 0.2px;
       }
 
       .camera-toggle-btn {
@@ -695,35 +716,37 @@
         </div>
 
         <div class="product-details">
-          <!-- Page 1: ชื่อ/คำอธิบาย -->
+          <!-- Page 1: ข้อมูลผ้าไหม -->
           <div class="info-page is-active" id="info-page-1" data-page="1">
+            <span class="page-title">ข้อมูลผ้าไหม</span>
             <h2 id="panel-name">กรุณาสแกนลายผ้า</h2>
             <p id="panel-sub">
               นำการ์ดลายผ้าไหมมาส่องที่หน้ากระจก<br>เพื่อทดลองทาบลงบนตัวคุณ
             </p>
+            <div id="panel-summary" class="mt-4 text-sm text-left meta-list hidden"></div>
           </div>
 
-          <!-- Page 2: รูปเพิ่มเติม -->
+          <!-- Page 2: แหล่งผลิต/ผู้คิดค้นลาย + ประวัติ -->
           <div class="info-page" id="info-page-2" data-page="2">
-            <span class="page-title">รูปผ้าไหมเพิ่มเติม</span>
-            <div id="panel-gallery" class="gallery-grid" aria-label="รูปผ้าไหมเพิ่มเติม"></div>
-            <div id="panel-gallery-empty" class="gallery-empty hidden">ยังไม่มีรูปเพิ่มเติม</div>
-          </div>
-
-          <!-- Page 3: รายละเอียด -->
-          <div class="info-page" id="info-page-3" data-page="3">
-            <span class="page-title">รายละเอียดผ้าไหม</span>
+            <span class="page-title">แหล่งผลิต / ผู้คิดค้นลาย</span>
             <div id="panel-meta" class="mt-4 text-sm text-left meta-list hidden">
               <!-- จะถูกเติมข้อมูลด้วย JavaScript -->
             </div>
+          </div>
+
+          <!-- Page 3: รูปเพิ่มเติม -->
+          <div class="info-page" id="info-page-3" data-page="3">
+            <span class="page-title">รูปเพิ่มเติม</span>
+            <div id="panel-gallery" class="gallery-grid" aria-label="รูปผ้าไหมเพิ่มเติม"></div>
+            <div id="panel-gallery-empty" class="gallery-empty hidden">ยังไม่มีรูปเพิ่มเติม</div>
           </div>
         </div>
       </div>
 
       <div class="info-nav hidden" id="info-nav" aria-label="เปลี่ยนหน้าข้อมูล">
-        <button type="button" class="info-nav-btn" id="info-prev">ก่อนหน้า</button>
-        <div class="info-nav-indicator" id="info-indicator">1/3</div>
-        <button type="button" class="info-nav-btn" id="info-next">ถัดไป</button>
+        <button type="button" class="info-nav-btn" data-info-page="1" aria-pressed="false">ข้อมูลผ้าไหม</button>
+        <button type="button" class="info-nav-btn" data-info-page="2" aria-pressed="false">แหล่งผลิต/ประวัติ</button>
+        <button type="button" class="info-nav-btn" data-info-page="3" aria-pressed="false">รูปเพิ่มเติม</button>
       </div>
 
       <button class="btn-refresh" onclick="window.location.reload()">

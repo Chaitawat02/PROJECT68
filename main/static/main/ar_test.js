@@ -16,15 +16,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     const displayDesc = document.getElementById("panel-sub");
     const displayImg = document.getElementById("panel-image");
     const displayMeta = document.getElementById("panel-meta");
+    const displaySummary = document.getElementById("panel-summary");
     const statusText = document.getElementById("status-text");
     const loaderScreen = document.getElementById("app-loader");
 
     // Info pages (1: name, 2: images, 3: details)
     const infoPanel = document.getElementById("info-panel");
     const infoNav = document.getElementById("info-nav");
-    const infoPrevBtn = document.getElementById("info-prev");
-    const infoNextBtn = document.getElementById("info-next");
-    const infoIndicator = document.getElementById("info-indicator");
+    const infoNavButtons = Array.from(document.querySelectorAll(".info-nav-btn[data-info-page]"));
     const infoPages = Array.from(document.querySelectorAll(".info-page[data-page]"));
     const galleryEl = document.getElementById("panel-gallery");
     const galleryEmptyEl = document.getElementById("panel-gallery-empty");
@@ -44,15 +43,70 @@ document.addEventListener("DOMContentLoaded", async () => {
             else el.classList.remove("is-active");
         });
 
-        if (infoIndicator) infoIndicator.textContent = `${next}/${TOTAL_INFO_PAGES}`;
-        if (infoPrevBtn) infoPrevBtn.disabled = next <= 1;
-        if (infoNextBtn) infoNextBtn.disabled = next >= TOTAL_INFO_PAGES;
+        infoNavButtons.forEach((btn) => {
+            const p = Number(btn.getAttribute("data-info-page"));
+            const active = p === next;
+            btn.classList.toggle("is-active", active);
+            btn.setAttribute("aria-pressed", active ? "true" : "false");
+        });
     };
 
     const setInfoNavVisible = (visible) => {
         if (!infoNav) return;
         if (visible) infoNav.classList.remove("hidden");
         else infoNav.classList.add("hidden");
+    };
+
+    const toText = (value) => {
+        if (value === null || value === undefined) return "";
+        return String(value).trim();
+    };
+
+    const clearChildren = (el) => {
+        if (!el) return;
+        while (el.firstChild) el.removeChild(el.firstChild);
+    };
+
+    const addRow = (rootEl, label, value) => {
+        if (!rootEl) return;
+        const v = toText(value);
+        if (!v) return;
+
+        const row = document.createElement("div");
+        row.className = "meta-row";
+
+        const labelEl = document.createElement("span");
+        labelEl.className = "meta-label";
+        labelEl.textContent = label;
+
+        const valueEl = document.createElement("span");
+        valueEl.className = "meta-value";
+        valueEl.textContent = v;
+
+        row.appendChild(labelEl);
+        row.appendChild(valueEl);
+        rootEl.appendChild(row);
+    };
+
+    const addBlock = (rootEl, label, value) => {
+        if (!rootEl) return;
+        const v = toText(value);
+        if (!v) return;
+
+        const block = document.createElement("div");
+        block.className = "meta-block";
+
+        const labelEl = document.createElement("span");
+        labelEl.className = "meta-label";
+        labelEl.textContent = label;
+
+        const valueEl = document.createElement("div");
+        valueEl.className = "meta-value meta-preline";
+        valueEl.textContent = v;
+
+        block.appendChild(labelEl);
+        block.appendChild(valueEl);
+        rootEl.appendChild(block);
     };
 
     const setGalleryImages = (urls) => {
@@ -77,9 +131,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     };
 
-    // Bind nav events
-    if (infoPrevBtn) infoPrevBtn.addEventListener("click", () => setInfoPage(currentInfoPage - 1));
-    if (infoNextBtn) infoNextBtn.addEventListener("click", () => setInfoPage(currentInfoPage + 1));
+    // Bind nav events (3-tab buttons)
+    infoNavButtons.forEach((btn) => {
+        btn.addEventListener("click", () => setInfoPage(btn.getAttribute("data-info-page")));
+    });
     setInfoPage(1);
     setInfoNavVisible(false);
 
@@ -275,7 +330,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             // Update Text
             if (displayTitle) displayTitle.innerText = pattern.name || "Silk Pattern " + (targetIndex + 1);
-            if (displayDesc) displayDesc.innerText = pattern.detail || "Luxury Thai Silk Collection";
+            if (displayDesc) {
+                // ซ่อนบรรทัดตัวหนังสือจางๆ ใต้ชื่อ (เลี่ยงข้อมูลซ้ำกับกล่องด้านล่าง)
+                displayDesc.innerText = "";
+                displayDesc.classList.add("hidden");
+            }
             
             // Update Image
             if (displayImg) {
@@ -299,65 +358,19 @@ document.addEventListener("DOMContentLoaded", async () => {
                 setGalleryImages([]);
             }
 
-            // Update Full Detail List (หลังจากสแกน AR แสดงข้อมูลทั้งหมดให้อ่านง่าย)
+            // Page 1: ข้อมูลผ้าไหม (ประเภท/สีหลัก)
+            if (displaySummary) {
+                clearChildren(displaySummary);
+                addRow(displaySummary, "ประเภทผ้า:", pattern.si_type);
+                addRow(displaySummary, "สีหลัก:", pattern.si_color);
+                displaySummary.classList.remove("hidden");
+            }
+
+            // Page 2: แหล่งผลิต/ผู้คิดค้นลาย + ประวัติ
             if (displayMeta) {
-                const toText = (value) => {
-                    if (value === null || value === undefined) return "";
-                    return String(value).trim();
-                };
-
-                const clearChildren = (el) => {
-                    while (el.firstChild) el.removeChild(el.firstChild);
-                };
-
-                const addRow = (label, value) => {
-                    const v = toText(value);
-                    if (!v) return;
-
-                    const row = document.createElement("div");
-                    row.className = "meta-row";
-
-                    const labelEl = document.createElement("span");
-                    labelEl.className = "meta-label";
-                    labelEl.textContent = label;
-
-                    const valueEl = document.createElement("span");
-                    valueEl.className = "meta-value";
-                    valueEl.textContent = v;
-
-                    row.appendChild(labelEl);
-                    row.appendChild(valueEl);
-                    displayMeta.appendChild(row);
-                };
-
-                const addBlock = (label, value) => {
-                    const v = toText(value);
-                    if (!v) return;
-
-                    const block = document.createElement("div");
-                    block.className = "meta-block";
-
-                    const labelEl = document.createElement("span");
-                    labelEl.className = "meta-label";
-                    labelEl.textContent = label;
-
-                    const valueEl = document.createElement("div");
-                    valueEl.className = "meta-value meta-preline";
-                    valueEl.textContent = v;
-
-                    block.appendChild(labelEl);
-                    block.appendChild(valueEl);
-                    displayMeta.appendChild(block);
-                };
-
                 clearChildren(displayMeta);
-
-                addRow("รหัสผ้า:", pattern.si_id);
-                addRow("ประเภทผ้า:", pattern.si_type);
-                addRow("สีหลัก:", pattern.si_color);
-                addRow("แหล่งผลิต / ที่มา:", pattern.si_address);
-                addBlock("ประวัติความเป็นมา", pattern.si_history);
-
+                addRow(displayMeta, "แหล่งผลิต / ผู้คิดค้นลาย:", pattern.si_address);
+                addBlock(displayMeta, "ประวัติความเป็นมา", pattern.si_history);
                 displayMeta.classList.remove("hidden");
             }
 

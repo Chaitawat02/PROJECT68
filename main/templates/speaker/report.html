@@ -30,7 +30,7 @@
     tr { break-inside: avoid; page-break-inside: avoid; }
     th, td { padding: 8px 10px !important; vertical-align: top !important; }
 
-    /* Keep colors in PDF where supported */
+    /* Keep colors in print where supported */
     * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
     /* Hide footer in printed receipts */
@@ -205,11 +205,6 @@
            class="px-4 py-2 rounded-xl bg-white border border-gray-200 text-gray-700 font-semibold hover:bg-gray-50">
           กลับหน้าหลัก
         </a>
-        <button type="button" onclick="window.print()"
-                data-print-scope="summary"
-                class="px-4 py-2 rounded-xl bg-amber-600 text-white font-semibold hover:bg-amber-700">
-          พิมพ์ / PDF
-        </button>
       </div>
     </section>
 
