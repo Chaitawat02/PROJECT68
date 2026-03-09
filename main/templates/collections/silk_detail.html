@@ -46,10 +46,33 @@
             <div class="border-t border-amber-100">
                 <div class="flex items-center justify-center bg-gray-50 p-6">
                     {% if silk.image|file_exists %}
-                        <img src="{{ silk.image.url }}" class="w-full max-w-md rounded-2xl object-cover border border-amber-100 shadow" alt="{{ silk.Si_name }}">
+                        <img src="{{ silk.image.url }}"
+                             class="w-full max-w-md rounded-2xl object-cover border border-amber-100 shadow"
+                             alt="{{ silk.Si_name }}"
+                             onerror="this.classList.add('hidden'); var f=this.nextElementSibling; if(f) f.classList.remove('hidden');">
+                        <div class="hidden w-full max-w-md h-64 flex flex-col items-center justify-center text-gray-400 bg-white rounded-2xl border border-amber-100">
+                            <i class="fas fa-image text-6xl mb-2"></i>
+                            <span class="text-lg">ไม่มีรูปภาพ</span>
+                        </div>
+                    {% elif silk.reference|file_exists %}
+                        <img src="{{ silk.reference.url }}"
+                             class="w-full max-w-md rounded-2xl object-cover border border-amber-100 shadow"
+                             alt="{{ silk.Si_name }}"
+                             onerror="this.classList.add('hidden'); var f=this.nextElementSibling; if(f) f.classList.remove('hidden');">
+                        <div class="hidden w-full max-w-md h-64 flex flex-col items-center justify-center text-gray-400 bg-white rounded-2xl border border-amber-100">
+                            <i class="fas fa-image text-6xl mb-2"></i>
+                            <span class="text-lg">ไม่มีรูปภาพ</span>
+                        </div>
                     {% elif silk.target_index != None %}
                         {% with idx_str=silk.target_index|stringformat:"d" fallback_path='main/images/test'|add:idx_str|add:'.jpg' %}
-                            <img src="{% static fallback_path %}" class="w-full max-w-md rounded-2xl object-cover border border-amber-100 shadow" alt="{{ silk.Si_name }}">
+                            <img src="{% static fallback_path %}"
+                                 class="w-full max-w-md rounded-2xl object-cover border border-amber-100 shadow"
+                                 alt="{{ silk.Si_name }}"
+                                 onerror="this.classList.add('hidden'); var f=this.nextElementSibling; if(f) f.classList.remove('hidden');">
+                            <div class="hidden w-full max-w-md h-64 flex flex-col items-center justify-center text-gray-400 bg-white rounded-2xl border border-amber-100">
+                                <i class="fas fa-image text-6xl mb-2"></i>
+                                <span class="text-lg">ไม่มีรูปภาพ</span>
+                            </div>
                         {% endwith %}
                     {% else %}
                         <div class="w-full max-w-md h-64 flex flex-col items-center justify-center text-gray-400 bg-white rounded-2xl border border-amber-100">
