@@ -16,7 +16,7 @@
     <div class="p-6 border-b border-amber-100 bg-amber-50/60">
       <h3 class="text-lg font-extrabold text-gray-800">ข้อมูลการจองที่เพิ่งปิดงาน</h3>
       <p class="text-sm text-gray-600 mt-1">
-        การจองของ <span class="font-bold">{{ just_completed_booking.fullname|default:"-" }}</span>
+        กลุ่มจองของ <span class="font-bold">{{ just_completed_booking.fullname|default:"-" }}</span>
       </p>
     </div>
     <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
@@ -63,13 +63,6 @@
               </option>
             {% endfor %}
           </select>
-        </div>
-
-        <div>
-          <label class="block text-sm font-semibold text-gray-700 mb-1">หัวข้อ/ชื่อชุดรูป</label>
-          <input type="text" name="title" maxlength="255"
-                 placeholder="เช่น นำชมพิพิธภัณฑ์ / กิจกรรมเวิร์กช็อป"
-                 class="w-full rounded-2xl border border-gray-200 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-amber-200">
         </div>
       </div>
 

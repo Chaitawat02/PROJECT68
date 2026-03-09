@@ -101,6 +101,7 @@ urlpatterns = [
 
     # Admin: Speaker Management (โฟลเดอร์: speakers)
     path("admin-panel/manage-speakers/", views.manage_speakers_view, name="manage_speakers"),
+    path("admin-panel/speaker-assignments/history/", views.speaker_assignment_history_view, name="speaker_assignment_history"),
 
     # Admin: User Management (โฟลเดอร์: Users)
     path("admin-panel/manage-users/", views.manage_users_view, name="manage_users"),

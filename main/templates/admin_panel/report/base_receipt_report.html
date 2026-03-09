@@ -40,6 +40,12 @@
 
     /* Hide footer in printed receipts */
     footer { display: none !important; }
+
+    /* Print scope: summary only */
+    body.print-scope-summary .report-section--filters,
+    body.print-scope-summary .report-section--data {
+      display: none !important;
+    }
   }
 
   /* Preview (screen) — make the page look like print just before opening the print dialog */
@@ -52,6 +58,12 @@
     /* Match print look in preview */
     body.report-preview nav { display: none !important; }
     body.report-preview .overflow-x-auto { overflow: visible !important; }
+
+    /* Match scoped print in preview mode too */
+    body.report-preview.print-scope-summary .report-section--filters,
+    body.report-preview.print-scope-summary .report-section--data {
+      display: none !important;
+    }
   }
 </style>
 
@@ -117,9 +129,17 @@
         </section>
       {% endif %}
 
-      {% block report_filters %}{% endblock %}
-      {% block report_data %}{% endblock %}
-      {% block report_summary %}{% endblock %}
+      <div class="report-section report-section--filters">
+        {% block report_filters %}{% endblock %}
+      </div>
+
+      <div class="report-section report-section--data">
+        {% block report_data %}{% endblock %}
+      </div>
+
+      <div class="report-section report-section--summary">
+        {% block report_summary %}{% endblock %}
+      </div>
 
       {% if single_container %}
           </div>
@@ -147,10 +167,24 @@
     try {
       var isPrinting = false;
 
-      function doPrint() {
+      function clearPrintScope() {
+        document.body.classList.remove('print-scope-summary');
+      }
+
+      function setPrintScope(scope) {
+        clearPrintScope();
+        if (scope === 'summary') {
+          document.body.classList.add('print-scope-summary');
+        }
+      }
+
+      function doPrint(scope) {
         if (isPrinting) return;
         isPrinting = true;
 
+        // Default to printing summary only for report pages
+        if (!scope) scope = 'summary';
+        setPrintScope(scope);
         document.body.classList.add('report-preview');
 
         // Let the browser apply styles before opening the dialog
@@ -161,6 +195,7 @@
         // Safety fallback: revert after a short delay in case afterprint doesn't fire
         window.setTimeout(function () {
           document.body.classList.remove('report-preview');
+          clearPrintScope();
           isPrinting = false;
         }, 2000);
       }
@@ -168,16 +203,18 @@
       window.__reportPrint = doPrint;
 
       // Intercept existing inline print buttons across all report pages
-      document.querySelectorAll('button[onclick*="window.print"]').forEach(function (btn) {
-        btn.addEventListener('click', function (e) {
+      document.querySelectorAll('[onclick*="window.print"]').forEach(function (el) {
+        el.addEventListener('click', function (e) {
           e.preventDefault();
           e.stopImmediatePropagation();
-          doPrint();
+          var scope = el.getAttribute('data-print-scope') || '';
+          doPrint(scope);
         }, true);
       });
 
       window.addEventListener('afterprint', function () {
         document.body.classList.remove('report-preview');
+        clearPrintScope();
         isPrinting = false;
       });
     } catch (err) {

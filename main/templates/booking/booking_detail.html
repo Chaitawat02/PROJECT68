@@ -47,7 +47,7 @@
                 </div>
 
                 <div>
-                    <p class="text-xs text-gray-400 uppercase font-bold">วันที่จอง</p>
+                    <p class="text-xs text-gray-400 uppercase font-bold">วันที่เข้าชม</p>
                     <p class="text-gray-800 font-medium">{{ booking.Re_date|date:"j F Y" }}</p>
                 </div>
                 <div>
@@ -111,7 +111,7 @@
                 </div>
 
                 <div>
-                    <p class="text-xs text-gray-400 uppercase font-bold">สร้างเมื่อ</p>
+                    <p class="text-xs text-gray-400 uppercase font-bold">วันที่จอง</p>
                     <p class="text-gray-800">{{ booking.created_at|date:"j F Y H:i" }}</p>
                 </div>
                 <div>
@@ -121,13 +121,106 @@
             </div>
 
             <hr class="border-gray-100">
-<div class="flex gap-4">
-                     <a href="{{ back_to_history_url|default:"/user/dashboard/?section=booking" }}"
-                   class="flex-1 text-center py-3 border border-gray-200 rounded-xl hover:bg-gray-50 transition font-medium">
-                         กลับไปที่ประวัติการจอง
-                </a>
-            </div>
+
+                        {% if can_decide_booking %}
+                        <div class="bg-amber-50 border border-amber-100 p-4 rounded-2xl no-page-break">
+                                <p class="text-xs text-gray-500 uppercase font-bold mb-3">การอนุมัติ (เฉพาะผู้ดูแล)</p>
+                                <div class="flex flex-col sm:flex-row gap-3">
+                                        <form method="post" action="{% url 'update_booking_status' booking.id 'approved' %}" class="flex-1">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="next" value="{% url 'approve_bookings' %}">
+                                                <button type="submit"
+                                                                class="w-full py-3 rounded-xl bg-green-600 text-white font-bold hover:bg-green-700 transition shadow-sm">
+                                                        อนุมัติการจอง
+                                                </button>
+                                        </form>
+
+                                        <button type="button"
+                                                        onclick="openRejectModal()"
+                                                        class="flex-1 py-3 rounded-xl bg-red-600 text-white font-bold hover:bg-red-700 transition shadow-sm">
+                                                ปฏิเสธการจอง
+                                        </button>
+                                </div>
+                                <p class="text-xs text-gray-500 mt-3">* การปฏิเสธจำเป็นต้องระบุเหตุผล</p>
+                        </div>
+                        {% endif %}
+
+                        <div class="flex gap-4">
+                                <a href="{{ back_to_history_url|default:"/user/dashboard/?section=booking" }}"
+                                     class="flex-1 text-center py-3 border border-gray-200 rounded-xl hover:bg-gray-50 transition font-medium">
+                                        กลับไปที่ประวัติการจอง
+                                </a>
+                        </div>
         </div>
     </div>
 </div>
+
+{% if can_decide_booking %}
+<!-- Modal ปฏิเสธ + ฟอร์มส่งเหตุผล (เฉพาะผู้ดูแล) -->
+<div id="rejectModal" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-black/40" onclick="closeRejectModal()"></div>
+
+    <div class="relative mx-auto mt-24 w-[92%] max-w-lg bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden">
+        <div class="px-6 py-4 bg-red-50 border-b border-red-100 flex items-center justify-between">
+            <div>
+                <p class="text-sm font-black text-red-700">ปฏิเสธการจอง</p>
+                <p class="text-xs text-red-600">กรุณากรอกเหตุผล</p>
+            </div>
+            <button type="button" class="text-red-700 hover:text-red-900" onclick="closeRejectModal()" title="ปิด">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <form method="post" action="{% url 'update_booking_status' booking.id 'rejected' %}" class="p-6 space-y-4">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{% url 'approve_bookings' %}">
+
+            <div>
+                <label class="block text-sm font-bold text-gray-800 mb-2">
+                    เหตุผลที่ปฏิเสธ <span class="text-red-500">*</span>
+                </label>
+                <textarea name="decision_note"
+                                    id="decision_note_text"
+                                    class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-400 outline-none transition-all bg-gray-50 focus:bg-white"
+                                    rows="4"
+                                    placeholder="เช่น ข้อมูลไม่ครบ / เลือกวันที่ไม่ถูกต้อง / เกินจำนวนที่รองรับ"
+                                    required></textarea>
+                <p class="text-xs text-gray-400 mt-1">* จำเป็นต้องกรอกเหตุผลก่อนกดยืนยัน</p>
+            </div>
+
+            <div class="flex gap-3 pt-1">
+                <button type="button"
+                                onclick="closeRejectModal()"
+                                class="flex-1 py-3 rounded-xl border border-gray-200 hover:bg-gray-50 transition font-bold text-gray-700">
+                    ยกเลิก
+                </button>
+                <button type="submit"
+                                class="flex-1 py-3 rounded-xl bg-gradient-to-r from-red-600 to-red-800 hover:to-red-900 transition font-bold text-white shadow-sm hover:shadow-md">
+                    ยืนยันการปฏิเสธ
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openRejectModal() {
+        const modal = document.getElementById('rejectModal');
+        const textarea = document.getElementById('decision_note_text');
+        if (!modal) return;
+        modal.classList.remove('hidden');
+        setTimeout(() => { if (textarea) textarea.focus(); }, 50);
+    }
+
+    function closeRejectModal() {
+        const modal = document.getElementById('rejectModal');
+        if (!modal) return;
+        modal.classList.add('hidden');
+    }
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeRejectModal();
+    });
+</script>
+{% endif %}
 {% endblock %}

@@ -62,7 +62,7 @@
             <div class="bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
                 <div class="flex justify-between items-start mb-6">
                     <h2 class="text-3xl font-extrabold text-gray-900 leading-tight">
-                        การจองของ {{ booking.fullname|default:"-" }}
+                        กลุ่มจองของ {{ booking.fullname|default:"-" }}
                     </h2>
                 </div>
 
@@ -79,32 +79,90 @@
                         <div class="w-10 h-10 rounded-lg bg-amber-800 flex items-center justify-center text-white mr-3">
                             <i class="fas fa-info-circle"></i>
                         </div>
-                        <h3 class="font-bold text-gray-800">ข้อมูลผู้ขอรับบริการ</h3>
+                        <h3 class="font-bold text-gray-800">รายละเอียดการจอง</h3>
                     </div>
                     
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mb-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                        <div class="flex items-center text-gray-600">
+                            <i class="fas fa-hashtag w-6 text-amber-700"></i>
+                            <span>เลขที่การจอง: <span class="font-bold text-gray-800">#{{ booking.id }}</span></span>
+                        </div>
+
+                        <div class="flex items-center text-gray-600">
+                            <i class="fas fa-clipboard-check w-6 text-amber-700"></i>
+                            <span>สถานะ: <span class="font-bold text-gray-800">{{ booking.get_Re_status_display|default:booking.Re_status|default:"-" }}</span></span>
+                        </div>
+
                         <div class="flex items-center text-gray-600">
                             <i class="fas fa-user w-6 text-amber-700"></i>
-                            <span>{{ booking.fullname }}</span>
+                            <span>ชื่อผู้จอง: <span class="font-bold text-gray-800">{{ booking.fullname|default:"-" }}</span></span>
                         </div>
+
                         <div class="flex items-center text-gray-600">
                             <i class="fas fa-calendar-day w-6 text-amber-700"></i>
-                            <span>{{ booking.Re_date|date:"l ที่ d F Y" }}</span>
+                            <span>วันที่เข้าชม: <span class="font-bold text-gray-800">{% if booking.Re_date %}{{ booking.Re_date|date:"l ที่ d F Y" }}{% else %}-{% endif %}</span></span>
                         </div>
+
+                        <div class="flex items-center text-gray-600">
+                            <i class="fas fa-clock w-6 text-amber-700"></i>
+                            <span>ช่วงเวลา: <span class="font-bold text-gray-800">{% if booking.get_visit_session_display %}{{ booking.get_visit_session_display }}{% else %}{{ booking.visit_session|default:"-" }}{% endif %}</span></span>
+                        </div>
+
+                        <div class="flex items-center text-gray-600">
+                            <i class="fas fa-users w-6 text-amber-700"></i>
+                            <span>จำนวนผู้เข้าชม: <span class="font-bold text-gray-800">{{ booking.Re_quantity|default:"-" }}</span></span>
+                        </div>
+
                         <div class="flex items-center text-gray-600">
                             <i class="fas fa-phone w-6 text-amber-700"></i>
-                            <span>{{ booking.phone }}</span>
+                            <span>เบอร์โทร: <span class="font-bold text-gray-800">{{ booking.phone|default:"-" }}</span></span>
                         </div>
+
                         <div class="flex items-center text-gray-600">
                             <i class="fas fa-envelope w-6 text-amber-700"></i>
-                            <span>{{ booking.email }}</span>
+                            <span>อีเมล: <span class="font-bold text-gray-800">{{ booking.email|default:"-" }}</span></span>
                         </div>
+
+                        <div class="flex items-center text-gray-600">
+                            <i class="far fa-calendar-alt w-6 text-amber-700"></i>
+                            <span>วันที่จอง: <span class="font-bold text-gray-800">{% if booking.created_at %}{{ booking.created_at|date:"d F Y H:i" }}{% else %}-{% endif %}</span></span>
+                        </div>
+
+                        {% if booking.Re_status == 'cancelled' or booking.cancel_reason or booking.cancelled_at %}
+                        <div class="md:col-span-2 rounded-xl bg-red-50 border border-red-100 p-4">
+                            <p class="text-xs font-bold text-red-700 uppercase tracking-wider mb-1">ข้อมูลการยกเลิก</p>
+                            <p class="text-sm text-red-800">
+                                {% if booking.cancel_reason %}เหตุผล: {{ booking.cancel_reason }}{% else %}เหตุผล: -{% endif %}
+                                {% if booking.cancelled_at %}<br>ยกเลิกเมื่อ: {{ booking.cancelled_at|date:"d F Y H:i" }}{% endif %}
+                            </p>
+                        </div>
+                        {% endif %}
                     </div>
-                    
-                    <a href="{% url 'booking_detail' booking.id %}" 
-                       class="text-sm font-bold text-amber-800 hover:text-amber-900 flex items-center transition-colors">
-                        ดูรายละเอียดการจองฉบับเต็ม <i class="fas fa-arrow-right ml-2 text-xs"></i>
-                    </a>
+
+                    <div class="mt-5">
+                        <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">กิจกรรม</p>
+                        {% with items=booking.workshop_items.all %}
+                            {% if items %}
+                                <ul class="list-disc ml-6 text-gray-800 text-sm space-y-1">
+                                    {% for it in items %}
+                                        <li>
+                                            {% if it.workshop %}{{ it.workshop.title }}{% else %}-{% endif %}
+                                            {% if it.date %}— {{ it.date|date:"d/m/Y" }}{% endif %}
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            {% else %}
+                                <p class="text-sm text-gray-600">- ไม่มีการจองกิจกรรม -</p>
+                            {% endif %}
+                        {% endwith %}
+                    </div>
+
+                    {% if booking.decision_note %}
+                    <div class="mt-5 rounded-xl bg-white border border-gray-100 p-4">
+                        <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">หมายเหตุ / รายละเอียดเพิ่มเติม</p>
+                        <p class="text-sm text-gray-700 italic">{{ booking.decision_note }}</p>
+                    </div>
+                    {% endif %}
                 </div>
                 {% endif %}
 

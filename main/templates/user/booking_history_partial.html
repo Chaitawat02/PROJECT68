@@ -99,12 +99,58 @@
                   </button>
                 </form>
               {% endif %}
-
-              <a href="{% url 'booking_detail' booking.id %}"
-                 class="px-3 py-1.5 bg-gray-900 text-white rounded-2xl text-xs font-extrabold hover:bg-black transition whitespace-nowrap">
-                <i class="fas fa-receipt mr-1"></i> รายละเอียด
-              </a>
             </div>
+          </td>
+        </tr>
+
+        {# sub row: booking full details (no need to click into detail page) #}
+        <tr class="bg-gray-50">
+          <td class="px-4 py-3 border-r border-gray-200"></td>
+          <td class="px-4 py-3 border-r border-gray-200 font-extrabold text-gray-700">
+            รายละเอียด
+          </td>
+          <td class="px-4 py-3 border-r border-gray-200" colspan="5">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div class="flex items-center gap-2 text-sm text-gray-700">
+                <i class="fas fa-user text-amber-700 w-5"></i>
+                <span>ชื่อผู้จอง: <span class="font-bold">{{ booking.fullname|default:"-" }}</span></span>
+              </div>
+
+              <div class="flex items-center gap-2 text-sm text-gray-700">
+                <i class="fas fa-envelope text-amber-700 w-5"></i>
+                <span>อีเมล: <span class="font-bold">{{ booking.email|default:"-" }}</span></span>
+              </div>
+
+              <div class="flex items-center gap-2 text-sm text-gray-700">
+                <i class="fas fa-phone text-amber-700 w-5"></i>
+                <span>เบอร์โทร: <span class="font-bold">{{ booking.phone|default:"-" }}</span></span>
+              </div>
+
+              <div class="flex items-center gap-2 text-sm text-gray-700">
+                <i class="far fa-calendar-alt text-amber-700 w-5"></i>
+                <span>วันที่จอง: <span class="font-bold">{% if booking.created_at %}{{ booking.created_at|date:"d/m/Y H:i" }}{% else %}-{% endif %}</span></span>
+              </div>
+            </div>
+
+            {% if booking.decision_note %}
+              <div class="mt-3 text-sm text-gray-700 bg-white border border-gray-200 rounded-2xl px-4 py-3">
+                <span class="text-xs font-extrabold text-gray-500 uppercase tracking-wider">หมายเหตุ</span>
+                <div class="mt-1 italic">{{ booking.decision_note }}</div>
+              </div>
+            {% endif %}
+
+            {% if booking.decided_by or booking.decided_at %}
+              <div class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div class="flex items-center gap-2 text-sm text-gray-700">
+                  <i class="fas fa-user-check text-amber-700 w-5"></i>
+                  <span>ผู้อนุมัติ: <span class="font-bold">{% if booking.decided_by %}{{ booking.decided_by.get_full_name|default:booking.decided_by.username }}{% else %}-{% endif %}</span></span>
+                </div>
+                <div class="flex items-center gap-2 text-sm text-gray-700">
+                  <i class="fas fa-clock text-amber-700 w-5"></i>
+                  <span>วันที่อนุมัติ: <span class="font-bold">{% if booking.decided_at %}{{ booking.decided_at|date:"d/m/Y H:i" }}{% else %}-{% endif %}</span></span>
+                </div>
+              </div>
+            {% endif %}
           </td>
         </tr>
 

@@ -46,6 +46,22 @@
                     </div>
                 {% endif %}
                 
+                {% if form.category %}
+                <div class="mb-8">
+                    <label for="{{ form.category.id_for_label }}" class="block text-sm font-black text-gray-500 uppercase tracking-widest mb-3 flex items-center">
+                        <i class="fas fa-layer-group text-amber-600 mr-3"></i> หมวดคำถาม
+                    </label>
+                    <div class="relative">
+                        {{ form.category }}
+                    </div>
+                    {% if form.category.errors %}
+                        <div class="flex items-center text-red-500 text-xs font-bold mt-3 bg-red-50 p-3 rounded-xl border border-red-100">
+                            <i class="fas fa-exclamation-circle mr-2 text-sm"></i>{{ form.category.errors.0 }}
+                        </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+
                 <div class="mb-10">
                     <label for="{{ form.question.id_for_label }}" class="block text-xl font-black text-gray-800 mb-4 flex items-center">
                         <span class="bg-gradient-to-br from-gray-800 to-black text-white w-10 h-10 rounded-xl flex items-center justify-center text-sm mr-4 shadow-lg shadow-gray-200">Q</span>
@@ -69,71 +85,6 @@
                     <span class="text-gray-300 uppercase text-[10px] font-black tracking-[0.2em]">Options Configuration</span>
                     <div class="h-[1px] bg-gray-100 flex-grow"></div>
                 </div>
-
-                <h3 class="text-sm font-black text-gray-400 uppercase tracking-widest mb-6 flex items-center">
-                    <i class="fas fa-list-ul text-amber-600 mr-3"></i> กำหนดตัวเลือกคำตอบ (Scale)
-                </h3>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
-                    <div class="relative group">
-                        {{ form.option_a }}
-                        {% if form.option_a.errors %}
-                            <div class="flex items-center text-red-500 text-xs font-bold mt-2 bg-red-50 p-2 rounded-xl border border-red-100">
-                                <i class="fas fa-exclamation-circle mr-2 text-sm"></i>{{ form.option_a.errors.0 }}
-                            </div>
-                        {% endif %}
-                    </div>
-
-                    <div class="relative group">
-                        {{ form.option_b }}
-                        {% if form.option_b.errors %}
-                            <div class="flex items-center text-red-500 text-xs font-bold mt-2 bg-red-50 p-2 rounded-xl border border-red-100">
-                                <i class="fas fa-exclamation-circle mr-2 text-sm"></i>{{ form.option_b.errors.0 }}
-                            </div>
-                        {% endif %}
-                    </div>
-
-                    <div class="relative group">
-                        {{ form.option_c }}
-                        {% if form.option_c.errors %}
-                            <div class="flex items-center text-red-500 text-xs font-bold mt-2 bg-red-50 p-2 rounded-xl border border-red-100">
-                                <i class="fas fa-exclamation-circle mr-2 text-sm"></i>{{ form.option_c.errors.0 }}
-                            </div>
-                        {% endif %}
-                    </div>
-
-                    <div class="relative group">
-                        {{ form.option_d }}
-                        {% if form.option_d.errors %}
-                            <div class="flex items-center text-red-500 text-xs font-bold mt-2 bg-red-50 p-2 rounded-xl border border-red-100">
-                                <i class="fas fa-exclamation-circle mr-2 text-sm"></i>{{ form.option_d.errors.0 }}
-                            </div>
-                        {% endif %}
-                    </div>
-                    
-                        {{ form.option_e }}
-                        {% if form.option_e.errors %}
-                            <div class="flex items-center text-red-500 text-xs font-bold mt-2 bg-red-50 p-2 rounded-xl border border-red-100">
-                                <i class="fas fa-exclamation-circle mr-2 text-sm"></i>{{ form.option_e.errors.0 }}
-                            </div>
-                        {% endif %}
-                    </div>
-                </div>
-
-                <div class="flex flex-col sm:flex-row items-center justify-between pt-8 border-t border-gray-50 gap-6">
-                    <div class="flex items-center px-5 py-3 rounded-2xl bg-gray-50 border border-gray-200 hover:border-amber-300 transition-colors cursor-pointer group">
-                        <div class="relative flex items-center">
-                            {{ form.is_active }}
-                            <label for="{{ form.is_active.id_for_label }}" class="ml-3 text-sm font-bold text-gray-600 group-hover:text-amber-800 cursor-pointer select-none">
-                                เปิดให้ใช้งานหัวข้อนี้ (Active)
-                            </label>
-                        </div>
-                        {% if form.is_active.errors %}
-                            <div class="flex items-center text-red-500 text-xs font-bold mt-2 bg-red-50 p-2 rounded-xl border border-red-100">
-                                <i class="fas fa-exclamation-circle mr-2 text-sm"></i>{{ form.is_active.errors.0 }}
-                            </div>
-                        {% endif %}
-                    </div>
 
                     <div class="flex items-center gap-4 w-full sm:w-auto">
                         <a href="{% url 'manage_questions' %}" class="flex-1 sm:flex-none text-center px-8 py-4 rounded-2xl text-gray-400 font-bold hover:bg-gray-100 transition-all">

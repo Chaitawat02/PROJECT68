@@ -40,9 +40,23 @@
             </thead>
             <tbody class="divide-y divide-gray-100">
               {% for r in responses %}
+              {% ifchanged r.question.category %}
+              <tr class="bg-amber-50/60">
+                <td colspan="3" class="px-4 py-3 text-sm font-extrabold text-amber-800 border-y border-amber-100">
+                  {{ r.question.get_category_display }}
+                </td>
+              </tr>
+              {% endifchanged %}
               <tr class="hover:bg-amber-50/30">
-                <td class="px-4 py-3 font-bold">Q{{ r.question_id }}</td>
-                <td class="px-4 py-3">{{ r.question.question }}</td>
+                <td class="px-4 py-3 font-bold">Q{{ forloop.counter }}</td>
+                <td class="px-4 py-3">
+                  <div>{{ r.question.question }}</div>
+                  <div class="mt-1">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-800 border border-amber-100">
+                      {{ r.question.get_category_display }}
+                    </span>
+                  </div>
+                </td>
                 <td class="px-4 py-3">{{ r.answer_display }}</td>
               </tr>
               {% empty %}

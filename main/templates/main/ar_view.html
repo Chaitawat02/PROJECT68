@@ -24,6 +24,12 @@
       --radius-large: 24px;
     }
 
+    /* Minimal utility classes (template uses Tailwind-like classnames) */
+    .hidden { display: none !important; }
+    .text-left { text-align: left !important; }
+    .text-sm { font-size: 0.875rem !important; }
+    .mt-4 { margin-top: 1rem !important; }
+
     * { box-sizing: border-box; }
 
     body {
@@ -230,6 +236,26 @@
       transform: rotate(45deg);
     }
 
+    /* Manual retry button (when scanning doesn't find a target) */
+    .retry-target-btn {
+      position: absolute;
+      left: 50%;
+      bottom: 30px;
+      transform: translateX(-50%);
+      z-index: 60;
+      padding: 10px 16px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.45);
+      background: rgba(0,0,0,0.65);
+      color: #fff;
+      font-size: 0.8rem;
+      letter-spacing: 0.4px;
+      cursor: pointer;
+      user-select: none;
+      backdrop-filter: blur(8px);
+    }
+    .retry-target-btn:hover { background: rgba(0,0,0,0.8); }
+
     /* ===== RIGHT: INFO PANEL ===== */
     .info-panel {
       background: var(--glass-panel);
@@ -299,6 +325,82 @@
       font-weight: 300;
       max-width: 80%;
       margin: 0 auto;
+    }
+
+    /* Info pages (name / images / details) */
+    .info-page { width: 100%; }
+    .info-page:not(.is-active) { display: none; }
+    .page-title {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--text-light);
+      margin: 10px 0 8px;
+    }
+
+    .info-nav {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 14px;
+    }
+    .info-nav-btn {
+      flex: 1;
+      background: transparent;
+      border: 1px solid rgba(27, 38, 49, 0.25);
+      color: var(--navy-deep);
+      padding: 10px 14px;
+      border-radius: 999px;
+      font-family: 'Prompt', sans-serif;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-size: 0.8rem;
+      letter-spacing: 0.5px;
+    }
+    .info-nav-btn:hover { background: rgba(27, 38, 49, 0.06); }
+    .info-nav-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .info-nav-indicator {
+      flex: 0 0 auto;
+      min-width: 54px;
+      text-align: center;
+      font-size: 0.8rem;
+      color: var(--text-light);
+      font-weight: 500;
+      user-select: none;
+    }
+
+    /* Gallery */
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      width: 100%;
+      margin-top: 10px;
+    }
+    .gallery-img {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      object-fit: cover;
+      border-radius: 14px;
+      border: 1px solid rgba(212, 175, 55, 0.22);
+      background: rgba(255, 255, 255, 0.85);
+    }
+    .gallery-empty {
+      margin-top: 10px;
+      color: var(--text-light);
+      font-size: 0.9rem;
+      line-height: 1.4;
+    }
+
+    @media (min-width: 901px) {
+      .gallery-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     }
 
     /* รายการรายละเอียดลายผ้าหลังสแกน AR */
@@ -446,7 +548,7 @@
       
       .product-showcase {
         flex-direction: row;
-        align-items: center;
+        align-items: flex-start;
         width: 100%;
         gap: 20px;
         justify-content: flex-start;
@@ -459,9 +561,37 @@
       }
       .swatch-img { border-width: 2px; transform: rotate(0); }
 
-      .product-details { text-align: left; }
+      .product-details {
+        text-align: left;
+        flex: 1;
+        min-width: 0;
+        width: 100%;
+      }
       .product-details h2 { font-size: 1.5rem; margin-bottom: 5px; }
       .product-details p { font-size: 0.9rem; margin: 0; max-width: 100%; }
+
+      /* หน้า 2/3 ควรให้พื้นที่แนวตั้งมากขึ้น */
+      .info-panel[data-info-page="2"] .product-showcase,
+      .info-panel[data-info-page="3"] .product-showcase {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+      }
+
+      /* ทำให้รายละเอียดอ่านง่ายบนจอเล็ก (ไม่บีบเป็นคอลัมน์แคบๆ) */
+      .meta-list {
+        max-width: 100%;
+        width: 100%;
+        padding: 10px 12px;
+        border-radius: 14px;
+      }
+      .meta-row {
+        grid-template-columns: 1fr;
+        gap: 4px;
+        padding: 10px 0;
+        font-size: 0.9rem;
+      }
+      .meta-label { white-space: normal; }
 
       .btn-refresh {
         position: static;
@@ -482,6 +612,12 @@
         bottom: 16px;
         padding: 8px 12px;
         font-size: 0.7rem;
+      }
+
+      .retry-target-btn {
+        bottom: 16px;
+        padding: 8px 12px;
+        font-size: 0.75rem;
       }
     }
   </style>
@@ -523,13 +659,17 @@
         <span>สลับกล้อง</span>
       </button>
 
+      <button type="button" class="retry-target-btn hidden" id="retry-target-btn">
+        <span id="retry-target-label">ลองใหม่</span>
+      </button>
+
       <div id="ar-root" 
            data-target-src="{{ target_file_url }}" 
            data-model-base="{% static 'main/models/' %}">
       </div>
     </div>
 
-    <div class="info-panel">
+    <div class="info-panel" id="info-panel" data-info-page="1">
       <div class="brand-header">
         <h1 class="brand-title">Smart Silk</h1>
         <div class="brand-sub">Virtual Fitting Room</div>
@@ -555,23 +695,39 @@
         </div>
 
         <div class="product-details">
-          <h2 id="panel-name">กรุณาสแกนลายผ้า</h2>
-          <p id="panel-sub">
-            นำการ์ดลายผ้าไหมมาส่องที่หน้ากระจก<br>เพื่อทดลองทาบลงบนตัวคุณ
-          </p>
-          <!-- รายละเอียดลายผ้าหลังจากสแกน AR -->
-          <div id="panel-meta" class="mt-4 text-sm text-left meta-list hidden">
-            <!-- จะถูกเติมข้อมูลด้วย JavaScript -->
+          <!-- Page 1: ชื่อ/คำอธิบาย -->
+          <div class="info-page is-active" id="info-page-1" data-page="1">
+            <h2 id="panel-name">กรุณาสแกนลายผ้า</h2>
+            <p id="panel-sub">
+              นำการ์ดลายผ้าไหมมาส่องที่หน้ากระจก<br>เพื่อทดลองทาบลงบนตัวคุณ
+            </p>
+          </div>
+
+          <!-- Page 2: รูปเพิ่มเติม -->
+          <div class="info-page" id="info-page-2" data-page="2">
+            <span class="page-title">รูปผ้าไหมเพิ่มเติม</span>
+            <div id="panel-gallery" class="gallery-grid" aria-label="รูปผ้าไหมเพิ่มเติม"></div>
+            <div id="panel-gallery-empty" class="gallery-empty hidden">ยังไม่มีรูปเพิ่มเติม</div>
+          </div>
+
+          <!-- Page 3: รายละเอียด -->
+          <div class="info-page" id="info-page-3" data-page="3">
+            <span class="page-title">รายละเอียดผ้าไหม</span>
+            <div id="panel-meta" class="mt-4 text-sm text-left meta-list hidden">
+              <!-- จะถูกเติมข้อมูลด้วย JavaScript -->
+            </div>
           </div>
         </div>
       </div>
 
+      <div class="info-nav hidden" id="info-nav" aria-label="เปลี่ยนหน้าข้อมูล">
+        <button type="button" class="info-nav-btn" id="info-prev">ก่อนหน้า</button>
+        <div class="info-nav-indicator" id="info-indicator">1/3</div>
+        <button type="button" class="info-nav-btn" id="info-next">ถัดไป</button>
+      </div>
+
       <button class="btn-refresh" onclick="window.location.reload()">
         Reset Camera
-      </button>
-
-      <button class="btn-refresh" style="margin-top: 10px;" onclick="toggleCamera()">
-        Switch Front / Back
       </button>
     </div>
 
@@ -601,6 +757,14 @@
 
     // 2. Global Error Reporting
     window.onerror = function(msg, url, line) {
+       const text = (msg === null || msg === undefined) ? '' : String(msg);
+
+       // MindAR บางเวอร์ชันอาจ throw ตอน resize ก่อน start เสร็จ (ไม่ควรทำให้ UI ตกใจ)
+       if (text.includes('getProjectionMatrix')) {
+         console.warn('MindAR resize warning (suppressed):', text);
+         return true;
+       }
+
        console.error("Global Error:", msg);
        try { window.__arStartFailed = true; } catch (e) {}
        const status = document.getElementById('status-text');
@@ -608,6 +772,7 @@
          status.textContent = "System Alert";
          status.style.color = "#ff6b6b";
        }
+       return false;
     };
 
     // 3. Toggle front/back camera by reloading with query param
@@ -632,23 +797,25 @@
       });
     })();
 
-    // 5. Auto mode for users who don't know which targets file to pick
+    // 5. Manual retry (no auto reload)
     // - If no ?mind=... is specified, use last successful mind file (localStorage)
-    // - If still not detected after a timeout, cycle through other .mind files automatically (loop forever)
-    (function autoMindMode(){
+    // - If still not detected after a timeout, show a button so users can retry/cycle manually
+    (function manualMindRetry(){
       const sel = document.getElementById('mindSelect');
-      if (!sel) return; // only when we have multiple mind files listed
+      const retryBtn = document.getElementById('retry-target-btn');
+      const retryLabel = document.getElementById('retry-target-label');
+      if (!retryBtn || !retryLabel) return;
 
       const url = new URL(window.location.href);
       const params = url.searchParams;
       const explicitMind = params.get('mind');
 
-      const filesRaw = Array.from(sel.options).map(o => (o.value || '').trim()).filter(Boolean);
+      const filesRaw = sel ? Array.from(sel.options).map(o => (o.value || '').trim()).filter(Boolean) : [];
       const files = Array.from(new Set(filesRaw));
-      if (files.length <= 1) return;
+      const hasMultiple = files.length > 1;
 
       // Use last successful mind file when user didn't explicitly choose
-      if (!explicitMind) {
+      if (sel && hasMultiple && !explicitMind) {
         try {
           const last = (localStorage.getItem('ar_last_mind') || '').trim();
           if (last && files.includes(last) && sel.value !== last) {
@@ -661,102 +828,45 @@
         }
       }
 
-      // Auto-cycle when not detected
-      const status = document.getElementById('status-text');
-      const currentMind = (explicitMind || sel.value || '').trim();
+      retryLabel.textContent = hasMultiple ? 'ลองใหม่' : 'ลองใหม่';
 
-      // Continuous cycling logic:
-      // - initial load: wait a bit on current file
-      // - after target is lost: switch sooner to find the next cloth quickly
-      const INITIAL_TRY_MS = 6000;
-      const AFTER_LOST_TRY_MS = 4500;
-      const CHECK_EVERY_MS = 800;
-      const MIN_SWITCH_GAP_MS = 1200;
+      const show = () => retryBtn.classList.remove('hidden');
+      const hide = () => retryBtn.classList.add('hidden');
 
-      const normalizeIndex = (idx) => {
-        const n = files.length;
-        if (!n) return 0;
-        const v = Number(idx);
-        if (!Number.isFinite(v)) return 0;
-        return ((v % n) + n) % n;
-      };
+      retryBtn.addEventListener('click', () => {
+        try { sessionStorage.removeItem('ar_auto_idx'); } catch (e) {}
 
-      const currentIdx = (() => {
-        const idxFromMind = currentMind ? files.indexOf(currentMind) : -1;
-        if (idxFromMind >= 0) return idxFromMind;
-        // optional: allow session to carry idx (helps when mind param missing)
-        try {
-          const stored = sessionStorage.getItem('ar_auto_idx');
-          if (stored !== null) return normalizeIndex(stored);
-        } catch (e) {}
-        return 0;
-      })();
-
-      // Keep a friendly message while searching
-      if (status && !window.__arDetected) {
-        status.textContent = 'กำลังค้นหาลายผ้า... รอหน่อยนะ';
-      }
-
-      const readNumber = (key, fallback = 0) => {
-        try {
-          const v = sessionStorage.getItem(key);
-          const n = Number(v);
-          return Number.isFinite(n) ? n : fallback;
-        } catch (e) {
-          return fallback;
+        if (!hasMultiple || !sel) {
+          window.location.reload();
+          return;
         }
-      };
-      const writeNumber = (key, value) => {
-        try { sessionStorage.setItem(key, String(value)); } catch (e) {}
-      };
 
-      // Per-attempt timer: reset on every page load so each .mind gets a fair try window
-      const attemptStartedAt = Date.now();
-
-      const switchToIdx = (idx) => {
-        const nextIdx = normalizeIndex(idx);
+        const current = (params.get('mind') || sel.value || '').trim();
+        const currentIdx = Math.max(0, files.indexOf(current));
+        const nextIdx = (currentIdx + 1) % files.length;
         const next = files[nextIdx];
-        if (!next) return;
-
-        writeNumber('ar_auto_idx', nextIdx);
-        writeNumber('ar_auto_last_switch_at', Date.now());
-
-        if (status) status.textContent = 'รอหน่อยนะ...กำลังลองข้อมูลอื่นให้';
 
         const nextUrl = new URL(window.location.href);
         nextUrl.searchParams.set('mind', next);
         window.location.href = nextUrl.toString();
-      };
+      });
 
-      // If URL mind doesn't match stored index, align stored index with current mind
-      if (currentMind) {
-        const idxFromMind = files.indexOf(currentMind);
-        if (idxFromMind >= 0) writeNumber('ar_auto_idx', idxFromMind);
-      }
+      const startedAt = Date.now();
+      const INITIAL_SHOW_MS = 6500;
+      const AFTER_LOST_SHOW_MS = 2500;
+      const CHECK_EVERY_MS = 400;
 
+      hide();
       window.setInterval(() => {
-        if (window.__arStartFailed) return;
-        if (window.__arDetected) return;
+        if (window.__arStartFailed) { hide(); return; }
+        if (window.__arDetected) { hide(); return; }
 
         const now = Date.now();
-        const lastSwitchAt = readNumber('ar_auto_last_switch_at', 0);
-        if (now - lastSwitchAt < MIN_SWITCH_GAP_MS) return;
-
         const lostAt = Number(window.__arLostAt || 0);
-        const sinceLost = lostAt ? (now - lostAt) : null;
-        const sinceAttempt = now - attemptStartedAt;
+        const elapsed = lostAt ? (now - lostAt) : (now - startedAt);
+        const waitMs = lostAt ? AFTER_LOST_SHOW_MS : INITIAL_SHOW_MS;
 
-        const waitMs = (sinceLost !== null) ? AFTER_LOST_TRY_MS : INITIAL_TRY_MS;
-        const elapsed = (sinceLost !== null) ? sinceLost : sinceAttempt;
-
-        if (elapsed < waitMs) {
-          if (status) status.textContent = 'กำลังค้นหาลายผ้า... รอหน่อยนะ';
-          return;
-        }
-
-        const idx = normalizeIndex(readNumber('ar_auto_idx', currentIdx));
-        const nextIdx = normalizeIndex(idx + 1);
-        switchToIdx(nextIdx);
+        if (elapsed >= waitMs) show();
       }, CHECK_EVERY_MS);
     })();
   </script>

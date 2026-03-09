@@ -19,6 +19,70 @@ document.addEventListener("DOMContentLoaded", async () => {
     const statusText = document.getElementById("status-text");
     const loaderScreen = document.getElementById("app-loader");
 
+    // Info pages (1: name, 2: images, 3: details)
+    const infoPanel = document.getElementById("info-panel");
+    const infoNav = document.getElementById("info-nav");
+    const infoPrevBtn = document.getElementById("info-prev");
+    const infoNextBtn = document.getElementById("info-next");
+    const infoIndicator = document.getElementById("info-indicator");
+    const infoPages = Array.from(document.querySelectorAll(".info-page[data-page]"));
+    const galleryEl = document.getElementById("panel-gallery");
+    const galleryEmptyEl = document.getElementById("panel-gallery-empty");
+
+    const TOTAL_INFO_PAGES = 3;
+    let currentInfoPage = 1;
+
+    const setInfoPage = (page) => {
+        const next = Math.max(1, Math.min(TOTAL_INFO_PAGES, Number(page) || 1));
+        currentInfoPage = next;
+
+        if (infoPanel) infoPanel.dataset.infoPage = String(next);
+
+        infoPages.forEach((el) => {
+            const p = Number(el.getAttribute("data-page"));
+            if (p === next) el.classList.add("is-active");
+            else el.classList.remove("is-active");
+        });
+
+        if (infoIndicator) infoIndicator.textContent = `${next}/${TOTAL_INFO_PAGES}`;
+        if (infoPrevBtn) infoPrevBtn.disabled = next <= 1;
+        if (infoNextBtn) infoNextBtn.disabled = next >= TOTAL_INFO_PAGES;
+    };
+
+    const setInfoNavVisible = (visible) => {
+        if (!infoNav) return;
+        if (visible) infoNav.classList.remove("hidden");
+        else infoNav.classList.add("hidden");
+    };
+
+    const setGalleryImages = (urls) => {
+        if (!galleryEl || !galleryEmptyEl) return;
+
+        while (galleryEl.firstChild) galleryEl.removeChild(galleryEl.firstChild);
+
+        const list = Array.from(new Set((Array.isArray(urls) ? urls : []).map(String).map((s) => s.trim()).filter(Boolean)));
+        if (!list.length) {
+            galleryEmptyEl.classList.remove("hidden");
+            return;
+        }
+
+        galleryEmptyEl.classList.add("hidden");
+        list.forEach((src) => {
+            const img = document.createElement("img");
+            img.className = "gallery-img";
+            img.src = src;
+            img.alt = "Silk image";
+            img.loading = "lazy";
+            galleryEl.appendChild(img);
+        });
+    };
+
+    // Bind nav events
+    if (infoPrevBtn) infoPrevBtn.addEventListener("click", () => setInfoPage(currentInfoPage - 1));
+    if (infoNextBtn) infoNextBtn.addEventListener("click", () => setInfoPage(currentInfoPage + 1));
+    setInfoPage(1);
+    setInfoNavVisible(false);
+
     // Reset global flags used by the outer page auto-cycling
     try {
         window.__arDetected = false;
@@ -69,10 +133,23 @@ document.addEventListener("DOMContentLoaded", async () => {
     // ตรวจว่าขณะนี้เป็นมือถือหรือแท็บเล็ตหรือไม่ (สำหรับกำหนดค่าเริ่มต้น)
     const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 900;
 
+    // 3.1 Mirror mode (หน้ากระจก): default เป็นกล้องหน้าแม้บนมือถือ
+    // - ใช้ route /ar-mirror/ (มีใน urls.py) หรือ ?mode=mirror
+    const isMirrorMode = (() => {
+        try {
+            const path = String(window.location.pathname || "");
+            if (path.includes("/ar-mirror")) return true;
+            const mode = params.get("mode");
+            return mode === "mirror";
+        } catch (e) {
+            return false;
+        }
+    })();
+
     // ค่าเริ่มต้น:
     // - Desktop: กล้องหน้า (user) ให้เหมือนกระจก
     // - Mobile / Tablet: กล้องหลัง (environment) เพื่อสแกนเป้าได้สะดวก
-    let facingMode = isMobile ? "environment" : "user";
+    let facingMode = (isMirrorMode ? "user" : (isMobile ? "environment" : "user"));
 
     // ถ้ามี query ?cam=... ให้ใช้ตามที่ผู้ใช้เลือก
     if (camParam === "environment" || camParam === "back") {
@@ -211,6 +288,17 @@ document.addEventListener("DOMContentLoaded", async () => {
                 }
             }
 
+            // Update Gallery (Page 2)
+            try {
+                const urls = Array.isArray(pattern.images) ? pattern.images : [];
+                const fallback = pattern.image_url || pattern.image;
+                const combined = [...urls];
+                if (fallback) combined.unshift(fallback);
+                setGalleryImages(combined);
+            } catch (e) {
+                setGalleryImages([]);
+            }
+
             // Update Full Detail List (หลังจากสแกน AR แสดงข้อมูลทั้งหมดให้อ่านง่าย)
             if (displayMeta) {
                 const toText = (value) => {
@@ -272,6 +360,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
                 displayMeta.classList.remove("hidden");
             }
+
+            // Show info nav + reset to first page after detection
+            setInfoNavVisible(true);
+            setInfoPage(1);
 
             // Update Status Badge
             if (statusText) {

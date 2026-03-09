@@ -444,8 +444,9 @@ class SpeakerAssignFromBookingForm(forms.ModelForm):
 class QuestionForm(forms.ModelForm):
     class Meta:
         model = Question
-        fields = ['question', 'option_a', 'option_b', 'option_c', 'option_d', 'option_e', 'is_active']
+        fields = ['category', 'question', 'option_a', 'option_b', 'option_c', 'option_d', 'option_e', 'is_active']
         widgets = {
+            'category': forms.Select(attrs={'class': 'form-select'}),
             'question': forms.Textarea(attrs={'rows': 3, 'placeholder': 'ระบุหัวข้อคำถาม...'}),
             'option_a': forms.TextInput(attrs={'placeholder': '5', 'readonly': 'readonly'}),
             'option_b': forms.TextInput(attrs={'placeholder': '4', 'readonly': 'readonly'}),

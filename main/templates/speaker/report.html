@@ -143,9 +143,25 @@
               </thead>
               <tbody class="divide-y divide-gray-100 text-sm">
                 {% for row in response_summary %}
+                  {% ifchanged row.question__category %}
+                    <tr class="bg-amber-50/60">
+                      <td colspan="4" class="px-6 py-3 text-sm font-extrabold text-amber-800 border-y border-amber-100">
+                        {{ row.question__category_label|default:"" }}
+                      </td>
+                    </tr>
+                  {% endifchanged %}
                   <tr class="hover:bg-gray-50/60">
                     <td class="px-6 py-4 font-semibold text-gray-800">Q{{ forloop.counter }}</td>
-                    <td class="px-6 py-4 text-gray-600">{{ row.question__question|strip_leading_number }}</td>
+                    <td class="px-6 py-4 text-gray-600">
+                      <div>{{ row.question__question|strip_leading_number }}</div>
+                      {% if row.question__category_label %}
+                        <div class="mt-1">
+                          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-800 border border-amber-100">
+                            {{ row.question__category_label }}
+                          </span>
+                        </div>
+                      {% endif %}
+                    </td>
                     <td class="px-6 py-4 text-gray-600 tabular-nums">
                       {% if row.avg_score is not None %}{{ row.avg_score|floatformat:2 }} / 5{% else %}-{% endif %}
                     </td>

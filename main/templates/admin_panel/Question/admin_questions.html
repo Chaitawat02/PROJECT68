@@ -76,6 +76,13 @@
                                     <div class="font-bold text-gray-800 text-base group-hover:text-[#8B0000] transition-colors leading-snug">
                                         {{ q.question }}
                                     </div>
+                                                                        {% if q.category %}
+                                                                            <div>
+                                                                                <span class="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black bg-amber-50 text-amber-700 border border-amber-100">
+                                                                                    {{ q.get_category_display }}
+                                                                                </span>
+                                                                            </div>
+                                                                        {% endif %}
                                     <div class="text-sm text-gray-400 font-medium line-clamp-2 leading-relaxed">
                                         {{ q.answer|truncatechars:150 }}
                                     </div>

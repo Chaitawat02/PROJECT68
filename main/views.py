@@ -23,7 +23,7 @@ from django.core.serializers.json import DjangoJSONEncoder
 from django.db import IntegrityError, transaction
 from django.db.utils import OperationalError
 from django.db.models.deletion import ProtectedError
-from django.db.models import Q, Count, Avg, Max, IntegerField, OuterRef, Subquery
+from django.db.models import Q, Count, Avg, Max, IntegerField, OuterRef, Subquery, Case, When, Value
 from django.db.models.functions import TruncMonth, Cast
 from django.http import JsonResponse, Http404
 from django.shortcuts import render, redirect, get_object_or_404
@@ -191,8 +191,24 @@ def reject_assignment(request, assignment_id):
 
             assignment.status = "rejected"
             assignment.rejected_at = timezone.now()
+
+            # เก็บข้อมูล snapshot ของงานไว้ใน note เผื่อ admin ต้องดูประวัติ
+            # (เพราะด้านล่างมีการตัด booking ออกจาก assignment เพื่อให้มอบหมายใหม่ได้)
+            if booking:
+                booking_line = f"[งาน] Booking #{booking.id} - {getattr(booking, 'fullname', '-') or '-'}"
+                if getattr(booking, 'Re_date', None):
+                    booking_line += f" | วันที่เข้าชม {booking.Re_date.strftime('%d/%m/%Y')}"
+
+                if assignment.note:
+                    assignment.note = assignment.note.rstrip() + "\n"
+                else:
+                    assignment.note = ""
+                assignment.note += booking_line
+
             if reason:
-                assignment.note = (assignment.note or "") + f"\n[ปฏิเสธโดยวิทยากร] {reason}"
+                if assignment.note:
+                    assignment.note = assignment.note.rstrip() + "\n"
+                assignment.note = (assignment.note or "") + f"[ปฏิเสธโดยวิทยากร] {reason}"
 
             # 2) คืนงานให้ผู้ดูแลระบบ: ทำให้ booking กลับไปอยู่สถานะที่รอมอบหมาย
             # (ในระบบคุณใช้ assign แล้ว set confirmed ดังนั้นตอนคืนควรกลับไป approved)
@@ -1139,6 +1155,8 @@ def booking_detail_view(request, booking_id):
         'questionnaire_url': questionnaire_url,
         'questionnaire_qr': qr_data,
         'back_to_history_url': back_to_history_url,
+        'can_decide_booking': is_staff_or_admin(request.user),
+        'current_url': request.get_full_path(),
     })
 
 
@@ -1170,15 +1188,34 @@ def booking_questionnaire_view(request, booking_id):
     # ผู้ใช้ยังส่งได้ตามชุดคำถามที่เห็นตอนเปิดหน้า
     question_sig = None
     questions = None
+
+    # จัดลำดับหมวดคำถาม: ภาพรวมพิพิธภัณฑ์ -> ผ้าไหม -> วิทยากร
+    category_order = Case(
+        When(category="museum", then=Value(1)),
+        When(category="silk", then=Value(2)),
+        When(category="speaker", then=Value(3)),
+        default=Value(99),
+        output_field=IntegerField(),
+    )
     if request.method == "POST":
         question_sig = (request.POST.get("qsig") or "").strip() or None
         question_ids = _load_questionnaire_question_ids(question_sig)
         if not question_ids:
             messages.error(request, "แบบฟอร์มหมดอายุหรือไม่ถูกต้อง กรุณาเปิดหน้าแบบประเมินใหม่")
             return redirect(request.path + (f"?t={quote_plus(token)}" if token else ""))
-        questions = QuestionModel.objects.filter(id__in=question_ids).order_by('id')
+        questions = (
+            QuestionModel.objects
+            .filter(id__in=question_ids)
+            .annotate(_cat_order=category_order)
+            .order_by('_cat_order', 'id')
+        )
     else:
-        questions = QuestionModel.objects.filter(is_active=True).order_by('id')
+        questions = (
+            QuestionModel.objects
+            .filter(is_active=True)
+            .annotate(_cat_order=category_order)
+            .order_by('_cat_order', 'id')
+        )
         question_sig = _questionnaire_questions_signature(list(questions.values_list('id', flat=True)))
 
     if not questions.exists():
@@ -1551,6 +1588,17 @@ def booking_responses_admin_view(request):
                 'respondent_count': len(data['respondents']),
             })
 
+        # จัดกลุ่ม/เรียงตามหมวดคำถาม เพื่อให้อ่านง่าย
+        category_order_map = {"museum": 1, "silk": 2, "speaker": 3}
+        question_stats.sort(
+            key=lambda row: (
+                category_order_map.get(getattr(row.get('question'), 'category', None), 99),
+                getattr(row.get('question'), 'id', 0) or 0,
+            )
+        )
+        for idx, row in enumerate(question_stats, start=1):
+            row['index'] = idx
+
         return render(request, 'admin_panel/booking/booking_responses.html', {
             'booking': booking,
             'question_stats': question_stats,
@@ -1748,21 +1796,40 @@ def manage_speakers_view(request):
             messages.warning(request, "ไม่สามารถมอบหมายงานได้ เนื่องจากวิทยากรคนนี้ปฏิเสธงานภายในวันนี้แล้ว")
             return redirect('manage_speakers')
 
-        # จำกัด 1 งานต่อวิทยากรต่อวัน: ถ้าวิทยากรมีงานในวันเดียวกันให้แจ้งเตือน
+        # จำกัดจำนวนงานต่อวิทยากรต่อวัน (default = 2 งาน/วัน)
         if booking.Re_date:
-            conflict = SpeakerAssignment.objects.filter(
-                speaker=speaker,
-                booking__Re_date=booking.Re_date,
-                status__in=['pending', 'assigned', 'accepted', 'confirmed']
-            ).exists()
-            if conflict:
+            max_per_day = getattr(settings, 'SPEAKER_MAX_ASSIGNMENTS_PER_DAY', 2)
+            try:
+                max_per_day = int(max_per_day)
+            except (TypeError, ValueError):
+                max_per_day = 2
+            if max_per_day < 1:
+                max_per_day = 1
+
+            active_statuses = ['pending', 'assigned', 'accepted', 'confirmed']
+            active_count = (
+                SpeakerAssignment.objects.filter(
+                    speaker=speaker,
+                    booking__Re_date=booking.Re_date,
+                    status__in=active_statuses,
+                )
+                .exclude(booking=booking)
+                .count()
+            )
+            if active_count >= max_per_day:
                 messages.warning(request, f'ไม่สามารถมอบหมาย: วิทยากร {speaker.name} มีงานเต็มในวันที่ {booking.Re_date.strftime("%d %b %Y")}')
                 return redirect('manage_speakers')
+
+        schedule_text = ''
+        if booking.Re_date:
+            schedule_text = f"วันที่เข้าชม {booking.Re_date.strftime('%d/%m/%Y')}"
 
         SpeakerAssignment.objects.create(
             booking=booking,
             speaker=speaker,
-            status='assigned'
+            status='assigned',
+            title=f"งาน Booking #{booking.id} ({booking.fullname})",
+            schedule_text=schedule_text,
         )
 
         messages.success(
@@ -1785,7 +1852,57 @@ def speaker_assign_from_booking_view(request, booking_id):
     """
     booking = get_object_or_404(Booking, id=booking_id)
     # แสดงเฉพาะวิทยากรที่ยังมีบัญชีผู้ใช้และยังใช้งานได้
-    speakers = Speaker.objects.filter(user__isnull=False, user__is_active=True)
+    speakers = Speaker.objects.filter(user__isnull=False, user__is_active=True).order_by('name')
+
+    # Speaker availability (จำกัดจำนวนงานต่อวิทยากรต่อวัน; default = 2 งาน/วัน)
+    full_speaker_ids = []
+    rejected_today_speaker_ids = []
+    try:
+        if booking.Re_date:
+            max_per_day = getattr(settings, 'SPEAKER_MAX_ASSIGNMENTS_PER_DAY', 2)
+            try:
+                max_per_day = int(max_per_day)
+            except (TypeError, ValueError):
+                max_per_day = 2
+            if max_per_day < 1:
+                max_per_day = 1
+
+            active_statuses = ['pending', 'assigned', 'accepted', 'confirmed']
+            full_speaker_ids = list(
+                SpeakerAssignment.objects.filter(
+                    booking__Re_date=booking.Re_date,
+                    status__in=active_statuses,
+                )
+                .exclude(booking=booking)
+                .values('speaker_id')
+                .annotate(c=Count('assignment_id'))
+                .filter(c__gte=max_per_day)
+                .values_list('speaker_id', flat=True)
+            )
+
+            today = timezone.localdate()
+            if booking.Re_date == today:
+                day_start = datetime.combine(today, time.min)
+                day_end = day_start + timedelta(days=1)
+                if getattr(settings, "USE_TZ", False):
+                    tz = timezone.get_current_timezone()
+                    if timezone.is_naive(day_start):
+                        day_start = timezone.make_aware(day_start, tz)
+                    if timezone.is_naive(day_end):
+                        day_end = timezone.make_aware(day_end, tz)
+
+                rejected_today_speaker_ids = list(
+                    SpeakerAssignment.objects.filter(status="rejected")
+                    .filter(
+                        Q(rejected_at__gte=day_start, rejected_at__lt=day_end)
+                        | (Q(rejected_at__isnull=True) & Q(assigned_at__gte=day_start, assigned_at__lt=day_end))
+                    )
+                    .values_list('speaker_id', flat=True)
+                    .distinct()
+                )
+    except Exception:
+        full_speaker_ids = []
+        rejected_today_speaker_ids = []
 
     if request.method == 'POST':
         # --- จุดที่แก้ไข 1: เปลี่ยนจาก 'speaker_id' เป็น 'speaker' ให้ตรงกับ name ใน HTML ---
@@ -1809,14 +1926,27 @@ def speaker_assign_from_booking_view(request, booking_id):
 
         try:
             with transaction.atomic():
-                # จำกัด 1 งานต่อวิทยากรต่อวัน: ถ้าวิทยากรมีงานในวันเดียวกันให้แจ้งเตือน
+                # จำกัดจำนวนงานต่อวิทยากรต่อวัน (default = 2 งาน/วัน)
                 if booking.Re_date:
-                    conflict = SpeakerAssignment.objects.filter(
-                        speaker=speaker,
-                        booking__Re_date=booking.Re_date,
-                        status__in=['pending', 'assigned', 'accepted', 'confirmed']
-                    ).exists()
-                    if conflict:
+                    max_per_day = getattr(settings, 'SPEAKER_MAX_ASSIGNMENTS_PER_DAY', 2)
+                    try:
+                        max_per_day = int(max_per_day)
+                    except (TypeError, ValueError):
+                        max_per_day = 2
+                    if max_per_day < 1:
+                        max_per_day = 1
+
+                    active_statuses = ['pending', 'assigned', 'accepted', 'confirmed']
+                    active_count = (
+                        SpeakerAssignment.objects.filter(
+                            speaker=speaker,
+                            booking__Re_date=booking.Re_date,
+                            status__in=active_statuses,
+                        )
+                        .exclude(booking=booking)
+                        .count()
+                    )
+                    if active_count >= max_per_day:
                         messages.warning(request, f'ไม่สามารถมอบหมาย: วิทยากร {speaker.name} มีงานเต็มในวันที่ {booking.Re_date.strftime("%d %b %Y")}')
                         return redirect('speaker_assign_from_booking', booking_id=booking.id)
 
@@ -1826,7 +1956,7 @@ def speaker_assign_from_booking_view(request, booking_id):
                     defaults={
                         'speaker': speaker,
                         'status': 'assigned',
-                        'title': title or f"วิทยากรสำหรับคณะคุณ {booking.fullname}",
+                        'title': title or f"งาน Booking #{booking.id} ({booking.fullname})",
                         'quantity': quantity,
                         'schedule_text': schedule_text,
                         'note': note,
@@ -1855,7 +1985,23 @@ def speaker_assign_from_booking_view(request, booking_id):
 
     return render(request, 'admin_panel/booking/speaker_assign_from_booking.html', {
         'booking': booking,
-        'speakers': speakers
+        'speakers': speakers,
+        'full_speaker_ids': full_speaker_ids,
+        'rejected_today_speaker_ids': rejected_today_speaker_ids,
+    })
+
+
+@login_required
+@user_passes_test(is_staff_or_admin)
+def speaker_assignment_history_view(request):
+    """หน้าประวัติการมอบหมายวิทยากรสำหรับแอดมิน"""
+    assignments = (
+        SpeakerAssignment.objects.select_related('speaker', 'booking')
+        .order_by('-assigned_at', '-assignment_id')
+    )
+
+    return render(request, 'admin_panel/speakers/assignment_history.html', {
+        'assignments': assignments,
     })
 
 # =====================================================================
@@ -2482,7 +2628,8 @@ def _get_speaker_report_context(speaker):
     responses_qs = (
         BookingQuestionResponse.objects
         .select_related("booking", "question", "booking__speaker_assignment")
-        .filter(booking__speaker_assignment__speaker=speaker)
+        # แสดงเฉพาะ “คำถามหมวดวิทยากร” ในรายงานวิทยากร
+        .filter(booking__speaker_assignment__speaker=speaker, question__category="speaker")
     )
 
     booking_response_list = list(
@@ -2516,10 +2663,21 @@ def _get_speaker_report_context(speaker):
     # - แสดง 1 แถวต่อ 1 คำถาม (แม้บางข้อยังไม่มีคนตอบ)
     # - ค่าเฉลี่ยคำนวณจากคำตอบ 1–5 (แบบฟอร์มปัจจุบันส่งเป็นสตริงตัวเลข "1".."5")
 
+    category_order = Case(
+        When(category="museum", then=Value(1)),
+        When(category="silk", then=Value(2)),
+        When(category="speaker", then=Value(3)),
+        default=Value(99),
+        output_field=IntegerField(),
+    )
+    category_label_map = dict(getattr(Question, "CATEGORY_CHOICES", []) or [])
+
     all_questions = list(
         Question.objects
-        .order_by("id")
-        .values("id", "question")
+        .filter(category="speaker")
+        .annotate(_cat_order=category_order)
+        .order_by("_cat_order", "id")
+        .values("id", "question", "category")
     )
 
     numeric_responses_qs = responses_qs.filter(answer__in=["1", "2", "3", "4", "5"])
@@ -2540,6 +2698,8 @@ def _get_speaker_report_context(speaker):
         response_summary.append({
             "question_id": qid,
             "question__question": q["question"],
+            "question__category": q.get("category"),
+            "question__category_label": category_label_map.get(q.get("category"), ""),
             "cnt": agg.get("cnt", 0) or 0,
             "avg_score": agg.get("avg_score"),
         })
@@ -2576,11 +2736,20 @@ def speaker_report_booking_detail(request, booking_id):
     )
 
     # 2) แบบหลังเข้าชม (BookingQuestionResponse)
+    category_order = Case(
+        When(question__category="museum", then=Value(1)),
+        When(question__category="silk", then=Value(2)),
+        When(question__category="speaker", then=Value(3)),
+        default=Value(99),
+        output_field=IntegerField(),
+    )
     responses = (
         BookingQuestionResponse.objects
         .select_related("question")
-        .filter(booking=booking)
-        .order_by("question_id", "created_at")
+        # เฉพาะแบบประเมินหมวด “วิทยากร”
+        .filter(booking=booking, question__category="speaker")
+        .annotate(_cat_order=category_order)
+        .order_by("_cat_order", "question_id", "created_at")
     )
 
     # map a/b/c/d -> ข้อความตัวเลือก
@@ -3201,6 +3370,22 @@ def admin_report_pdf_view(request):
 def update_booking_status(request, booking_id, status):
     booking = get_object_or_404(Booking, pk=booking_id)
 
+    # Allow redirect back to a specific page (e.g., booking detail) safely
+    from django.utils.http import url_has_allowed_host_and_scheme
+
+    next_url = (request.POST.get('next') or '').strip()
+    if not next_url:
+        next_url = (request.META.get('HTTP_REFERER') or '').strip()
+
+    def _safe_redirect(to_url: str):
+        if to_url and url_has_allowed_host_and_scheme(
+            url=to_url,
+            allowed_hosts={request.get_host()},
+            require_https=request.is_secure(),
+        ):
+            return redirect(to_url)
+        return redirect('approve_bookings')
+
     status = (status or "").lower().strip()
 
     if status == 'approved':
@@ -3215,7 +3400,7 @@ def update_booking_status(request, booking_id, status):
 
         if not reason:
             messages.error(request, 'กรุณากรอกเหตุผลการปฏิเสธก่อน')
-            return redirect('approve_bookings')
+            return _safe_redirect(next_url)
 
         booking.Re_status = 'rejected'
         booking.decision_note = reason  # ✅ เก็บเหตุผลไว้ที่นี่
@@ -3230,7 +3415,7 @@ def update_booking_status(request, booking_id, status):
     booking.decided_at = timezone.now()
     booking.save()
 
-    return redirect('approve_bookings')
+    return _safe_redirect(next_url)
 
 
 # ---------------------------------------------------------------------
@@ -3777,9 +3962,12 @@ def admin_delete_booking_view(request, booking_id):
 
 def ar_test_view(request):
     # ดึงเฉพาะรายการที่มีไฟล์โมเดล (เก่า หรือ silk/mannequin) และมีการตั้งค่า target_index ไว้
-    patterns = SilkPattern.objects.exclude(target_index__isnull=True).filter(
-        Q(model_3d__isnull=False)
-    ).order_by('target_index')
+    patterns = (
+        SilkPattern.objects.exclude(target_index__isnull=True)
+        .filter(Q(model_3d__isnull=False))
+        .prefetch_related('gallery_images')
+        .order_by('target_index')
+    )
 
     # กำหนด transform เริ่มต้น (หมุน X 90 องศา, scale 1.2, ขยับขึ้น 0.1)
     default_transform = {
@@ -3875,6 +4063,19 @@ def ar_test_view(request):
         #         continue
         #     final_index = 0
 
+        image_url = request.build_absolute_uri(p.reference.url) if getattr(p, 'reference', None) else ''
+        images = []
+        if image_url:
+            images.append(image_url)
+        try:
+            for gi in p.gallery_images.all().order_by('created_at'):
+                if getattr(gi, 'image', None):
+                    images.append(request.build_absolute_uri(gi.image.url))
+        except Exception:
+            pass
+        # unique, keep order
+        images = list(dict.fromkeys([x for x in images if x]))
+
         patterns_list.append({
             'index': final_index,
             'source_index': p_idx,
@@ -3893,7 +4094,9 @@ def ar_test_view(request):
             'detail': p.Si_type or p.Si_color or "ผ้าไหมไทยลวดลายเอกลักษณ์",
             'transform': transform_val,
             'target_file': p.target_file or '',
-            'image_url': request.build_absolute_uri(p.reference.url) if getattr(p, 'reference', None) else ''
+            'image_url': image_url,
+            # รูปเพิ่มเติม (ถ้ามี) สำหรับหน้า "รูปผ้าไหมเพิ่มเติม"
+            'images': images,
         })
 
     # แปลงข้อมูลเป็น JSON เพื่อให้ JavaScript นำไปใช้ต่อได้ง่าย
@@ -4009,6 +4212,8 @@ def admin_booking_visit_report_view(request):
         qs = qs.filter(Re_status=status)
 
     qs = qs.order_by("-Re_date", "-id")
+    # Freeze dataset so summary and table always match the exact same rows.
+    bookings = list(qs)
 
     # choices สถานะ
     try:
@@ -4023,22 +4228,32 @@ def admin_booking_visit_report_view(request):
                 selected_status_label = label
                 break
 
-    # Summary หลัก
-    total_bookings = qs.count()
-    total_people = qs.aggregate(s=Sum("Re_quantity"))["s"] or 0
+    # Summary หลัก (คำนวณจากชุดข้อมูลเดียวกับที่แสดงในตาราง)
+    total_bookings = len(bookings)
+    total_people = sum((b.Re_quantity or 0) for b in bookings)
 
     # นับแยกตามสถานะ
-    status_counts = qs.values("Re_status").annotate(c=Count("id"))
-    status_count_map = {row["Re_status"]: row["c"] for row in status_counts}
+    status_count_map = {}
+    for b in bookings:
+        key = b.Re_status
+        status_count_map[key] = status_count_map.get(key, 0) + 1
 
     # ทำ list สำหรับแสดงผลใน template แบบชัวร์ ไม่ต้องใช้ get_item
     status_summary = []
+    accounted = 0
     for value, label in status_choices:
+        count = status_count_map.get(value, 0)
+        accounted += count
+        status_summary.append({"value": value, "label": label, "count": count})
+
+    # เผื่อมีข้อมูลเก่าหรือค่าว่าง/ไม่อยู่ใน choices จะทำให้ยอดรวมไม่ตรงกัน
+    other_count = total_bookings - accounted
+    if other_count > 0:
         status_summary.append(
             {
-                "value": value,
-                "label": label,
-                "count": status_count_map.get(value, 0),
+                "value": "__other__",
+                "label": "อื่นๆ / ไม่ทราบสถานะ",
+                "count": other_count,
             }
         )
 
@@ -4048,7 +4263,7 @@ def admin_booking_visit_report_view(request):
         # ซ่อนเวลาในหัวรายงานหน้านี้ (base template จะแสดงเวลาเมื่อมี now)
         "now": None,
         "single_container": True,
-        "bookings": qs,
+        "bookings": bookings,
         "status_choices": status_choices,
         "selected_status_label": selected_status_label,
         "filters": {
@@ -4207,14 +4422,60 @@ def admin_events_report_view(request):
 
     today = timezone.localdate()
 
+    # Filter by booking created date to avoid accumulating multi-year data
+    period = (request.GET.get("period") or "").strip().lower() or "3m"
+    if period not in {"3m", "1y", "all"}:
+        period = "3m"
+
+    range_start = None
+    range_end = timezone.now()
+    if period == "3m":
+        range_start = today - timedelta(days=90)
+        period_label = "3 เดือนล่าสุด"
+    elif period == "1y":
+        range_start = today - timedelta(days=365)
+        period_label = "1 ปีล่าสุด"
+    else:
+        period_label = "ทั้งหมด"
+
+    range_start_dt = None
+    range_end_dt = None
+    if range_start:
+        range_start_dt = datetime.combine(range_start, time.min)
+        range_end_dt = datetime.combine(today + timedelta(days=1), time.min)
+        if getattr(settings, "USE_TZ", False):
+            tz = timezone.get_current_timezone()
+            if timezone.is_naive(range_start_dt):
+                range_start_dt = timezone.make_aware(range_start_dt, tz)
+            if timezone.is_naive(range_end_dt):
+                range_end_dt = timezone.make_aware(range_end_dt, tz)
+
     total_workshops = Workshop.objects.count()
     active_workshops = Workshop.objects.filter(is_active=True).count()
-    total_bookings = WorkshopBooking.objects.count()
+
+    bookings_qs = WorkshopBooking.objects.all()
+    if range_start_dt and range_end_dt:
+        bookings_qs = bookings_qs.filter(created_at__gte=range_start_dt, created_at__lt=range_end_dt)
+
+    total_bookings = bookings_qs.count()
+
+    if range_start_dt and range_end_dt:
+        booking_count_expr = Count(
+            "workshopbooking",
+            filter=Q(workshopbooking__created_at__gte=range_start_dt, workshopbooking__created_at__lt=range_end_dt),
+        )
+    else:
+        booking_count_expr = Count("workshopbooking")
 
     top_workshops = (
-        Workshop.objects.annotate(booking_count=Count("workshopbooking"))
+        Workshop.objects.annotate(booking_count=booking_count_expr)
         .order_by("-booking_count", "title")
-    )[:20]
+    )
+
+    if period != "all":
+        top_workshops = top_workshops.filter(booking_count__gt=0)
+
+    top_workshops = top_workshops[:20]
 
     context = {
         "title": "ข้อมูลกิจกรรม",
@@ -4222,6 +4483,10 @@ def admin_events_report_view(request):
         "now": None,
         "single_container": True,
         "top_workshops": top_workshops,
+        "period": period,
+        "period_label": period_label,
+        "range_start": range_start,
+        "range_end": today,
         "summary": {
             "total_workshops": total_workshops,
             "active_workshops": active_workshops,

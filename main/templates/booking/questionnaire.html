@@ -133,6 +133,16 @@
 
         <div class="space-y-4">
           {% for q in questions %}
+          {% ifchanged q.category %}
+            <div class="rounded-3xl border border-amber-100 bg-amber-50/60 px-5 py-4">
+              <p class="text-sm font-extrabold text-amber-800">
+                {{ q.get_category_display }}
+              </p>
+              <p class="text-xs text-amber-800/70 mt-0.5">
+                กรุณาตอบคำถามในหมวดนี้ให้ครบทุกข้อ
+              </p>
+            </div>
+          {% endifchanged %}
           <div class="rounded-3xl border border-gray-100 bg-white shadow-sm hover:shadow transition-shadow">
             <div class="p-5 sm:p-6">
               <div class="flex items-start justify-between gap-3">

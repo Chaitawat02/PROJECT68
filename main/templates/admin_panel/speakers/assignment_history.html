@@ -1,0 +1,96 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block title %}ประวัติการมอบหมายวิทยากร{% endblock %}
+
+{% block content %}
+<div class="flex flex-col lg:flex-row gap-8 py-6 fade-in">
+    <aside class="w-full lg:w-1/4 xl:w-1/5 shrink-0">
+        {% include 'admin_panel/admin_dashboard.html' %}
+    </aside>
+
+    <main class="w-full lg:w-3/4 xl:w-4/5 space-y-6">
+        <div class="flex items-center justify-between border-b border-gray-200 pb-4">
+            <div>
+                <h2 class="text-3xl font-bold text-gray-800">ประวัติการมอบหมายวิทยากร</h2>
+                <p class="text-gray-500 mt-1">ดูว่า “มอบหมายให้ใครของใคร” และตรวจสอบสถานะการตอบรับ/ปฏิเสธ</p>
+            </div>
+            <a href="{% url 'manage_speakers' %}" class="text-gray-500 hover:text-indigo-600 font-medium">
+                <i class="fas fa-arrow-left mr-2"></i> กลับหน้ามอบหมายงาน
+            </a>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="min-w-full text-sm">
+                    <thead class="bg-gray-50 text-gray-600">
+                        <tr class="text-left">
+                            <th class="px-4 py-3 font-bold">เวลา</th>
+                            <th class="px-4 py-3 font-bold">วิทยากร</th>
+                            <th class="px-4 py-3 font-bold">งาน</th>
+                            <th class="px-4 py-3 font-bold">วันที่เข้าชม</th>
+                            <th class="px-4 py-3 font-bold">สถานะ</th>
+                            <th class="px-4 py-3 font-bold">ปฏิเสธเมื่อ</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        {% for a in assignments %}
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-4 py-3 text-gray-700 whitespace-nowrap">
+                                {% if a.assigned_at %}{{ a.assigned_at|date:"d/m/Y H:i" }}{% else %}-{% endif %}
+                            </td>
+                            <td class="px-4 py-3 font-semibold text-gray-800 whitespace-nowrap">
+                                {% if a.speaker %}{{ a.speaker.name }}{% else %}-{% endif %}
+                            </td>
+                            <td class="px-4 py-3 text-gray-800">
+                                {% if a.booking %}
+                                    <div class="font-semibold">Booking #{{ a.booking.id }} — {{ a.booking.fullname|default:"-" }}</div>
+                                {% else %}
+                                    <div class="font-semibold">{{ a.title|default:"-" }}</div>
+                                {% endif %}
+                                {% if a.note %}
+                                    <div class="text-xs text-gray-500 mt-1">{{ a.note|truncatechars:120 }}</div>
+                                {% endif %}
+                            </td>
+                            <td class="px-4 py-3 text-gray-700 whitespace-nowrap">
+                                {% if a.booking and a.booking.Re_date %}
+                                    {{ a.booking.Re_date|date:"d/m/Y" }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td class="px-4 py-3 whitespace-nowrap">
+                                {% if a.status == 'rejected' %}
+                                    <span class="inline-flex items-center px-2 py-1 rounded-full bg-red-100 text-red-700 text-xs font-bold">ปฏิเสธ</span>
+                                {% elif a.status == 'confirmed' %}
+                                    <span class="inline-flex items-center px-2 py-1 rounded-full bg-green-100 text-green-700 text-xs font-bold">ยืนยันแล้ว</span>
+                                {% elif a.status == 'accepted' %}
+                                    <span class="inline-flex items-center px-2 py-1 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold">รับงานแล้ว</span>
+                                {% elif a.status == 'assigned' %}
+                                    <span class="inline-flex items-center px-2 py-1 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold">มอบหมายแล้ว</span>
+                                {% elif a.status == 'pending' %}
+                                    <span class="inline-flex items-center px-2 py-1 rounded-full bg-amber-100 text-amber-700 text-xs font-bold">รอตอบรับ</span>
+                                {% elif a.status == 'completed' %}
+                                    <span class="inline-flex items-center px-2 py-1 rounded-full bg-gray-100 text-gray-700 text-xs font-bold">เสร็จสิ้น</span>
+                                {% else %}
+                                    <span class="inline-flex items-center px-2 py-1 rounded-full bg-gray-100 text-gray-700 text-xs font-bold">{{ a.status|default:"-" }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-4 py-3 text-gray-700 whitespace-nowrap">
+                                {% if a.rejected_at %}{{ a.rejected_at|date:"d/m/Y H:i" }}{% else %}-{% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="px-6 py-16 text-center text-gray-400">
+                                ยังไม่มีประวัติการมอบหมาย
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+</div>
+{% endblock %}

@@ -121,7 +121,7 @@
                 <div class="flex justify-between items-start gap-4">
                   <div>
                     <h4 class="font-bold text-lg text-gray-900 group-hover:text-amber-700 transition-colors">
-                      การจองของ {{ assignment.booking.fullname|default:"-" }}
+                      กลุ่มจองของ {{ assignment.booking.fullname|default:"-" }}
                     </h4>
 
                     <div class="flex items-center gap-4 mt-2 text-sm text-gray-500">
@@ -409,7 +409,7 @@
 
                     <div class="shrink-0">
                       <span class="inline-flex items-center px-3 py-1 rounded-full bg-white border border-gray-200 text-gray-700 text-xs font-bold">
-                        {{ rating_summary.total|default:0 }} แบบประเมิน
+                        {{ booking_response_summary.total_bookings|default:0 }} แบบประเมิน
                       </span>
                     </div>
                   </div>

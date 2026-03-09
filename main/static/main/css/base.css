@@ -11,10 +11,57 @@
     --color-bg: #fffbeb;       /* Amber 50 */
 }
 
+/* Mobile/responsive baselines */
+html {
+    -webkit-text-size-adjust: 100%;
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+img,
+video,
+svg {
+    max-width: 100%;
+    height: auto;
+}
+
+table {
+    width: 100%;
+}
+
+.overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+}
+
 body {
     font-family: var(--font-main);
     background-color: var(--color-bg);
     color: #1f2937; /* Gray 800 */
+}
+
+@media (max-width: 640px) {
+    /* Prevent iOS Safari from auto-zooming form fields */
+    input,
+    select,
+    textarea {
+        font-size: 16px;
+    }
+
+    /* Make wide tables usable on mobile without breaking desktop layouts */
+    table {
+        display: block;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    th,
+    td {
+        white-space: nowrap;
+    }
 }
 
 /* 3. Custom Hero Pattern (ลายไทยพื้นหลัง) */

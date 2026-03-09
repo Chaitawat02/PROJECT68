@@ -516,6 +516,19 @@ class SilkPatternRating(models.Model):
 # 6) QUESTION
 # =========================================================
 class Question(models.Model):
+    CATEGORY_CHOICES = [
+        ("museum", "ภาพรวมพิพิธภัณฑ์"),
+        ("silk", "ผ้าไหม"),
+        ("speaker", "วิทยากร"),
+    ]
+
+    category = models.CharField(
+        max_length=20,
+        choices=CATEGORY_CHOICES,
+        default="museum",
+        db_index=True,
+        verbose_name="หมวดคำถาม",
+    )
     question = models.TextField(verbose_name="หัวข้อคำถาม")
     option_a = models.CharField(max_length=200, verbose_name="ตัวเลือก A")
     option_b = models.CharField(max_length=200, verbose_name="ตัวเลือก B")

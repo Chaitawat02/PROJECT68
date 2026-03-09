@@ -39,7 +39,14 @@
                     <tr class="border-b border-gray-100 hover:bg-amber-50/40">
                         <td class="p-3 text-center text-gray-700 font-semibold bg-gray-50">{{ row.index }}</td>
                         <td class="p-3 text-gray-800">
-                            <div class="font-medium">{{ row.question.question }}</div>
+                                                        <div class="font-medium">{{ row.question.question }}</div>
+                                                        {% if row.question.category %}
+                                                            <div class="mt-1">
+                                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-800 border border-amber-100">
+                                                                    {{ row.question.get_category_display }}
+                                                                </span>
+                                                            </div>
+                                                        {% endif %}
                             <div class="text-xs text-gray-500 mt-1">ผู้ประเมิน {{ row.respondent_count }} คน</div>
                         </td>
                         <td class="p-3 text-center font-semibold text-amber-700">
