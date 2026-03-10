@@ -3621,7 +3621,9 @@ def manage_users_delete_view(request, user_id):
 @user_passes_test(is_staff_or_admin)
 def manage_silk_patterns_add_view(request):
     import os
+    import logging
     form = SilkPatternForm(request.POST or None, request.FILES or None)
+    log = logging.getLogger(__name__)
 
     latest_si_id = (
         SilkPattern.objects.exclude(Si_ID__isnull=True)
@@ -3650,16 +3652,30 @@ def manage_silk_patterns_add_view(request):
                 exists = SilkPattern.objects.filter(target_file=mind_name).exists()
                 if not exists:
                     form.instance.target_index = 0
-            pattern = form.save()
+            try:
+                pattern = form.save()
+            except Exception as e:
+                log.exception("[SILK_ADD] Failed to save SilkPattern (upload/storage error): %s", e)
+                messages.error(request, "บันทึกลายผ้าไม่สำเร็จ (อัปโหลดไฟล์มีปัญหา) โปรดลองใหม่")
+                return render(request, 'admin_panel/Silk/admin_editsilk.html', {
+                    'form': form,
+                    'title': 'เพิ่มลายผ้าใหม่',
+                    'latest_si_id': latest_si_id,
+                })
 
             # ถ้ามีไฟล์ .mind ให้บันทึกลง static/main/targets
             if mind_file and safe_mind_name:
-                targets_dir = os.path.join(settings.BASE_DIR, 'main', 'static', 'main', 'targets')
-                os.makedirs(targets_dir, exist_ok=True)
-                dest_path = os.path.join(targets_dir, safe_mind_name)
-                with open(dest_path, 'wb+') as destination:
-                    for chunk in mind_file.chunks():
-                        destination.write(chunk)
+                try:
+                    targets_dir = os.path.join(settings.BASE_DIR, 'main', 'static', 'main', 'targets')
+                    os.makedirs(targets_dir, exist_ok=True)
+                    dest_path = os.path.join(targets_dir, safe_mind_name)
+                    with open(dest_path, 'wb+') as destination:
+                        for chunk in mind_file.chunks():
+                            destination.write(chunk)
+                except Exception as e:
+                    # Some hosts can be read-only; don't crash the whole request.
+                    log.exception("[SILK_ADD] Failed to write .mind file to static targets: %s", e)
+                    messages.warning(request, "อัปโหลดสำเร็จ แต่บันทึกไฟล์ .mind ลงเซิร์ฟเวอร์ไม่ได้ (บางโฮสต์เป็น read-only)")
 
             # คัดลอกไฟล์ image / model ไปเก็บซ้ำใน static/main/images และ static/main/models
             try:
@@ -3698,9 +3714,11 @@ def manage_silk_patterns_add_view(request):
 @user_passes_test(is_staff_or_admin)
 def manage_silk_edit_view(request, pattern_id):
     import os
+    import logging
     from .models import SilkPatternGalleryImage
     pattern = get_object_or_404(SilkPattern, id=pattern_id)
     form = SilkPatternForm(request.POST or None, request.FILES or None, instance=pattern)
+    log = logging.getLogger(__name__)
 
     latest_si_id = (
         SilkPattern.objects.exclude(Si_ID__isnull=True)
@@ -3728,20 +3746,39 @@ def manage_silk_edit_view(request, pattern_id):
                 exists = SilkPattern.objects.filter(target_file=mind_name).exists()
                 if not exists:
                     form.instance.target_index = 0
-            pattern = form.save()
+            try:
+                pattern = form.save()
+            except Exception as e:
+                log.exception("[SILK_EDIT] Failed to save SilkPattern id=%s (upload/storage error): %s", pattern_id, e)
+                messages.error(request, "บันทึกการแก้ไขไม่สำเร็จ (อัปโหลดไฟล์มีปัญหา) โปรดลองใหม่")
+                gallery_images = pattern.gallery_images.all() if hasattr(pattern, 'gallery_images') else []
+                return render(request, 'admin_panel/Silk/admin_editsilk.html', {
+                    'form': form,
+                    'title': f'แก้ไขข้อมูลผ้าไหม: {pattern.Si_name}',
+                    'gallery_images': gallery_images,
+                    'latest_si_id': latest_si_id,
+                })
 
             # อัปโหลดรูป gallery images (หลายรูป)
             gallery_files = request.FILES.getlist('gallery_images')
             for f in gallery_files:
-                SilkPatternGalleryImage.objects.create(silkpattern=pattern, image=f)
+                try:
+                    SilkPatternGalleryImage.objects.create(silkpattern=pattern, image=f)
+                except Exception as e:
+                    log.exception("[SILK_EDIT] Failed to save gallery image for pattern id=%s: %s", pattern_id, e)
+                    messages.warning(request, "อัปโหลดรูปแกลเลอรีบางไฟล์ไม่สำเร็จ")
 
             if mind_file and safe_mind_name:
-                targets_dir = os.path.join(settings.BASE_DIR, 'main', 'static', 'main', 'targets')
-                os.makedirs(targets_dir, exist_ok=True)
-                dest_path = os.path.join(targets_dir, safe_mind_name)
-                with open(dest_path, 'wb+') as destination:
-                    for chunk in mind_file.chunks():
-                        destination.write(chunk)
+                try:
+                    targets_dir = os.path.join(settings.BASE_DIR, 'main', 'static', 'main', 'targets')
+                    os.makedirs(targets_dir, exist_ok=True)
+                    dest_path = os.path.join(targets_dir, safe_mind_name)
+                    with open(dest_path, 'wb+') as destination:
+                        for chunk in mind_file.chunks():
+                            destination.write(chunk)
+                except Exception as e:
+                    log.exception("[SILK_EDIT] Failed to write .mind file to static targets: %s", e)
+                    messages.warning(request, "อัปโหลดสำเร็จ แต่บันทึกไฟล์ .mind ลงเซิร์ฟเวอร์ไม่ได้ (บางโฮสต์เป็น read-only)")
 
             # คัดลอกไฟล์ image / model ไปเก็บซ้ำใน static/main/images และ static/main/models
             try:
@@ -3883,15 +3920,29 @@ def admin_events_list_view(request):
 @login_required
 @user_passes_test(is_staff_or_admin)
 def admin_events_add_view(request):
+    import logging
+    log = logging.getLogger(__name__)
     if request.method == "POST":
         form = WorkshopForm(request.POST, request.FILES)
         if form.is_valid():
-            workshop = form.save()
+            try:
+                workshop = form.save()
+            except Exception as e:
+                log.exception("[WORKSHOP_ADD] Failed to save Workshop (upload/storage error): %s", e)
+                messages.error(request, "เพิ่มกิจกรรมไม่สำเร็จ (อัปโหลดไฟล์มีปัญหา) โปรดลองใหม่")
+                return render(request, "admin_panel/Evens/admin_events_form.html", {
+                    "title": "เพิ่มกิจกรรมใหม่",
+                    "form": form,
+                })
             # บันทึกรูปประกอบกิจกรรมหลายรูป (ถ้ามีอัปโหลดมา)
             gallery_files = request.FILES.getlist('gallery_images')
             for f in gallery_files:
                 if f:
-                    WorkshopGalleryImage.objects.create(workshop=workshop, image=f)
+                    try:
+                        WorkshopGalleryImage.objects.create(workshop=workshop, image=f)
+                    except Exception as e:
+                        log.exception("[WORKSHOP_ADD] Failed to save gallery image: %s", e)
+                        messages.warning(request, "อัปโหลดรูปแกลเลอรีบางไฟล์ไม่สำเร็จ")
             messages.success(request, "เพิ่มกิจกรรมเรียบร้อยแล้ว")
             return redirect("admin_events_list")
     else:
@@ -3906,6 +3957,8 @@ def admin_events_add_view(request):
 @user_passes_test(is_staff_or_admin)
 def admin_events_edit_view(request, workshop_id):
     """3. หน้าแก้ไขกิจกรรม (Update)"""
+    import logging
+    log = logging.getLogger(__name__)
     workshop = get_object_or_404(Workshop, id=workshop_id)
     if request.method == "POST":
         # กรณีกดปุ่มลบรูปประกอบจากแกลเลอรี
@@ -3919,12 +3972,25 @@ def admin_events_edit_view(request, workshop_id):
 
         form = WorkshopForm(request.POST, request.FILES, instance=workshop)
         if form.is_valid():
-            workshop = form.save()
+            try:
+                workshop = form.save()
+            except Exception as e:
+                log.exception("[WORKSHOP_EDIT] Failed to save Workshop id=%s (upload/storage error): %s", workshop_id, e)
+                messages.error(request, "บันทึกการแก้ไขไม่สำเร็จ (อัปโหลดไฟล์มีปัญหา) โปรดลองใหม่")
+                return render(request, "admin_panel/Evens/admin_events_form.html", {
+                    "form": form,
+                    "workshop": workshop,
+                    "title": f"แก้ไขกิจกรรม: {workshop.title}",
+                })
             # เพิ่มรูปประกอบกิจกรรมเพิ่มเติม (ไม่ลบของเดิม)
             gallery_files = request.FILES.getlist('gallery_images')
             for f in gallery_files:
                 if f:
-                    WorkshopGalleryImage.objects.create(workshop=workshop, image=f)
+                    try:
+                        WorkshopGalleryImage.objects.create(workshop=workshop, image=f)
+                    except Exception as e:
+                        log.exception("[WORKSHOP_EDIT] Failed to save gallery image for workshop id=%s: %s", workshop_id, e)
+                        messages.warning(request, "อัปโหลดรูปแกลเลอรีบางไฟล์ไม่สำเร็จ")
             messages.success(request, "แก้ไขข้อมูลกิจกรรมเรียบร้อยแล้ว")
             return redirect("admin_events_list") # กลับหน้า List
     else:
