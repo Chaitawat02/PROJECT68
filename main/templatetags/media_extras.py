@@ -1,5 +1,5 @@
 from django import template
-from django.core.files.storage import default_storage
+from django.core.files.storage import FileSystemStorage
 import re
 
 register = template.Library()
@@ -7,14 +7,28 @@ register = template.Library()
 
 @register.filter
 def file_exists(file_field):
-    """Return True if the given FileField/ImageField has a file present on storage."""
+    """Best-effort check whether an uploaded file can be used.
+
+    Notes:
+    - For local FileSystemStorage we can reliably check storage.exists(name).
+    - For remote/cloud storages (e.g., Cloudinary), exists() may be unsupported or
+      return False even when the file is available. In that case, treat a resolvable
+      .url as sufficient.
+    """
     try:
         if not file_field:
             return False
         name = getattr(file_field, 'name', None)
         if not name:
             return False
-        return default_storage.exists(name)
+
+        storage = getattr(file_field, "storage", None)
+        if isinstance(storage, FileSystemStorage):
+            return storage.exists(name)
+
+        # Remote storage: if it can produce a URL, assume it's usable.
+        _ = file_field.url
+        return True
     except Exception:
         return False
 

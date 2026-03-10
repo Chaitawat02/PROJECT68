@@ -6,6 +6,8 @@ from pathlib import Path
 import os
 import mimetypes
 import dj_database_url
+from urllib.parse import urlparse
+from django.core.exceptions import ImproperlyConfigured
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -143,19 +145,83 @@ STATICFILES_DIRS = [
 ]
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
-MEDIA_URL = "/media/"
+# WhiteNoise
+# - In production, prefer Manifest storage (hashed filenames) which requires collectstatic.
+# - If collectstatic hasn't been run (no manifest yet), fall back so pages don't 500.
+WHITENOISE_AUTOREFRESH = DEBUG
+WHITENOISE_USE_FINDERS = DEBUG
+WHITENOISE_MANIFEST_STRICT = os.environ.get(
+    "WHITENOISE_MANIFEST_STRICT",
+    "False",
+).lower() == "true"
 
-CLOUDINARY_STORAGE = {
-    "CLOUD_NAME": os.environ.get("CLOUDINARY_CLOUD_NAME"),
-    "API_KEY": os.environ.get("CLOUDINARY_API_KEY"),
-    "API_SECRET": os.environ.get("CLOUDINARY_API_SECRET"),
-}
+MEDIA_URL = "/media/"
 
 USE_CLOUDINARY = os.environ.get("USE_CLOUDINARY", "False").lower() == "true"
 
+def _cloudinary_storage_from_env() -> dict:
+    """Build CLOUDINARY_STORAGE settings.
+
+    Supports either:
+    - CLOUDINARY_CLOUD_NAME / CLOUDINARY_API_KEY / CLOUDINARY_API_SECRET
+    - CLOUDINARY_URL=cloudinary://<key>:<secret>@<cloud_name>
+    """
+    cloud_name = (os.environ.get("CLOUDINARY_CLOUD_NAME") or "").strip()
+    api_key = (os.environ.get("CLOUDINARY_API_KEY") or "").strip()
+    api_secret = (os.environ.get("CLOUDINARY_API_SECRET") or "").strip()
+
+    if cloud_name and api_key and api_secret:
+        return {
+            "CLOUD_NAME": cloud_name,
+            "API_KEY": api_key,
+            "API_SECRET": api_secret,
+        }
+
+    cloudinary_url = (os.environ.get("CLOUDINARY_URL") or "").strip()
+    if cloudinary_url:
+        try:
+            parsed = urlparse(cloudinary_url)
+            # cloudinary://API_KEY:API_SECRET@CLOUD_NAME
+            if parsed.scheme.startswith("cloudinary") and parsed.hostname and parsed.username and parsed.password:
+                return {
+                    "CLOUD_NAME": parsed.hostname,
+                    "API_KEY": parsed.username,
+                    "API_SECRET": parsed.password,
+                }
+        except Exception:
+            pass
+
+    return {}
+
+
+CLOUDINARY_STORAGE = _cloudinary_storage_from_env()
+
+if USE_CLOUDINARY and not all(
+    CLOUDINARY_STORAGE.get(k) for k in ("CLOUD_NAME", "API_KEY", "API_SECRET")
+):
+    raise ImproperlyConfigured(
+        "USE_CLOUDINARY=true but Cloudinary credentials are missing. "
+        "Set CLOUDINARY_URL (cloudinary://<key>:<secret>@<cloud_name>) "
+        "or set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET."
+    )
+
+_static_manifest_path = (STATIC_ROOT / "staticfiles.json")
+
+if DEBUG:
+    _staticfiles_backend = "django.contrib.staticfiles.storage.StaticFilesStorage"
+else:
+    # If the manifest doesn't exist yet, using Manifest storage will crash template rendering
+    # with: "Missing staticfiles manifest entry ...".
+    if _static_manifest_path.exists():
+        _staticfiles_backend = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+    else:
+        _staticfiles_backend = "whitenoise.storage.CompressedStaticFilesStorage"
+        # Allow serving from staticfiles finders as a safe fallback when STATIC_ROOT isn't built.
+        WHITENOISE_USE_FINDERS = True
+
 STORAGES = {
     "staticfiles": {
-        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        "BACKEND": _staticfiles_backend,
     }
 }
 
@@ -164,7 +230,7 @@ if USE_CLOUDINARY:
         "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
     }
 else:
-    MEDIA_ROOT = BASE_DIR / "media"
+    MEDIA_ROOT = Path(os.environ.get("DJANGO_MEDIA_ROOT", str(BASE_DIR / "media")))
     STORAGES["default"] = {
         "BACKEND": "django.core.files.storage.FileSystemStorage",
     }

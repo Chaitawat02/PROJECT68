@@ -27,6 +27,7 @@ if settings.DEBUG:
 else:
     # ใน Production (เช่น Render) static จะเสิร์ฟโดย WhiteNoise จาก STATIC_ROOT
     # ส่วน media ให้ Django เสิร์ฟผ่าน view นี้ (เหมาะกับโปรเจกต์ขนาดเล็ก)
-    urlpatterns += [
-        re_path(r'^media/(?P<path>.*)$', serve, {'document_root': settings.MEDIA_ROOT}),
-    ]
+    if getattr(settings, "MEDIA_ROOT", None):
+        urlpatterns += [
+            re_path(r'^media/(?P<path>.*)$', serve, {'document_root': settings.MEDIA_ROOT}),
+        ]
