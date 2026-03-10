@@ -2081,13 +2081,24 @@ def admin_edit_museum_view(request):
         )
 
         if form.is_valid():
-            form.save()
-            messages.success(
-                request,
-                "บันทึกข้อมูลพิพิธภัณฑ์เรียบร้อยแล้ว"
-            )
-            # ใช้ชื่อ URL ให้ตรงกับ main/urls.py และ templates
-            return redirect('admin_editmuseum')
+            try:
+                form.save()
+            except Exception as e:
+                # Typically Cloudinary/network/storage errors. Don't crash the page.
+                logger.exception(
+                    "[MUSEUM_EDIT] Failed to save MuseumProfile for user=%s files=%s err=%s",
+                    getattr(request.user, "username", None),
+                    list(getattr(request, "FILES", {}).keys()),
+                    e,
+                )
+                messages.error(request, "บันทึกข้อมูล/รูปภาพไม่สำเร็จ โปรดลองใหม่ หรือเช็คการตั้งค่า Cloudinary")
+            else:
+                messages.success(
+                    request,
+                    "บันทึกข้อมูลพิพิธภัณฑ์เรียบร้อยแล้ว"
+                )
+                # ใช้ชื่อ URL ให้ตรงกับ main/urls.py และ templates
+                return redirect('admin_editmuseum')
         else:
             logger.warning(
                 "MuseumProfileForm invalid for user=%s errors=%s",
