@@ -8,6 +8,7 @@ import statistics
 import io
 import base64
 import uuid
+import re
 from datetime import datetime, time, timedelta
 from urllib.parse import quote_plus
 
@@ -2067,6 +2068,34 @@ def question_rate_view(request, question_id):
 # MUSEUM PROFILE MANAGEMENT
 # =====================================================================
 
+
+def _sanitize_upload_error_text(text: str) -> str:
+    # Avoid leaking any credentials that might appear in exception messages.
+    if not text:
+        return ""
+    text = re.sub(r"cloudinary://[^\s]+", "cloudinary://***", text)
+    text = re.sub(r"(?i)(api_secret\s*[:=]\s*)([^\s,;]+)", r"\1***", text)
+    text = re.sub(r"(?i)(CLOUDINARY_URL\s*[:=]\s*)([^\s,;]+)", r"\1***", text)
+    return text
+
+
+def _classify_upload_error(e: Exception) -> str:
+    msg = (str(e) or "").strip()
+    low = msg.lower()
+
+    if any(x in low for x in ["invalid signature", "unauthorized", "forbidden", "401", "403", "api key"]):
+        return "ตรวจสอบค่า CLOUDINARY_URL / API Key / API Secret"
+    if any(x in low for x in ["timeout", "timed out", "read timed out", "connection aborted", "connectionerror"]):
+        return "เชื่อมต่อบริการอัปโหลดไม่สำเร็จ (timeout/เครือข่าย)"
+    if any(x in low for x in ["too large", "413", "request entity too large"]):
+        return "ไฟล์มีขนาดใหญ่เกินไป"
+    if any(x in low for x in ["permission denied", "read-only file system", "readonly"]):
+        return "เซิร์ฟเวอร์ไม่มีสิทธิ์เขียนไฟล์"
+
+    if msg:
+        return _sanitize_upload_error_text(msg)[:180]
+    return "เกิดข้อผิดพลาดระหว่างอัปโหลด/บันทึกรูปภาพ"
+
 @login_required
 @user_passes_test(is_admin)
 def admin_edit_museum_view(request):
@@ -2091,7 +2120,32 @@ def admin_edit_museum_view(request):
                     list(getattr(request, "FILES", {}).keys()),
                     e,
                 )
-                messages.error(request, "บันทึกข้อมูล/รูปภาพไม่สำเร็จ โปรดลองใหม่ หรือเช็คการตั้งค่า Cloudinary")
+
+                storage_label = "Cloudinary" if getattr(settings, "USE_CLOUDINARY", False) else "Local storage"
+                hint = _classify_upload_error(e)
+
+                # Try to salvage non-file fields so admin doesn't lose edits.
+                try:
+                    museum_obj = form.save(commit=False)
+                    file_fields = ["logo", "hero_image", "gallery_image1", "gallery_image2", "gallery_image3"]
+                    for f in file_fields:
+                        if museum is not None:
+                            setattr(museum_obj, f, getattr(museum, f))
+                        else:
+                            setattr(museum_obj, f, None)
+                    museum_obj.save()
+                    messages.warning(
+                        request,
+                        f"บันทึกข้อมูลสำเร็จ แต่บันทึกรูปภาพไม่สำเร็จ ({storage_label}: {hint})",
+                    )
+                    return redirect('admin_editmuseum')
+                except Exception:
+                    pass
+
+                messages.error(
+                    request,
+                    f"บันทึกข้อมูล/รูปภาพไม่สำเร็จ ({storage_label}: {hint})",
+                )
             else:
                 messages.success(
                     request,
