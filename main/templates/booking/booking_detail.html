@@ -122,7 +122,8 @@
 
             <hr class="border-gray-100">
 
-                        {% if can_decide_booking and (booking.Re_status == 'pending' or not booking.Re_status) %}
+                        {% if can_decide_booking %}
+                        {% if booking.Re_status == 'pending' or not booking.Re_status %}
                         <div class="bg-amber-50 border border-amber-100 p-4 rounded-2xl no-page-break">
                                 <p class="text-xs text-gray-500 uppercase font-bold mb-3">การอนุมัติ (เฉพาะผู้ดูแล)</p>
                                 <div class="flex flex-col sm:flex-row gap-3">
@@ -144,6 +145,7 @@
                                 <p class="text-xs text-gray-500 mt-3">* การปฏิเสธจำเป็นต้องระบุเหตุผล</p>
                         </div>
                         {% endif %}
+                        {% endif %}
 
                         <div class="flex gap-4">
                                 <a href="{{ back_to_history_url|default:"/user/dashboard/?section=booking" }}"
@@ -155,7 +157,8 @@
     </div>
 </div>
 
-{% if can_decide_booking and (booking.Re_status == 'pending' or not booking.Re_status) %}
+{% if can_decide_booking %}
+{% if booking.Re_status == 'pending' or not booking.Re_status %}
 <!-- Modal ปฏิเสธ + ฟอร์มส่งเหตุผล (เฉพาะผู้ดูแล) -->
 <div id="rejectModal" class="fixed inset-0 z-50 hidden">
     <div class="absolute inset-0 bg-black/40" onclick="closeRejectModal()"></div>
@@ -222,5 +225,6 @@
         if (e.key === 'Escape') closeRejectModal();
     });
 </script>
+{% endif %}
 {% endif %}
 {% endblock %}
