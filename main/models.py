@@ -299,7 +299,7 @@ class Booking(models.Model):
         ('pending', 'รออนุมัติการจอง'),
         ('approved', 'อนุมัติแล้ว'),
         ('rejected', 'ปฏิเสธ'),
-        ('cancelled', 'ยกเลิกโดยผู้ใช้'),
+        ('cancelled', 'ผู้ใช้ยกเลิกการจอง'),
         ('confirmed', 'มอบหมายวิทยากรแล้ว'),
         ('completed', 'เสร็จสิ้นการเข้าชม'),
     ]

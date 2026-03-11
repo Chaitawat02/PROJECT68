@@ -55,7 +55,7 @@
                 <div class="text-[11px] text-gray-500 mt-1">เหตุผล: {{ booking.decision_note }}</div>
               {% endif %}
             {% elif booking.Re_status == 'cancelled' %}
-              <span class="px-3 py-1 bg-gray-50 text-gray-700 border border-gray-200 rounded-full text-xs font-extrabold whitespace-nowrap">ยกเลิกแล้ว</span>
+              <span class="px-3 py-1 bg-gray-50 text-gray-700 border border-gray-200 rounded-full text-xs font-extrabold whitespace-nowrap">ผู้ใช้ยกเลิกการจอง</span>
               {% if booking.cancel_reason %}
                 <div class="text-[11px] text-gray-500 mt-1">เหตุผล: {{ booking.cancel_reason }}</div>
               {% endif %}

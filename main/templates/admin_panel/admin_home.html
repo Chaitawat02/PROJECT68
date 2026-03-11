@@ -129,6 +129,10 @@
                                     <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-100">
                                         <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span> อนุมัติ
                                     </span>
+                                {% elif booking.Re_status == 'cancelled' %}
+                                    <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-50 text-gray-700 border border-gray-200">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-gray-400"></span> ผู้ใช้ยกเลิกการจอง
+                                    </span>
                                 {% elif booking.Re_status == 'rejected' %}
                                     <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-700 border border-red-100">
                                         <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> ปฏิเสธ
