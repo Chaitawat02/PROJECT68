@@ -40,6 +40,41 @@
                         {% endif %}
                     </div>
                 </section>
+
+                {% if silk.Si_main_artist or silk.Si_assistant_artists or silk.Si_contact_phone %}
+                <section class="mt-6 rounded-2xl border border-amber-100 bg-white p-6">
+                    <div class="flex items-center gap-2 text-gray-800">
+                        <i class="fas fa-user-pen text-amber-700"></i>
+                        <h2 class="text-base font-bold">ข้อมูลศิลปินและติดต่อ</h2>
+                    </div>
+                    <div class="mt-3 h-px bg-amber-100"></div>
+
+                    <div class="mt-4 grid grid-cols-1 gap-3 text-sm text-gray-700">
+                        {% if silk.Si_main_artist %}
+                            <div class="rounded-xl border border-amber-100 bg-amber-50/40 p-4">
+                                <div class="text-xs font-bold text-gray-600">ศิลปินหลัก</div>
+                                <div class="mt-1 text-base font-bold text-gray-900">{{ silk.Si_main_artist }}</div>
+                            </div>
+                        {% endif %}
+
+                        {% if silk.Si_contact_phone %}
+                            <div class="rounded-xl border border-amber-100 bg-white p-4">
+                                <div class="text-xs font-bold text-gray-600">ติดต่อ</div>
+                                <div class="mt-1 font-bold text-gray-900">
+                                    {% if silk.Si_main_artist %}{{ silk.Si_main_artist }} — {% endif %}{{ silk.Si_contact_phone }}
+                                </div>
+                            </div>
+                        {% endif %}
+
+                        {% if silk.Si_assistant_artists %}
+                            <div class="rounded-xl border border-amber-100 bg-white p-4">
+                                <div class="text-xs font-bold text-gray-600">ศิลปินผู้ช่วย</div>
+                                <div class="mt-2 whitespace-pre-line text-gray-800 leading-6">{{ silk.Si_assistant_artists|linebreaksbr }}</div>
+                            </div>
+                        {% endif %}
+                    </div>
+                </section>
+                {% endif %}
             </div>
 
             <!-- รูปภาพ ด้านล่าง -->

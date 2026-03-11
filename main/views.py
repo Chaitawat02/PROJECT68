@@ -4167,6 +4167,9 @@ def ar_test_view(request):
             'si_color': p.Si_color,
             'si_address': p.Si_address,
             'si_history': p.Si_history,
+            'si_main_artist': getattr(p, 'Si_main_artist', '') or '',
+            'si_assistant_artists': getattr(p, 'Si_assistant_artists', '') or '',
+            'si_contact_phone': getattr(p, 'Si_contact_phone', '') or '',
             # สรุปสั้นใต้ชื่อ: ใช้ประเภท/สีผ้า ไม่ดึงประวัติยาวเพื่อเลี่ยงข้อมูลซ้ำ
             'detail': p.Si_type or p.Si_color or "ผ้าไหมไทยลวดลายเอกลักษณ์",
             'transform': transform_val,

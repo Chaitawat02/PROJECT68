@@ -7,21 +7,27 @@
   <title>Smart Silk Mirror - Virtual Fitting</title>
   
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=Prompt:wght@300;400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600&display=swap" rel="stylesheet">
 
   <style>
     /* ===== THEME VARIABLES ===== */
     :root {
-      --gold-primary: #D4AF37;
-      --gold-soft: #F3E5AB;
-      --navy-deep: #1B2631;
-      --text-dark: #2C3E50;
-      --text-light: #7F8C8D;
-      --bg-color: #FAFAFA;
-      --glass-panel: rgba(255, 255, 255, 0.9);
-      --glass-border: rgba(255, 255, 255, 0.5);
-      --shadow-soft: 0 10px 40px rgba(0,0,0,0.08);
+      /* Theme: Website Amber (match main/templates/main/base.html) */
+      --gold-primary: #b45309; /* Amber 700 */
+      --gold-soft: rgba(251, 191, 36, 0.22); /* Amber 400 */
+      --navy-deep: #78350f; /* Amber 900 */
+      --text-dark: #1f2937; /* Gray 800 */
+      --text-light: #6b7280; /* Gray 500/600 */
+      --bg-color: #fffbeb; /* Amber 50 */
+      --glass-panel: rgba(255, 255, 255, 0.92);
+      --glass-border: rgba(251, 191, 36, 0.25);
+      --shadow-soft: 0 10px 40px rgba(0,0,0,0.10);
       --radius-large: 24px;
+
+      /* Status colors (reuse existing values already used elsewhere in this template) */
+      --status-found: #16a34a;
+      --status-scan: #f59e0b;
+      --status-error: #ef4444;
     }
 
     /* Minimal utility classes (template uses Tailwind-like classnames) */
@@ -36,13 +42,20 @@
       margin: 0; padding: 0;
       width: 100vw; height: 100vh;
       background-color: var(--bg-color);
-      background-image: radial-gradient(#e0e0e0 1px, transparent 1px);
-      background-size: 20px 20px;
-      font-family: 'Prompt', sans-serif;
+      background-image: radial-gradient(rgba(120, 53, 15, 0.08) 1px, transparent 1px);
+      background-size: 22px 22px;
+      font-family: 'Sarabun', sans-serif;
       overflow: hidden;
       display: flex;
       justify-content: center;
       align-items: center;
+    }
+
+    /* Accessible focus (improves readability + usability) */
+    :focus { outline: none; }
+    :focus-visible {
+      outline: 3px solid var(--gold-soft);
+      outline-offset: 3px;
     }
 
     /* ===== LOADING SCREEN ===== */
@@ -56,14 +69,14 @@
     }
     .loader-spinner {
       width: 50px; height: 50px;
-      border: 3px solid rgba(212, 175, 55, 0.3);
+      border: 3px solid rgba(180, 83, 9, 0.22);
       border-radius: 50%;
       border-top-color: var(--gold-primary);
       animation: spin 1s ease-in-out infinite;
       margin-bottom: 20px;
     }
     .loader-text {
-      font-family: 'Cormorant Garamond', serif;
+      font-family: 'Sarabun', sans-serif;
       color: var(--navy-deep);
       font-size: 1.5rem;
       letter-spacing: 2px;
@@ -85,11 +98,10 @@
       /* [FIX] เปลี่ยนจากสีดำเป็นโปร่งใส เพื่อให้เห็นกล้อง */
       background: transparent; 
       /* ใส่สีเทาจางๆ ไว้รองหลังเผื่อกล้องมาช้า */
-      background-color: #f0f0f0; 
+      background-color: #f0f0f0;
       
       border-radius: var(--radius-large);
       overflow: hidden;
-      box-shadow: var(--shadow-soft);
       border: 8px solid #fff;
       box-shadow: 0 20px 50px rgba(0,0,0,0.15), inset 0 0 60px rgba(0,0,0,0.5);
     }
@@ -144,21 +156,36 @@
     /* Status Pill */
     .status-pill {
       position: absolute; top: 30px; left: 30px;
-      background: rgba(0, 0, 0, 0.6);
+      background: rgba(120, 53, 15, 0.70);
       backdrop-filter: blur(8px);
       padding: 8px 16px;
       border-radius: 50px;
       display: flex; align-items: center; gap: 8px;
       z-index: 60;
-      border: 1px solid rgba(255,255,255,0.1);
+      border: 1px solid rgba(253, 230, 138, 0.35);
     }
     .status-dot {
       width: 8px; height: 8px;
-      background-color: #2ecc71;
+      background-color: var(--status-scan);
       border-radius: 50%;
-      box-shadow: 0 0 10px #2ecc71;
+      box-shadow: 0 0 10px var(--status-scan);
     }
     .status-text { color: #fff; font-size: 0.8rem; font-weight: 300; }
+
+    /* Status modifiers (avoid inline styles in JS) */
+    .status-pill.is-scanning .status-dot {
+      background-color: var(--status-scan);
+      box-shadow: 0 0 10px var(--status-scan);
+    }
+    .status-pill.is-found .status-dot {
+      background-color: var(--status-found);
+      box-shadow: 0 0 10px var(--status-found);
+    }
+    .status-pill.is-error .status-dot {
+      background-color: var(--status-error);
+      box-shadow: 0 0 10px var(--status-error);
+    }
+    .status-pill.is-error { border-color: rgba(239, 68, 68, 0.45); }
 
     /* Camera toggle button (always visible on mirror) */
     .camera-toggle-btn {
@@ -167,8 +194,8 @@
       z-index: 60;
       padding: 8px 14px;
       border-radius: 999px;
-      border: 1px solid rgba(255,255,255,0.4);
-      background: rgba(0,0,0,0.6);
+      border: 1px solid rgba(253, 230, 138, 0.35);
+      background: rgba(120, 53, 15, 0.70);
       color: #fff;
       font-size: 0.75rem;
       letter-spacing: 0.5px;
@@ -178,7 +205,7 @@
       gap: 6px;
     }
     .camera-toggle-btn:hover {
-      background: rgba(0,0,0,0.8);
+      background: rgba(120, 53, 15, 0.85);
     }
     .camera-toggle-btn-icon {
       width: 16px; height: 16px;
@@ -202,8 +229,8 @@
       z-index: 60;
       padding: 10px 14px;
       border-radius: 999px;
-      border: 1px solid rgba(255,255,255,0.4);
-      background: rgba(0,0,0,0.6);
+      border: 1px solid rgba(253, 230, 138, 0.35);
+      background: rgba(120, 53, 15, 0.70);
       color: #fff;
       font-size: 0.75rem;
       letter-spacing: 0.5px;
@@ -214,7 +241,7 @@
       cursor: pointer;
       user-select: none;
     }
-    .back-home-btn:hover { background: rgba(0,0,0,0.8); }
+    .back-home-btn:hover { background: rgba(120, 53, 15, 0.85); }
     .back-home-icon {
       width: 18px;
       height: 18px;
@@ -245,8 +272,8 @@
       z-index: 60;
       padding: 10px 16px;
       border-radius: 999px;
-      border: 1px solid rgba(255,255,255,0.45);
-      background: rgba(0,0,0,0.65);
+      border: 1px solid rgba(253, 230, 138, 0.38);
+      background: rgba(120, 53, 15, 0.75);
       color: #fff;
       font-size: 0.8rem;
       letter-spacing: 0.4px;
@@ -254,7 +281,7 @@
       user-select: none;
       backdrop-filter: blur(8px);
     }
-    .retry-target-btn:hover { background: rgba(0,0,0,0.8); }
+    .retry-target-btn:hover { background: rgba(120, 53, 15, 0.90); }
 
     /* ===== RIGHT: INFO PANEL ===== */
     .info-panel {
@@ -262,7 +289,7 @@
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
       border-radius: var(--radius-large);
-      border: 1px solid #fff;
+      border: 1px solid var(--glass-border);
       padding: 60px 40px;
       display: flex; flex-direction: column;
       align-items: center;
@@ -271,11 +298,12 @@
       position: relative;
       max-height: 100%;
       overflow-y: auto;
+      scrollbar-gutter: stable;
     }
 
     .brand-header { margin-bottom: 40px; }
     .brand-title {
-      font-family: 'Cormorant Garamond', serif;
+      font-family: 'Sarabun', sans-serif;
       font-size: 3rem;
       margin: 0;
       color: var(--navy-deep);
@@ -314,14 +342,15 @@
     .swatch-wrapper:hover .swatch-img { transform: rotate(0deg) scale(1.05); }
 
     .product-details h2 {
-      font-family: 'Cormorant Garamond', serif;
+      font-family: 'Sarabun', sans-serif;
       font-size: 2.5rem;
       color: var(--navy-deep);
       margin: 0 0 10px 0;
+      line-height: 1.1;
     }
     .product-details p {
       color: var(--text-light);
-      line-height: 1.6;
+      line-height: 1.7;
       font-weight: 300;
       max-width: 80%;
       margin: 0 auto;
@@ -331,11 +360,11 @@
     .info-page { width: 100%; }
     .info-page:not(.is-active) { display: none; }
     .page-title {
-      display: none;
+      display: block;
       font-size: 0.8rem;
       font-weight: 600;
-      letter-spacing: 1px;
-      text-transform: uppercase;
+      letter-spacing: 0.2px;
+      text-transform: none;
       color: var(--text-light);
       margin: 10px 0 8px;
     }
@@ -351,20 +380,21 @@
     .info-nav-btn {
       width: 100%;
       background: transparent;
-      border: 1px solid rgba(27, 38, 49, 0.25);
+      border: 1px solid rgba(120, 53, 15, 0.20);
       color: var(--navy-deep);
-      padding: 10px 14px;
+      padding: 12px 14px;
       border-radius: 999px;
-      font-family: 'Prompt', sans-serif;
+      font-family: inherit;
       cursor: pointer;
       transition: all 0.2s ease;
       font-size: 0.8rem;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.2px;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      min-height: 42px;
     }
-    .info-nav-btn:hover { background: rgba(27, 38, 49, 0.06); }
+    .info-nav-btn:hover { background: rgba(120, 53, 15, 0.06); }
     .info-nav-btn.is-active {
       background: var(--navy-deep);
       color: #fff;
@@ -390,14 +420,14 @@
       grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 10px;
       width: 100%;
-      margin-top: 10px;
+      margin-top: 12px;
     }
     .gallery-img {
       width: 100%;
       aspect-ratio: 1 / 1;
       object-fit: cover;
       border-radius: 14px;
-      border: 1px solid rgba(212, 175, 55, 0.22);
+      border: 1px solid rgba(180, 83, 9, 0.18);
       background: rgba(255, 255, 255, 0.85);
     }
     .gallery-empty {
@@ -413,39 +443,46 @@
 
     /* รายการรายละเอียดลายผ้าหลังสแกน AR */
     .meta-list {
-      max-width: 90%;
-      margin: 14px auto 0;
+      width: 100%;
+      max-width: 100%;
+      margin: 14px 0 0;
       color: var(--text-dark);
-      padding: 12px 14px;
+      padding: 14px 14px;
       border-radius: 16px;
-      border: 1px solid rgba(212, 175, 55, 0.22);
+      border: 1px solid rgba(180, 83, 9, 0.18);
       background: rgba(255, 255, 255, 0.78);
     }
     .meta-row {
       display: grid;
-      grid-template-columns: 140px 1fr;
+      grid-template-columns: minmax(120px, 42%) 1fr;
       gap: 2px 10px;
       padding: 6px 0;
       font-size: 0.9rem;
-      border-bottom: 1px dashed rgba(127, 140, 141, 0.25);
+      border-bottom: 1px dashed rgba(107, 114, 128, 0.25);
     }
     .meta-row:last-child { border-bottom: 0; }
     .meta-label {
       font-weight: 600;
       color: var(--text-light);
-      white-space: nowrap;
+      white-space: normal;
+      line-height: 1.45;
     }
     .meta-value {
       color: var(--text-dark);
       overflow-wrap: anywhere;
+      line-height: 1.55;
     }
     .meta-block {
       margin-top: 10px;
       font-size: 0.9rem;
-      padding-top: 10px;
-      border-top: 1px dashed rgba(127, 140, 141, 0.25);
+      padding: 12px 12px;
+      border-radius: 14px;
+      border: 1px solid rgba(180, 83, 9, 0.14);
+      background: rgba(255, 255, 255, 0.85);
+      text-align: left;
     }
-    .meta-preline { white-space: pre-line; line-height: 1.55; margin-top: 6px; }
+    .meta-block .meta-label { display: block; margin-bottom: 6px; }
+    .meta-preline { white-space: pre-line; line-height: 1.6; margin-top: 0; }
 
     .btn-refresh {
       background: transparent;
@@ -453,18 +490,18 @@
       color: var(--navy-deep);
       padding: 12px 30px;
       border-radius: 50px;
-      font-family: 'Prompt', sans-serif;
+      font-family: inherit;
       cursor: pointer;
       transition: all 0.3s;
       margin-top: auto;
-      text-transform: uppercase;
+      text-transform: none;
       font-size: 0.8rem;
-      letter-spacing: 1px;
+      letter-spacing: 0.2px;
     }
     .btn-refresh:hover {
       background: var(--navy-deep);
       color: #fff;
-      box-shadow: 0 10px 20px rgba(27, 38, 49, 0.2);
+      box-shadow: 0 10px 20px rgba(120, 53, 15, 0.22);
     }
 
     /* Target file selector */
@@ -472,8 +509,8 @@
       margin-top: 14px;
       padding: 10px 12px;
       border-radius: 16px;
-      border: 1px solid rgba(255, 255, 255, 0.6);
-      background: rgba(255, 255, 255, 0.65);
+      border: 1px solid rgba(251, 191, 36, 0.25);
+      background: rgba(255, 255, 255, 0.70);
       box-shadow: 0 10px 30px rgba(0,0,0,0.06);
     }
     /* ซ่อน UI เลือกไฟล์ Target (ยังคงไว้ให้ระบบ auto-cycle ใช้งานใน DOM) */
@@ -490,16 +527,30 @@
     .target-picker-select {
       width: 100%;
       border-radius: 12px;
-      border: 1px solid rgba(212, 175, 55, 0.25);
-      background: rgba(255,255,255,0.9);
+      border: 1px solid rgba(180, 83, 9, 0.18);
+      background: rgba(255,255,255,0.92);
       padding: 10px 12px;
-      font-family: 'Prompt', sans-serif;
+      font-family: inherit;
       color: var(--text-dark);
       outline: none;
     }
     .target-picker-select:focus {
-      border-color: rgba(212, 175, 55, 0.65);
-      box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.18);
+      border-color: rgba(180, 83, 9, 0.55);
+      box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.18);
+    }
+
+    /* Reduce motion for users who prefer it */
+    @media (prefers-reduced-motion: reduce) {
+      * { scroll-behavior: auto !important; }
+      .swatch-img,
+      .btn-refresh,
+      .info-nav-btn,
+      .camera-toggle-btn,
+      .back-home-btn,
+      .retry-target-btn {
+        transition: none !important;
+        animation: none !important;
+      }
     }
     .target-picker-hint {
       margin-top: 6px;
@@ -517,7 +568,7 @@
       /* Mobile: แยกกล้องกับแผงข้อมูล ไม่ให้ทับกัน */
       body {
         align-items: flex-start;
-        background: #000;
+        background: var(--bg-color);
         overflow-y: auto;
       }
       
@@ -615,10 +666,11 @@
         margin-top: 12px;
       }
       .info-nav-btn {
-        padding: 9px 10px;
+        padding: 10px 10px;
         font-size: 0.74rem;
         border-radius: 16px;
         letter-spacing: 0.2px;
+        min-height: 44px;
       }
 
       .camera-toggle-btn {
@@ -665,9 +717,9 @@
   <div class="main-grid">
     
     <div class="mirror-container">
-      <div class="status-pill">
+      <div class="status-pill is-scanning">
         <div class="status-dot"></div>
-        <span class="status-text" id="status-text">Ready to Scan</span>
+        <span class="status-text" id="status-text">กำลังสแกน...</span>
       </div>
 
       <a class="back-home-btn" href="{% url 'home' %}" aria-label="กลับไปหน้าหลัก">
@@ -726,9 +778,9 @@
             <div id="panel-summary" class="mt-4 text-sm text-left meta-list hidden"></div>
           </div>
 
-          <!-- Page 2: แหล่งผลิต/ผู้คิดค้นลาย + ประวัติ -->
+          <!-- Page 2: ติดต่อ (+ ข้อมูลเพิ่มเติม) -->
           <div class="info-page" id="info-page-2" data-page="2">
-            <span class="page-title">แหล่งผลิต / ผู้คิดค้นลาย</span>
+            <span class="page-title">ติดต่อ</span>
             <div id="panel-meta" class="mt-4 text-sm text-left meta-list hidden">
               <!-- จะถูกเติมข้อมูลด้วย JavaScript -->
             </div>
@@ -745,12 +797,12 @@
 
       <div class="info-nav hidden" id="info-nav" aria-label="เปลี่ยนหน้าข้อมูล">
         <button type="button" class="info-nav-btn" data-info-page="1" aria-pressed="false">ข้อมูลผ้าไหม</button>
-        <button type="button" class="info-nav-btn" data-info-page="2" aria-pressed="false">แหล่งผลิต/ประวัติ</button>
+        <button type="button" class="info-nav-btn" data-info-page="2" aria-pressed="false">ติดต่อ</button>
         <button type="button" class="info-nav-btn" data-info-page="3" aria-pressed="false">รูปเพิ่มเติม</button>
       </div>
 
       <button class="btn-refresh" onclick="window.location.reload()">
-        Reset Camera
+        รีเซ็ตกล้อง
       </button>
     </div>
 
@@ -792,9 +844,15 @@
        try { window.__arStartFailed = true; } catch (e) {}
        const status = document.getElementById('status-text');
        if(status) {
-         status.textContent = "System Alert";
-         status.style.color = "#ff6b6b";
+         status.textContent = "เกิดข้อผิดพลาด";
        }
+       try {
+         const pill = document.querySelector('.status-pill');
+         if (pill) {
+           pill.classList.remove('is-scanning', 'is-found');
+           pill.classList.add('is-error');
+         }
+       } catch (e) {}
        return false;
     };
 

@@ -431,6 +431,26 @@ class SilkPattern(models.Model):
     Si_color = models.CharField(max_length=100, blank=True, verbose_name="สีหลัก")
     Si_history = models.TextField(blank=True, verbose_name="ประวัติและความเป็นมา")
 
+    # --- ศิลปิน/ผู้สร้างสรรค์ & ติดต่อ ---
+    Si_main_artist = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        verbose_name="ศิลปินหลัก (เจ้าของวัตถุ)",
+    )
+    Si_assistant_artists = models.TextField(
+        blank=True,
+        default="",
+        verbose_name="ศิลปินผู้ช่วย (ผู้ช่วยสร้างสรรค์งาน)",
+        help_text="หากมีหลายคน สามารถพิมพ์คั่นด้วยเครื่องหมายจุลภาค หรือขึ้นบรรทัดใหม่",
+    )
+    Si_contact_phone = models.CharField(
+        max_length=50,
+        blank=True,
+        default="",
+        verbose_name="เบอร์โทรสำหรับติดต่อ",
+    )
+
     # --- ส่วนประกอบสำหรับ AR (CRUD ผ่าน Admin) ---
 
     # 1) ลำดับ Index ในไฟล์ .mind

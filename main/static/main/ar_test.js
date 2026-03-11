@@ -20,7 +20,18 @@ document.addEventListener("DOMContentLoaded", async () => {
     const statusText = document.getElementById("status-text");
     const loaderScreen = document.getElementById("app-loader");
 
-    // Info pages (1: name, 2: images, 3: details)
+    const statusPill = document.querySelector(".status-pill");
+    const setStatus = (mode, text) => {
+        if (statusText && typeof text === "string") statusText.innerText = text;
+        if (!statusPill) return;
+
+        statusPill.classList.remove("is-scanning", "is-found", "is-error");
+        if (mode === "found") statusPill.classList.add("is-found");
+        else if (mode === "error") statusPill.classList.add("is-error");
+        else statusPill.classList.add("is-scanning");
+    };
+
+    // Info pages (1: summary, 2: meta/contact, 3: gallery)
     const infoPanel = document.getElementById("info-panel");
     const infoNav = document.getElementById("info-nav");
     const infoNavButtons = Array.from(document.querySelectorAll(".info-nav-btn[data-info-page]"));
@@ -109,6 +120,24 @@ document.addEventListener("DOMContentLoaded", async () => {
         rootEl.appendChild(block);
     };
 
+    const normalizePeopleListText = (value) => {
+        const raw = toText(value);
+        if (!raw) return "";
+        // Support both comma-separated and newline-separated input
+        const parts = raw
+            .split(/\r?\n|,/g)
+            .map((s) => String(s || "").trim())
+            .filter(Boolean);
+        return parts.join("\n");
+    };
+
+    const formatContactLine = (name, phone) => {
+        const n = toText(name);
+        const p = toText(phone);
+        if (n && p) return `${n} — ${p}`;
+        return n || p;
+    };
+
     const setGalleryImages = (urls) => {
         if (!galleryEl || !galleryEmptyEl) return;
 
@@ -160,7 +189,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         return uniqueFiles.length > 1;
     })();
     if (statusText && hasMultipleMindFiles) {
-        statusText.innerText = "กำลังค้นหาลายผ้า... รอหน่อยนะ";
+        setStatus("scanning", "กำลังค้นหาลายผ้า... รอหน่อยนะ");
     }
 
     // 2. Load Data from DOM (Django Template Injection)
@@ -347,7 +376,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 }
             }
 
-            // Update Gallery (Page 2)
+            // Update Gallery (Page 3)
             try {
                 const urls = Array.isArray(pattern.images) ? pattern.images : [];
                 const fallback = pattern.image_url || pattern.image;
@@ -358,20 +387,26 @@ document.addEventListener("DOMContentLoaded", async () => {
                 setGalleryImages([]);
             }
 
-            // Page 1: ข้อมูลผ้าไหม (ประเภท/สีหลัก)
+            // Page 1: ข้อมูลผ้าไหม + ศิลปินหลัก/ผู้ช่วย
             if (displaySummary) {
                 clearChildren(displaySummary);
                 addRow(displaySummary, "ประเภทผ้า:", pattern.si_type);
                 addRow(displaySummary, "สีหลัก:", pattern.si_color);
-                displaySummary.classList.remove("hidden");
+                addRow(displaySummary, "ศิลปินหลัก:", pattern.si_main_artist);
+                addBlock(displaySummary, "ศิลปินผู้ช่วย:", normalizePeopleListText(pattern.si_assistant_artists));
+
+                if (displaySummary.childElementCount > 0) displaySummary.classList.remove("hidden");
+                else displaySummary.classList.add("hidden");
             }
 
-            // Page 2: แหล่งผลิต/ผู้คิดค้นลาย + ประวัติ
+            // Page 2: ติดต่อ (ชื่อศิลปินหลัก + เบอร์) + แหล่งผลิต/ประวัติ
             if (displayMeta) {
                 clearChildren(displayMeta);
+                addRow(displayMeta, "ติดต่อ:", formatContactLine(pattern.si_main_artist, pattern.si_contact_phone));
                 addRow(displayMeta, "แหล่งผลิต / ผู้คิดค้นลาย:", pattern.si_address);
                 addBlock(displayMeta, "ประวัติความเป็นมา", pattern.si_history);
-                displayMeta.classList.remove("hidden");
+                if (displayMeta.childElementCount > 0) displayMeta.classList.remove("hidden");
+                else displayMeta.classList.add("hidden");
             }
 
             // Show info nav + reset to first page after detection
@@ -379,13 +414,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             setInfoPage(1);
 
             // Update Status Badge
-            if (statusText) {
-                statusText.innerText = "พบลายผ้าแล้ว";
-                statusText.style.color = "#2ecc71"; // Green
-                // Animate dot if needed
-                const dot = document.querySelector('.status-dot');
-                if(dot) dot.style.backgroundColor = "#2ecc71";
-            }
+            setStatus("found", "พบลายผ้าแล้ว");
         };
 
         anchor.onTargetLost = () => {
@@ -397,15 +426,10 @@ document.addEventListener("DOMContentLoaded", async () => {
              } catch (e) {
                  // ignore
              }
-             if (statusText) {
-                statusText.innerText = hasMultipleMindFiles
-                    ? "กำลังค้นหาลายผ้า... รอหน่อยนะ"
-                    : "Scanning...";
-                statusText.style.color = "#fff";
-                
-                const dot = document.querySelector('.status-dot');
-                if(dot) dot.style.backgroundColor = "#f39c12"; // Orange/Gold
-            }
+             setStatus(
+                "scanning",
+                hasMultipleMindFiles ? "กำลังค้นหาลายผ้า... รอหน่อยนะ" : "กำลังสแกน..."
+             );
         };
     });
 
@@ -427,6 +451,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     } catch (err) {
         console.error("Failed to start MindAR", err);
         try { window.__arStartFailed = true; } catch (e) {}
+        setStatus("error", "เกิดข้อผิดพลาดของกล้อง");
         if (loaderScreen) {
             loaderScreen.innerHTML = `<div style="color:red; text-align:center; padding:20px;">
                 <h3>Camera Error</h3>

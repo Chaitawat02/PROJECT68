@@ -23,6 +23,12 @@ class SilkPatternAdmin(admin.ModelAdmin):
             },
         ),
         (
+            "ศิลปินและติดต่อ",
+            {
+                "fields": ("Si_main_artist", "Si_assistant_artists", "Si_contact_phone"),
+            },
+        ),
+        (
             "เนื้อหาและประวัติ",
             {
                 "fields": ("Si_history", "image"),
@@ -36,8 +42,6 @@ class SilkPatternAdmin(admin.ModelAdmin):
                     "target_file",
                     "reference",
                     "model_3d",
-                    "silk_model_3d",
-                    "mannequin_model_3d",
                 ),
                 "description": "จัดการไฟล์ .glb และลำดับ Index เพื่อใช้ในการแสดงผล AR",
             },
@@ -46,7 +50,7 @@ class SilkPatternAdmin(admin.ModelAdmin):
 
     # ฟังก์ชันช่วยเช็คในหน้า List ว่ามีไฟล์โมเดลหรือยัง
     def has_model(self, obj):
-        return bool(obj.model_3d or obj.silk_model_3d or obj.mannequin_model_3d)
+        return bool(obj.model_3d)
 
     has_model.boolean = True
     has_model.short_description = "มีโมเดล 3D"

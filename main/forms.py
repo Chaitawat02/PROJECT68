@@ -315,7 +315,9 @@ class SilkPatternForm(forms.ModelForm):
         model = SilkPattern
         fields = [
             'Si_ID', 'Si_name', 'Si_address', 'Si_type',
-            'Si_color', 'Si_history', 'reference',
+            'Si_color', 'Si_history',
+            'Si_main_artist', 'Si_assistant_artists', 'Si_contact_phone',
+            'reference',
             'target_index', 'target_file', 'model_3d', 'image'
         ]
         widgets = {
@@ -325,6 +327,10 @@ class SilkPatternForm(forms.ModelForm):
             'Si_type': forms.TextInput(attrs={'class': 'form-control'}),
             'Si_color': forms.TextInput(attrs={'class': 'form-control'}),
             'Si_history': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
+
+            'Si_main_artist': forms.TextInput(attrs={'class': 'form-control'}),
+            'Si_assistant_artists': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
+            'Si_contact_phone': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'เช่น 08x-xxx-xxxx'}),
 
             # ✅ เปลี่ยนเป็น HideCurrentFileInput (ไม่โชว์ path)
             'reference': HideCurrentFileInput(attrs={'class': 'form-control'}),
