@@ -3943,22 +3943,26 @@ def manage_questions_delete_view(request, question_id):
         messages.error(request, 'ไม่สามารถลบคำถามนี้ได้ เนื่องจากมีผู้ตอบคำถามแล้ว')
     return redirect('manage_questions')
 
+@login_required
 def speaker_edit_view(request, speaker_id):
     # ดึงข้อมูลวิทยากร หรือส่งกลับหน้า 404 ถ้าไม่พบ
     speaker = get_object_or_404(Speaker, id=speaker_id)
 
     # ตรวจสอบสิทธิ์ (ป้องกันไม่ให้วิทยากรคนอื่นมาแก้ข้อมูลกันเอง)
-    if request.user.speaker.id != speaker.id:
+    user_speaker = Speaker.objects.filter(user=request.user).first()
+    if not user_speaker or user_speaker.id != speaker.id:
         return redirect('speaker_dashboard')
 
     if request.method == 'POST':
         # ตรงนี้ต้องใช้ Form สำหรับแก้ไขข้อมูล (ถ้ามี SpeakerForm)
         # ตัวอย่างการอัปเดตแบบง่าย:
-        speaker.name = request.POST.get('name')
-        speaker.expertise = request.POST.get('expertise')
+        speaker.name = (request.POST.get('name') or '').strip()
+        speaker.expertise = (request.POST.get('expertise') or '').strip()
+        speaker.biography = (request.POST.get('biography') or '').strip()
         if 'profile_picture' in request.FILES:
             speaker.profile_picture = request.FILES['profile_picture']
         speaker.save()
+        messages.success(request, 'บันทึกข้อมูลวิทยากรเรียบร้อยแล้ว')
         return redirect('speaker_dashboard')
 
     return render(request, 'speaker/speaker_edit.html', {'speaker': speaker})
