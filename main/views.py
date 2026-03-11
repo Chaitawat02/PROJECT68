@@ -1150,13 +1150,16 @@ def booking_detail_view(request, booking_id):
         else f"{reverse('user_dashboard')}?section=booking"
     )
 
+    current_status = (getattr(booking, "Re_status", None) or "").strip()
+    can_decide_booking = bool(is_staff_or_admin(request.user)) and (current_status in ("", "pending"))
+
     return render(request, 'booking/booking_detail.html', {
         'booking': booking,
         'questionnaire_available': questions_exist,
         'questionnaire_url': questionnaire_url,
         'questionnaire_qr': qr_data,
         'back_to_history_url': back_to_history_url,
-        'can_decide_booking': is_staff_or_admin(request.user),
+        'can_decide_booking': can_decide_booking,
         'current_url': request.get_full_path(),
     })
 
@@ -3452,6 +3455,11 @@ def update_booking_status(request, booking_id, status):
         return redirect('approve_bookings')
 
     status = (status or "").lower().strip()
+
+    current_status = (getattr(booking, "Re_status", None) or "").strip()
+    if current_status not in ("", "pending"):
+        messages.error(request, "ไม่สามารถอนุมัติ/ปฏิเสธได้ เนื่องจากรายการนี้ไม่ได้อยู่ในสถานะรออนุมัติ")
+        return _safe_redirect(next_url)
 
     if status == 'approved':
         booking.Re_status = 'approved'
