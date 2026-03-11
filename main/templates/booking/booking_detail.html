@@ -122,7 +122,7 @@
 
             <hr class="border-gray-100">
 
-                        {% if can_decide_booking %}
+                        {% if can_decide_booking and (booking.Re_status == 'pending' or not booking.Re_status) %}
                         <div class="bg-amber-50 border border-amber-100 p-4 rounded-2xl no-page-break">
                                 <p class="text-xs text-gray-500 uppercase font-bold mb-3">การอนุมัติ (เฉพาะผู้ดูแล)</p>
                                 <div class="flex flex-col sm:flex-row gap-3">
@@ -155,7 +155,7 @@
     </div>
 </div>
 
-{% if can_decide_booking %}
+{% if can_decide_booking and (booking.Re_status == 'pending' or not booking.Re_status) %}
 <!-- Modal ปฏิเสธ + ฟอร์มส่งเหตุผล (เฉพาะผู้ดูแล) -->
 <div id="rejectModal" class="fixed inset-0 z-50 hidden">
     <div class="absolute inset-0 bg-black/40" onclick="closeRejectModal()"></div>
