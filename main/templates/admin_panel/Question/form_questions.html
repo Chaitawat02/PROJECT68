@@ -86,6 +86,30 @@
                     <div class="h-[1px] bg-gray-100 flex-grow"></div>
                 </div>
 
+                {% if form.is_active %}
+                <div class="mb-10">
+                    <div class="flex items-center justify-between gap-4 rounded-2xl border border-gray-100 bg-gray-50/60 px-6 py-5">
+                        <div>
+                            <div class="text-sm font-black text-gray-700 uppercase tracking-widest flex items-center">
+                                <i class="fas fa-eye mr-3 text-amber-600"></i> การแสดงผลคำถาม
+                            </div>
+                            <p class="text-xs text-gray-500 font-medium mt-1">
+                                เปิดไว้ = แสดงคำถามให้ผู้ใช้ทำแบบประเมิน, ปิด = ซ่อนคำถาม
+                            </p>
+                        </div>
+                        <label for="{{ form.is_active.id_for_label }}" class="inline-flex items-center gap-3 cursor-pointer select-none">
+                            {{ form.is_active }}
+                            <span class="text-sm font-bold text-gray-700">แสดงคำถาม</span>
+                        </label>
+                    </div>
+                    {% if form.is_active.errors %}
+                        <div class="flex items-center text-red-500 text-xs font-bold mt-3 bg-red-50 p-3 rounded-xl border border-red-100">
+                            <i class="fas fa-exclamation-circle mr-2 text-sm"></i>{{ form.is_active.errors.0 }}
+                        </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+
                     <div class="flex items-center gap-4 w-full sm:w-auto">
                         <a href="{% url 'manage_questions' %}" class="flex-1 sm:flex-none text-center px-8 py-4 rounded-2xl text-gray-400 font-bold hover:bg-gray-100 transition-all">
                             ยกเลิก
